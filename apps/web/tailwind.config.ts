@@ -1,5 +1,7 @@
 import type { Config } from "tailwindcss";
-import { tokens } from "@tenant-hub/ui";
+// Import tokens directly (not the package index, which re-exports a React
+// component jiti can't resolve while loading this config).
+import { tokens } from "../../packages/ui/src/tokens";
 
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],

@@ -9,9 +9,14 @@ export const NinoSchema = z
   .regex(/^[A-CEGHJ-PR-TW-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]$/i, "Invalid National Insurance number")
   .transform(v => v.replace(/\s/g, "").toUpperCase());
 
-export const UkPhoneSchema = z
+// International phone — accepts numbers from all countries (per the forms brief:
+// "allow the number population to accept all countries"). Optional leading +,
+// digits with spaces/hyphens/parentheses, 7–20 chars. UkPhoneSchema kept as an
+// alias so existing imports keep working.
+export const PhoneSchema = z
   .string()
-  .regex(/^(\+44|0)[1-9]\d{8,9}$/, "Invalid UK phone number");
+  .regex(/^\+?[\d\s().-]{7,20}$/, "Invalid phone number");
+export const UkPhoneSchema = PhoneSchema;
 
 export const UkDateSchema = z
   .string()
