@@ -39,6 +39,23 @@ OpenAI key is present (honouring the user's stated preference), Anthropic otherw
 **Why:** Honours the user's explicit env-level preference while keeping the documented architecture
 working with whatever key is configured.
 
+## D7 — Fixed `write_with_audit` RPC: partial UPDATE was a silent no-op
+**Context:** Migration `003_write_with_audit_rpc.sql` upserts with
+`ON CONFLICT (id) DO UPDATE SET updated_at = NOW()` — it never applies the patched columns. Any
+PATCH would change `updated_at` and nothing else: a **silent no-op save**, the exact prototype
+failure the whole architecture exists to prevent.
+**Decision:** Added `004_fix_write_with_audit_upsert.sql` (CREATE OR REPLACE) that builds a real
+dynamic `UPDATE ... SET <provided columns>` for existing rows and INSERTs new rows, keeping the
+same audit-log + stamp-queue writes in one transaction.
+**Action required by user:** Re-run migration 004 against the Supabase project.
+
+## D6 — Reads via supabase-server (per-request RLS); writes via packages/db
+**Context:** `packages/db` exposes a singleton `rlsClient` with no per-request cookies, so it can't
+enforce per-user RLS on reads. H7 wants "one data path," but correct RLS needs the user's JWT.
+**Decision:** GET/read routes use `createSupabaseServer()` (anon client carrying the user's session
+cookies → true RLS). All writes go through `packages/db` `writeWithAudit()` (service-role + audit
+in one RPC). This keeps H1/H2 intact and makes reads RLS-correct.
+
 ## D5 — Right contextual panel rendered per-page, not by the layout
 **Context:** The three-panel spec puts a 280px right "Quick Actions / context" panel in the
 dashboard layout. But its content is page-specific (dashboard quick-actions vs tenant Forms Panel),

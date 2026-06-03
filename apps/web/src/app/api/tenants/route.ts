@@ -1,45 +1,62 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { TenantRepository, rlsClient } from "@tenant-hub/db";
+import { writeWithAudit } from "@tenant-hub/db";
+import { TenantCreateSchema } from "@tenant-hub/validation";
+import { can } from "@tenant-hub/auth";
+import { getApiAuth } from "../../../lib/api-auth";
 
 /**
- * GET /api/tenants
- * Wires TenantRepository.findAll() to the UI. Consumed by the useTenants() hook,
- * which is the single source of truth for both the sidebar and the stats widget (H8).
- *
- * Production failure #1 ("silent 401s") is fixed here BY CONSTRUCTION:
- * an unauthenticated request returns an EXPLICIT 401 JSON error — never an
- * empty 200 that the UI would mistake for "this user has no tenants".
- *
- * NOTE: full Supabase Auth session wiring is a separate Sprint 1 task
- * (apps/web/src/app/(auth)/). Until that lands, the actor is resolved from the
- * sb-access-token cookie — the same cookie middleware.ts already gates on.
+ * GET /api/tenants — active, non-archived tenants for the current user.
+ * Reads via the RLS-respecting server client (D6). Returns an explicit 401
+ * (never an empty 200) when unauthenticated — closing the silent-401 failure.
+ * Consumed by useTenants() (single source of truth, H8).
  */
 export async function GET() {
-  const token = cookies().get("sb-access-token")?.value;
-  if (!token) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  const auth = await getApiAuth();
+  if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+
+  const { data, error } = await auth.supabase
+    .from("tenants")
+    .select("*")
+    .eq("is_active", true)
+    .eq("is_archived", false)
+    .order("created_at", { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data ?? []);
+}
+
+/**
+ * POST /api/tenants — create a tenant. Validates with TenantCreateSchema and
+ * writes through packages/db writeWithAudit (H1: every write audited).
+ */
+export async function POST(req: Request) {
+  const auth = await getApiAuth();
+  if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+
+  if (!can(auth.actor.user_role, "tenants", "create")) {
+    return NextResponse.json({ error: "Permission denied" }, { status: 403 });
   }
 
-  const { data: { user }, error: authError } = await rlsClient.auth.getUser(token);
-  if (authError || !user) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+  const body = await req.json().catch(() => null);
+  const parsed = TenantCreateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", issues: parsed.error.issues },
+      { status: 422 },
+    );
   }
-
-  const actor = {
-    user_id:   user.id,
-    user_name: (user.user_metadata?.["full_name"] as string | undefined) ?? user.email ?? user.id,
-    user_role: (user.app_metadata?.["role"] as string | undefined)
-            ?? (user.user_metadata?.["role"] as string | undefined)
-            ?? "tenant",
-  };
 
   try {
-    const tenants = await TenantRepository.findAll(actor);
-    return NextResponse.json(tenants);
+    const { data } = await writeWithAudit({
+      table: "tenants",
+      record: { ...parsed.data, created_by: auth.actor.user_id } as Record<string, unknown>,
+      action: "CREATE",
+      entry_method: parsed.data.entry_method,
+      ...auth.actor,
+    });
+    return NextResponse.json(data, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("GET /api/tenants:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
