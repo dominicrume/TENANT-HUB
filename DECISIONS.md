@@ -39,6 +39,14 @@ OpenAI key is present (honouring the user's stated preference), Anthropic otherw
 **Why:** Honours the user's explicit env-level preference while keeping the documented architecture
 working with whatever key is configured.
 
+## D5 — Right contextual panel rendered per-page, not by the layout
+**Context:** The three-panel spec puts a 280px right "Quick Actions / context" panel in the
+dashboard layout. But its content is page-specific (dashboard quick-actions vs tenant Forms Panel),
+and the Next.js App Router has no simple named-slot API (parallel routes are heavy for this).
+**Decision:** The `(dashboard)/layout.tsx` owns the topbar + left sidebar + main region. Each page
+renders its own right rail inside the main region (flex row). The visual result is the same
+three-region screen; the structure stays idiomatic.
+
 ## D4 — `.env.local` missing at pre-flight (now resolved)
 **Context:** Pre-flight step 5 requires `.env.local` with the public Supabase vars. It did not exist.
 **Decision:** Created `.env.local` from the values that were (incorrectly) in `.env.example`, so the
