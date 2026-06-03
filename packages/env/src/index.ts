@@ -10,7 +10,10 @@ import { z } from "zod";
 const serverSchema = z.object({
   SUPABASE_URL:              z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  ANTHROPIC_API_KEY:         z.string().startsWith("sk-ant-"),
+  // One of these powers the AI features. Both optional; the AI gateway picks a
+  // provider at runtime (OpenAI preferred when present). See DECISIONS.md D3.
+  ANTHROPIC_API_KEY:         z.string().optional(),
+  OPENAI_API_KEY:            z.string().optional(),
   POLYGON_RPC_URL:           z.string().url().optional(),
   STAMP_WALLET_PRIVATE_KEY:  z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
