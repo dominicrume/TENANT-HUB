@@ -1,0 +1,13 @@
+node_modules
+.next
+dist
+.turbo
+*.tsbuildinfo
+.env.local
+.env.*.local
+coverage
+
+# OS / editor cruft
+.DS_Store
+# MS Office lock files (e.g. ~$forms .docx)
+~$*

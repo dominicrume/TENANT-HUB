@@ -1,0 +1,10 @@
+{
+  "name": "@tenant-hub/audit",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run", "lint": "eslint src" },
+  "dependencies": {},
+  "devDependencies": { "typescript": "5.4.5", "vitest": "1.6.0" }
+}

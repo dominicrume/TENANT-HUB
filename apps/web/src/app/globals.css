@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --navy:   #0F1C2E;
+  --amber:  #E8A84C;
+  --cream:  #F8F4EF;
+  --surface:#FFFFFF;
+}
+
+body {
+  background: var(--cream);
+  font-family: 'Sora', system-ui, sans-serif;
+  color: #1A1A2E;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  body { background: white; }
+}

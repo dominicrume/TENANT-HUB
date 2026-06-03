@@ -1,0 +1,48 @@
+/**
+ * AI Brain — generate 3 follow-up questions from last session notes.
+ * Receives a SecureDbGateway — never constructs its own Supabase client.
+ */
+import Anthropic from "@anthropic-ai/sdk";
+import type { SecureDbGateway } from "./gateway";
+
+const client = new Anthropic();
+
+export async function generateSessionQuestions(
+  tenantId: string,
+  gateway: SecureDbGateway
+): Promise<string[]> {
+  const sessions = await gateway.readSessions(tenantId);
+  const lastSession = sessions[0];
+
+  if (!lastSession) return [
+    "How have you been feeling since we last met?",
+    "Have there been any changes to your housing situation?",
+    "Is there anything you'd like support with this week?",
+  ];
+
+  const prompt = `You are a housing support worker assistant.
+Based on these notes from the last session, generate exactly 3 
+follow-up questions for the next session. Be specific to the notes.
+Be compassionate and professional.
+
+Last session (${lastSession.session_date}):
+${lastSession.notes}
+
+Respond with ONLY a JSON array of 3 question strings. No other text.`;
+
+  const response = await client.messages.create({
+    model:      "claude-sonnet-4-20250514",
+    max_tokens: 300,
+    messages:   [{ role: "user", content: prompt }],
+  });
+
+  const content = response.content[0];
+  if (content?.type !== "text") return [];
+
+  try {
+    const questions = JSON.parse(content.text) as string[];
+    return Array.isArray(questions) ? questions.slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+}

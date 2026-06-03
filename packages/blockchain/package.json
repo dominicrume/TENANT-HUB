@@ -1,0 +1,13 @@
+{
+  "name": "@tenant-hub/blockchain",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "lint": "eslint src" },
+  "dependencies": {
+    "@tenant-hub/audit": "workspace:*",
+    "zod": "3.23.8"
+  },
+  "devDependencies": { "typescript": "5.4.5" }
+}

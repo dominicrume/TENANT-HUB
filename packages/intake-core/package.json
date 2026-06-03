@@ -1,0 +1,14 @@
+{
+  "name": "@tenant-hub/intake-core",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests", "lint": "eslint src" },
+  "dependencies": {
+    "@tenant-hub/validation": "workspace:*",
+    "xstate": "5.14.0",
+    "zod": "3.23.8"
+  },
+  "devDependencies": { "typescript": "5.4.5", "vitest": "1.6.0" }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "@tenant-hub/web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev":       "next dev",
+    "build":     "next build",
+    "start":     "next start",
+    "typecheck": "tsc --noEmit",
+    "lint":      "next lint"
+  },
+  "dependencies": {
+    "@tenant-hub/env":          "workspace:*",
+    "@tenant-hub/validation":   "workspace:*",
+    "@tenant-hub/domain":       "workspace:*",
+    "@tenant-hub/intake-core":  "workspace:*",
+    "@tenant-hub/db":           "workspace:*",
+    "@tenant-hub/auth":         "workspace:*",
+    "@tenant-hub/ai":           "workspace:*",
+    "@tenant-hub/ui":           "workspace:*",
+    "@tenant-hub/audit":        "workspace:*",
+    "@tenant-hub/blockchain":   "workspace:*",
+    "next":                     "14.2.3",
+    "react":                    "18.3.1",
+    "react-dom":                "18.3.1",
+    "@supabase/supabase-js":    "2.43.4",
+    "@supabase/ssr":            "0.3.0",
+    "xstate":                   "5.14.0",
+    "@xstate/react":            "4.1.1",
+    "zod":                      "3.23.8"
+  },
+  "devDependencies": {
+    "typescript":             "5.4.5",
+    "@types/react":           "18.3.3",
+    "@types/react-dom":       "18.3.0",
+    "@types/node":            "20.12.12",
+    "tailwindcss":            "3.4.3",
+    "autoprefixer":           "10.4.19",
+    "postcss":                "8.4.38",
+    "eslint":                 "8.57.0",
+    "eslint-config-next":     "14.2.3",
+    "@tenant-hub/eslint-config": "workspace:*"
+  }
+}

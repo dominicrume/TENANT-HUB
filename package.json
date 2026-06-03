@@ -1,0 +1,21 @@
+{
+  "name": "tenant-hub-root",
+  "private": true,
+  "scripts": {
+    "dev":        "turbo run dev",
+    "build":      "turbo run build",
+    "typecheck":  "turbo run typecheck",
+    "lint":       "turbo run lint",
+    "test":       "turbo run test",
+    "gen":        "node scripts/gen-package.mjs"
+  },
+  "devDependencies": {
+    "turbo":               "1.13.3",
+    "typescript":          "5.4.5",
+    "@types/node":         "20.12.12",
+    "prettier":            "3.2.5",
+    "vitest":              "1.6.0"
+  },
+  "engines": { "node": ">=20", "pnpm": ">=9" },
+  "packageManager": "pnpm@9.1.4"
+}
