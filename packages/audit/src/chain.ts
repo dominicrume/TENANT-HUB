@@ -19,6 +19,7 @@ export interface AuditEntry {
   user_role:   string;
   prev_hash:   string;           // hash of the previous entry for THIS record
   entry_method?: string;
+  tenant_id?:  string;           // links non-tenant writes (sessions, charges) to a tenant
 }
 
 export interface AuditRecord extends AuditEntry {

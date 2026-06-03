@@ -15,6 +15,7 @@ export interface WriteAuditOptions<T extends Record<string, unknown>> {
   user_role:  string;
   prev_hash?: string;
   entry_method?: string;
+  tenant_id?: string;
 }
 
 export async function writeWithAudit<T extends Record<string, unknown>>(
@@ -32,6 +33,7 @@ export async function writeWithAudit<T extends Record<string, unknown>>(
     user_role:    opts.user_role,
     prev_hash:    opts.prev_hash ?? GENESIS_HASH,
     entry_method: opts.entry_method,
+    tenant_id:    opts.tenant_id,
   };
 
   const auditRecord = await buildAuditRecord(entry, timestamp);
