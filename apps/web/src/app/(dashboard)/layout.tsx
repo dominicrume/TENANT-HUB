@@ -39,6 +39,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   async function handleSignOut() {
     await signOut();
+    try {
+      localStorage.removeItem("th_brand"); // S5-D: clear brand preference
+    } catch {
+      /* ignore */
+    }
     router.push("/login");
     router.refresh();
   }
