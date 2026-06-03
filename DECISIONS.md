@@ -39,6 +39,16 @@ OpenAI key is present (honouring the user's stated preference), Anthropic otherw
 **Why:** Honours the user's explicit env-level preference while keeping the documented architecture
 working with whatever key is configured.
 
+## D8 — H4 signature binding computed over the canonical record (not name+date)
+**Context:** S3 spec says Step 4 computes `signature_hash` from "(name + date + draftId)" and asserts it
+equals the Step 3 `canonical_hash` (which is hashed from the record fields). Those two formulas can
+never be equal, so the assertion would always fail.
+**Decision:** Implemented true H4 binding: Step 3 stores `canonical_hash = SHA256(canonical record)`.
+Step 4 RECOMPUTES the hash from the (unchanged) draft record and asserts equality before accepting
+the signature; the tenant's name/date are recorded as signature metadata. Mismatch → reject ("record
+changed since review"). This matches HARDENING H4 ("recomputes canonical hash and asserts it equals
+the hash displayed in Step 4") and the XState guard `signature_hash === canonical_hash`.
+
 ## D7 — Fixed `write_with_audit` RPC: partial UPDATE was a silent no-op
 **Context:** Migration `003_write_with_audit_rpc.sql` upserts with
 `ON CONFLICT (id) DO UPDATE SET updated_at = NOW()` — it never applies the patched columns. Any
