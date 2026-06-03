@@ -3,7 +3,10 @@
  * Both the stats widget and the sidebar use this hook.
  * They CANNOT disagree on tenant count (H8).
  *
- * Uses TenantRepository from packages/db (never raw supabase calls).
+ * This is a CLIENT hook, so it must NOT import packages/db (that would drag the
+ * service-role client across the boundary). The data path is:
+ *   useTenants() → GET /api/tenants → TenantRepository.findAll() → rlsClient
+ * One path, one query — no demo-mode divergence (H7).
  */
 "use client";
 
@@ -19,9 +22,12 @@ export function useTenants() {
     setLoading(true);
     setError(null);
     try {
-      // In Sprint 1: replace with TenantRepository.findAll()
       const res = await fetch("/api/tenants");
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      if (!res.ok) {
+        // The route returns { error } on 401/500 — surface that, never swallow it.
+        const body = await res.json().catch(() => null) as { error?: string } | null;
+        throw new Error(body?.error ?? `${res.status} ${res.statusText}`);
+      }
       const data = await res.json() as CanonicalTenant[];
       setTenants(data);
     } catch (err) {
