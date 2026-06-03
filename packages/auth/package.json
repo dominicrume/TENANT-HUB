@@ -4,7 +4,7 @@
   "private": true,
   "main": "./src/index.ts",
   "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run", "lint": "eslint src" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run", "lint": "eslint src --ext .ts,.tsx" },
   "dependencies": {
     "@tenant-hub/validation": "workspace:*",
     "@supabase/supabase-js":  "2.43.4",

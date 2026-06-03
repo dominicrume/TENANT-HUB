@@ -7,11 +7,14 @@
 import type { ReactNode } from "react";
 import { AuthProvider } from "../contexts/AuthContext";
 import { BrandProvider } from "../contexts/BrandContext";
+import { ToastProvider } from "../components/ui/Toast";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
-      <BrandProvider>{children}</BrandProvider>
+      <BrandProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </BrandProvider>
     </AuthProvider>
   );
 }

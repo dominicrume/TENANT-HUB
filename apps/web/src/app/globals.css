@@ -17,6 +17,12 @@ body {
   color: #1A1A2E;
 }
 
+/* Narrow screens / tablet: drop the contextual right rail so the main column
+   keeps full width. (Full responsive polish is tracked in BUILD_REPORT.) */
+@media (max-width: 1024px) {
+  .forms-panel { display: none !important; }
+}
+
 @media print {
   /* Hide all dashboard chrome — only the active form/letterhead prints. */
   .no-print,

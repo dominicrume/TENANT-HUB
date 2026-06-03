@@ -4,7 +4,7 @@
   "private": true,
   "main": "./src/index.ts",
   "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests", "lint": "eslint src" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests", "lint": "eslint src --ext .ts,.tsx" },
   "dependencies": {
     "@tenant-hub/validation": "workspace:*",
     "xstate": "5.14.0",

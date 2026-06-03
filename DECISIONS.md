@@ -39,6 +39,15 @@ OpenAI key is present (honouring the user's stated preference), Anthropic otherw
 **Why:** Honours the user's explicit env-level preference while keeping the documented architecture
 working with whatever key is configured.
 
+## D9 — Wired ESLint for TypeScript (boundary rules were never running)
+**Context:** Package lint scripts ran `eslint src` with no `--ext` and the shared config had no TS
+parser, so ESLint matched zero `.js` files and errored ("No files matching the pattern") in every
+package. The dependency-boundary rules (H2, ui/ai/db isolation) were therefore never enforced.
+**Decision:** Added `@typescript-eslint/parser` + the TS import resolver to `@tenant-hub/eslint-config`,
+set the parser/resolver, changed scripts to `eslint src --ext .ts,.tsx`, and added an apps/web
+`.eslintrc.json` (`next/core-web-vitals` + boundary config). `pnpm lint` now passes and the
+architectural boundaries are actually checked.
+
 ## D8 — H4 signature binding computed over the canonical record (not name+date)
 **Context:** S3 spec says Step 4 computes `signature_hash` from "(name + date + draftId)" and asserts it
 equals the Step 3 `canonical_hash` (which is hashed from the record fields). Those two formulas can

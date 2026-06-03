@@ -3,7 +3,15 @@
  * A violation here is a BUILD FAILURE, not a warning.
  */
 module.exports = {
+  parser: "@typescript-eslint/parser",
+  parserOptions: { ecmaVersion: 2022, sourceType: "module" },
   plugins: ["import"],
+  settings: {
+    "import/resolver": {
+      typescript: { project: ["packages/*/tsconfig.json", "apps/*/tsconfig.json"] },
+      node: { extensions: [".js", ".ts", ".tsx"] },
+    },
+  },
   rules: {
     "import/no-restricted-paths": ["error", {
       zones: [
