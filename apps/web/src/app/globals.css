@@ -18,7 +18,25 @@ body {
 }
 
 @media print {
-  .no-print { display: none !important; }
+  /* Hide all dashboard chrome — only the active form/letterhead prints. */
+  .no-print,
+  nav,
+  header,
+  .forms-panel,
+  .tab-row,
+  .action-bar { display: none !important; }
+
   .print-only { display: block !important; }
   body { background: white; }
+
+  /* Drop the cream canvas + cards to plain paper. */
+  main { overflow: visible !important; }
+  .print-area { box-shadow: none !important; border: none !important; }
+
+  .print-page-break { page-break-after: always; }
+
+  h1, h2, h3 { font-family: 'Sora', sans-serif; }
+  .mono, [data-mono] { font-family: 'JetBrains Mono', monospace; }
+
+  @page { margin: 16mm; }
 }

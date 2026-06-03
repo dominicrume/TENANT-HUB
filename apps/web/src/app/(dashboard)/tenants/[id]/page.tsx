@@ -23,6 +23,7 @@ import { FormSection, TextField, SelectField } from "../../../../components/form
 import { SessionsTab } from "../../../../components/tenant/SessionsTab";
 import { LedgerTab } from "../../../../components/tenant/LedgerTab";
 import { ChecklistTab } from "../../../../components/tenant/ChecklistTab";
+import { FormsPanel } from "../../../../components/layout/FormsPanel";
 
 const TABS = [
   { key: "personal", label: "Personal Details" },
@@ -128,11 +129,12 @@ export default function TenantDetailPage() {
   }
 
   return (
-    <div style={{ padding: "1.75rem", fontFamily: "'Sora', sans-serif", maxWidth: "920px" }}>
+    <div style={{ display: "flex", minHeight: "100%" }}>
+      <div className="print-area" style={{ flex: 1, minWidth: 0, padding: "1.75rem", fontFamily: "'Sora', sans-serif", maxWidth: "920px" }}>
       <LetterheadBlock roomNumber={tenant?.room_number} date={tenant?.full_name} />
 
       {/* TABS */}
-      <div style={{ display: "flex", gap: "4px", margin: "18px 0 14px", borderBottom: "1px solid #EDE8E1" }}>
+      <div className="tab-row" style={{ display: "flex", gap: "4px", margin: "18px 0 14px", borderBottom: "1px solid #EDE8E1" }}>
         {TABS.map((t) => {
           const active = tab === t.key;
           return (
@@ -227,7 +229,7 @@ export default function TenantDetailPage() {
           </div>
 
           {/* SAVE ACTION BAR */}
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <div className="action-bar" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <button
               onClick={onSave}
               disabled={saving}
@@ -258,6 +260,9 @@ export default function TenantDetailPage() {
       {tab === "sessions" && <SessionsTab tenantId={id} />}
       {tab === "ledger" && <LedgerTab tenantId={id} />}
       {tab === "checklist" && <ChecklistTab tenantId={id} />}
+      </div>
+
+      {tenant && <FormsPanel tenant={tenant} />}
     </div>
   );
 }
