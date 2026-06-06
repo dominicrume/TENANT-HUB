@@ -48,8 +48,17 @@ export async function middleware(req: NextRequest) {
       .select("role")
       .eq("id", user.id)
       .single();
-    res.headers.set("x-user-role", (profile?.role as string) ?? "tenant");
+    
+    const role = (profile?.role as string) ?? "tenant";
+    res.headers.set("x-user-role", role);
     res.headers.set("x-user-id", user.id);
+
+    // Contractor routing enforcement
+    if (role === "contractor") {
+      if (pathname === "/dashboard" || pathname.startsWith("/tenants")) {
+        return NextResponse.redirect(new URL("/jobs", req.url));
+      }
+    }
   }
 
   return res;

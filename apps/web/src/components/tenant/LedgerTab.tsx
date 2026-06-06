@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ServiceCharge } from "@tenant-hub/validation";
 import { formatShortDate, formatMoney } from "../../lib/format";
+import Link from "next/link";
 
 const DEFAULT_WEEKLY = 150;
 
@@ -87,10 +88,11 @@ export function LedgerTab({ tenantId }: { tenantId: string }) {
           style={{ minHeight: "44px", padding: "0 16px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", color: "var(--navy)", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
           + Add Week
         </button>
-        <button onClick={() => window.print()}
-          style={{ minHeight: "44px", padding: "0 16px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
-          🖨 Print Statement
-        </button>
+        <Link href={`/tenants/${tenantId}/statement`}
+          className="no-print"
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: "44px", padding: "0 16px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 600, fontSize: "13px", cursor: "pointer", textDecoration: "none" }}>
+          🖨 Generate Statement
+        </Link>
       </div>
 
       {/* TABLE */}
