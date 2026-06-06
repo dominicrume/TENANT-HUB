@@ -31,7 +31,7 @@ export default function StatementPage({ params }: { params: { id: string } }) {
           <p className="text-lg text-slate-500 mt-2">Housing Benefit / Universal Credit Ledger</p>
         </div>
         <div className="text-right text-sm text-slate-500 space-y-1">
-          <p className="font-bold text-slate-800">Matty's Place Supported Housing</p>
+          <p className="font-bold text-slate-800">Matty&apos;s Place Supported Housing</p>
           <p>123 Support Lane</p>
           <p>London, E1 4LX</p>
           <p>admin@mattysplace.org.uk</p>

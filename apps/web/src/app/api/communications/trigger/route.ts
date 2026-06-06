@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
-import { supabaseServer } from "../../../../lib/supabase-server";
+import { createSupabaseServer } from "../../../../lib/supabase-server";
 
 export async function POST(req: Request) {
   const auth = await getApiAuth();
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Insert into communications log
+    const supabase = createSupabaseServer();
     const { data, error } = await supabase
       .from("communications_log")
       .insert({

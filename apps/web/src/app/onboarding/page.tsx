@@ -31,7 +31,7 @@ export default function Onboarding() {
     <div className="min-h-screen flex items-center justify-center bg-cream-50 p-4">
       <div className="max-w-md w-full bg-white shadow-lg rounded-xl p-8 text-center">
         <h2 className="text-3xl font-bold text-navy-900 mb-2">Welcome to Tenant Hub</h2>
-        <p className="text-navy-600 mb-6">Let's set up your organisation to get started.</p>
+        <p className="text-navy-600 mb-6">Let&apos;s set up your organisation to get started.</p>
         
         <form onSubmit={handleCreateOrg} className="space-y-4">
           <div>
