@@ -26,6 +26,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@stripe/stripe-js':
+        specifier: ^9.7.0
+        version: 9.7.0
       '@supabase/ssr':
         specifier: 0.3.0
         version: 0.3.0(@supabase/supabase-js@2.43.4)
@@ -83,6 +86,9 @@ importers:
       react-dom:
         specifier: 18.3.1
         version: 18.3.1(react@18.3.1)
+      stripe:
+        specifier: ^22.2.0
+        version: 22.2.0(@types/node@20.12.12)
       xstate:
         specifier: 5.14.0
         version: 5.14.0
@@ -958,6 +964,10 @@ packages:
 
   '@sinclair/typebox@0.27.10':
     resolution: {integrity: sha512-MTBk/3jGLNB2tVxv6uLlFh1iu64iYOQ2PbdOSK3NW8JZsmlaOh2q6sdtKowBhfw8QFLmYNzTW4/oK4uATIi6ZA==}
+
+  '@stripe/stripe-js@9.7.0':
+    resolution: {integrity: sha512-r1ElolvWXM4aYnZZVHvKW3EDL8JcwEuIgTuWxlB5lvC+YsvjkQ0gX35x9d8dTDubX395fViLVqkaolVs1PmIQQ==}
+    engines: {node: '>=12.16'}
 
   '@supabase/auth-js@2.64.2':
     resolution: {integrity: sha512-s+lkHEdGiczDrzXJ1YWt2y3bxRi+qIUnXcgkpLSrId7yjBeaXBFygNjTaoZLG02KNcYwbuZ9qkEIqmj2hF7svw==}
@@ -2735,6 +2745,15 @@ packages:
   strip-literal@2.1.1:
     resolution: {integrity: sha512-631UJ6O00eNGfMiWG78ck80dfBab8X6IVFB51jZK5Icd7XAs60Z5y7QdSd/wGIklnWvRbUNloVzhOKKmutxQ6Q==}
 
+  stripe@22.2.0:
+    resolution: {integrity: sha512-WFGpMOom9QZqso1kcnSwJsCdC1QHDlMoCOxBZRf3JraMzhkfw7dgSdD2a1CFZrqC+mzAfqeEtYILrZhWKIDruA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
   styled-jsx@5.1.1:
     resolution: {integrity: sha512-pW7uC1l4mBZ8ugbiZrcIsiIvVx1UmTfw7UkC3Um2tmfUq9Bhk8IiyEIPl6F8agHgjzku6j0xQEZbfA5uSgSaCw==}
     engines: {node: '>= 12.0.0'}
@@ -3537,6 +3556,8 @@ snapshots:
   '@rushstack/eslint-patch@1.16.1': {}
 
   '@sinclair/typebox@0.27.10': {}
+
+  '@stripe/stripe-js@9.7.0': {}
 
   '@supabase/auth-js@2.64.2':
     dependencies:
@@ -5679,6 +5700,10 @@ snapshots:
   strip-literal@2.1.1:
     dependencies:
       js-tokens: 9.0.1
+
+  stripe@22.2.0(@types/node@20.12.12):
+    optionalDependencies:
+      '@types/node': 20.12.12
 
   styled-jsx@5.1.1(react@18.3.1):
     dependencies:
