@@ -4,7 +4,6 @@
  * z.infer<typeof CanonicalTenantSchema> is the ONLY Tenant type.
  */
 import { z } from "zod";
-import DOMPurify from "isomorphic-dompurify";
 import { NinoSchema, UkPhoneSchema, UkDateSchema, UkPostcodeSchema, MoneyGbpSchema } from "./primitives";
 
 const preprocessEnum = (validValues: string[]) => z.preprocess((v) => {
@@ -30,20 +29,20 @@ export const CanonicalTenantSchema = z.object({
 
   // Personal
   title:           TitleSchema,
-  full_name:       z.string().min(2).max(100).transform(v => DOMPurify.sanitize(v)),
+  full_name:       z.string().min(2).max(100),
   dob:             UkDateSchema,
   nino:            NinoSchema,
-  nationality:     z.string().min(2).max(60).transform(v => DOMPurify.sanitize(v)),
+  nationality:     z.string().min(2).max(60),
   date_entry_uk:   UkDateSchema.optional(),
 
   // Accommodation
-  address:         z.string().min(5).max(200).transform(v => DOMPurify.sanitize(v)),
+  address:         z.string().min(5).max(200),
   postcode:        UkPostcodeSchema,
   room_number:     z.preprocess((v) => (typeof v === "string" && /^\d+$/.test(v.trim()) ? `Room ${v.trim()}` : v), z.string().regex(/^Room\s\d+$/i, "Format: Room N")),
   moved_in:        UkDateSchema,
   mobile:          UkPhoneSchema,
   email:           z.string().email().optional(),
-  languages:       z.string().optional().transform(v => v ? DOMPurify.sanitize(v) : v),
+  languages:       z.string().optional(),
 
   // Financial
   benefit_type:    BenefitTypeSchema,
@@ -51,14 +50,14 @@ export const CanonicalTenantSchema = z.object({
   benefit_amount:  MoneyGbpSchema,
 
   // Next of kin
-  nok_name:        z.string().min(2).max(100).transform(v => DOMPurify.sanitize(v)),
-  nok_relationship: z.string().min(2).max(50).transform(v => DOMPurify.sanitize(v)),
+  nok_name:        z.string().min(2).max(100),
+  nok_relationship: z.string().min(2).max(50),
   nok_phone:       UkPhoneSchema,
-  nok_address:     z.string().optional().transform(v => v ? DOMPurify.sanitize(v) : v),
+  nok_address:     z.string().optional(),
 
   // Professional
-  doctor:          z.string().optional().transform(v => v ? DOMPurify.sanitize(v) : v),
-  probation_officer: z.string().optional().transform(v => v ? DOMPurify.sanitize(v) : v),
+  doctor:          z.string().optional(),
+  probation_officer: z.string().optional(),
 
   // System
   brand:           BrandSchema,
