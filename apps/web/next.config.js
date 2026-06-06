@@ -12,5 +12,8 @@ const nextConfig = {
     "@tenant-hub/blockchain",
     "@tenant-hub/env",
   ],
+  experimental: {
+    optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
+  },
 };
 module.exports = nextConfig;

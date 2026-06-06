@@ -11,6 +11,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 import type { CanonicalTenant } from "@tenant-hub/validation";
 
 export function useTenants() {
@@ -40,6 +41,34 @@ export function useTenants() {
   }, []);
 
   useEffect(() => { void fetchTenants(); }, [fetchTenants]);
+
+  useEffect(() => {
+    // We only need the anon key for realtime subscription to work
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !anonKey) return;
+
+    const supabase = createClient(url, anonKey);
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tenants',
+        },
+        (payload) => {
+          console.log("Realtime tenants update:", payload);
+          void fetchTenants();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [fetchTenants]);
 
   const addOptimisticTenant = useCallback((tenant: CanonicalTenant) => {
     setTenants(prev => [tenant, ...prev]);
