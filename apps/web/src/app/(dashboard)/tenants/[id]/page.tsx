@@ -23,10 +23,12 @@ import { FormSection, TextField, SelectField } from "../../../../components/form
 import { SessionsTab } from "../../../../components/tenant/SessionsTab";
 import { LedgerTab } from "../../../../components/tenant/LedgerTab";
 import { ChecklistTab } from "../../../../components/tenant/ChecklistTab";
+import { GoalsTab } from "../../../../components/tenant/GoalsTab";
 import { FormsPanel } from "../../../../components/layout/FormsPanel";
 
 const TABS = [
   { key: "personal", label: "Personal Details" },
+  { key: "goals", label: "Support Plan Goals" },
   { key: "sessions", label: "Sessions" },
   { key: "ledger", label: "Service Charge" },
   { key: "checklist", label: "Intake Checklist" },
@@ -68,6 +70,7 @@ export default function TenantDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [validationIssues, setValidationIssues] = useState<Record<string, string>>({});
   const [latestAudit, setLatestAudit] = useState<{ user_name?: string; blockchain_hash?: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -100,7 +103,11 @@ export default function TenantDetailPage() {
   const patch = useMemo(() => {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(form)) {
-      if (v === "") continue;
+      if (v === "") {
+        // Explicitly send null so the DB clears the field
+        out[k] = null;
+        continue;
+      }
       out[k] = k === "benefit_amount" ? Number(v) : v;
     }
     return out;
@@ -109,6 +116,7 @@ export default function TenantDetailPage() {
   async function onSave() {
     setSaving(true);
     setSaveMsg(null);
+    setValidationIssues({});
     const res = await fetch(`/api/tenants/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -117,7 +125,14 @@ export default function TenantDetailPage() {
     setSaving(false);
     if (!res.ok) {
       const b = await res.json().catch(() => null);
-      setSaveMsg(`✗ ${b?.error ?? "Save failed"}`);
+      if (b?.issues) {
+        const issues: Record<string, string> = {};
+        for (const i of b.issues) issues[i.path[0]] = i.message;
+        setValidationIssues(issues);
+        setSaveMsg("✗ Please fix the highlighted errors");
+      } else {
+        setSaveMsg(`✗ ${b?.error ?? "Save failed"}`);
+      }
       return;
     }
     setSaveMsg(`✓ Saved — ${new Date().toLocaleTimeString("en-GB")}`);
@@ -168,21 +183,45 @@ export default function TenantDetailPage() {
         <div>
           <FormSection title="1 · Personal Information">
             <SelectField label="Title" value={form["title"] ?? ""} onChange={(v) => set("title", v)} options={TITLES as unknown as string[]} required />
+            {validationIssues["title"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["title"]}</div>}
+            
             <TextField label="Full Name" value={form["full_name"] ?? ""} onChange={(v) => set("full_name", v)} required />
+            {validationIssues["full_name"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["full_name"]}</div>}
+            
             <TextField label="Date of Birth" type="date" value={form["dob"] ?? ""} onChange={(v) => set("dob", v)} required />
+            {validationIssues["dob"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["dob"]}</div>}
+            
             <TextField label="National Insurance No." value={form["nino"] ?? ""} onChange={(v) => set("nino", v)} mono required />
+            {validationIssues["nino"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["nino"]}</div>}
+            
             <TextField label="Nationality" value={form["nationality"] ?? ""} onChange={(v) => set("nationality", v)} required />
+            {validationIssues["nationality"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["nationality"]}</div>}
+            
             <TextField label="Date of Entry to UK" type="date" value={form["date_entry_uk"] ?? ""} onChange={(v) => set("date_entry_uk", v)} />
+            {validationIssues["date_entry_uk"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["date_entry_uk"]}</div>}
           </FormSection>
 
           <FormSection title="2 · Accommodation">
             <TextField label="Address" value={form["address"] ?? ""} onChange={(v) => set("address", v)} required />
+            {validationIssues["address"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["address"]}</div>}
+            
             <TextField label="Postcode" value={form["postcode"] ?? ""} onChange={(v) => set("postcode", v)} mono required />
+            {validationIssues["postcode"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["postcode"]}</div>}
+            
             <TextField label="Room Number" value={form["room_number"] ?? ""} onChange={(v) => set("room_number", v)} placeholder="Room 1" required />
+            {validationIssues["room_number"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["room_number"]}</div>}
+            
             <TextField label="Moved-in Date" type="date" value={form["moved_in"] ?? ""} onChange={(v) => set("moved_in", v)} required />
+            {validationIssues["moved_in"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["moved_in"]}</div>}
+            
             <TextField label="Mobile" value={form["mobile"] ?? ""} onChange={(v) => set("mobile", v)} mono required />
+            {validationIssues["mobile"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["mobile"]}</div>}
+            
             <TextField label="Email" type="email" value={form["email"] ?? ""} onChange={(v) => set("email", v)} />
+            {validationIssues["email"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["email"]}</div>}
+            
             <TextField label="Languages" value={form["languages"] ?? ""} onChange={(v) => set("languages", v)} />
+            {validationIssues["languages"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["languages"]}</div>}
           </FormSection>
 
           <FormSection title="3 · Financial">
@@ -262,6 +301,7 @@ export default function TenantDetailPage() {
         </div>
       )}
 
+      {tab === "goals" && <GoalsTab tenantId={id} />}
       {tab === "sessions" && <SessionsTab tenantId={id} />}
       {tab === "ledger" && <LedgerTab tenantId={id} />}
       {tab === "checklist" && <ChecklistTab tenantId={id} />}

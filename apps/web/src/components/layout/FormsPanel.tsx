@@ -56,6 +56,11 @@ export function FormsPanel({ tenant }: { tenant: CanonicalTenant }) {
     <aside className="forms-panel" style={{ width: "280px", flexShrink: 0, background: "var(--surface)", borderLeft: "1px solid #EDE8E1", padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#7A8499" }}>Forms</span>
+        
+        <div style={{ background: "rgba(76,124,232,0.06)", border: "1px solid rgba(76,124,232,0.2)", borderRadius: "8px", padding: "10px", fontSize: "11px", color: "#4C7CE8", marginBottom: "6px", lineHeight: 1.4 }}>
+          <strong>Unified Record:</strong> All forms below automatically pull and save data from the central Personal Details tab. No more re-entering names or DOBS!
+        </div>
+
         {FORMS.map((f) => (
           <button
             key={f.key}
