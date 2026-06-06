@@ -6,12 +6,6 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "crons": [
-    {
-      "path": "/api/health",
-      "schedule": "*/5 * * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
