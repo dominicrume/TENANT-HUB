@@ -45,7 +45,7 @@ export default function LoginPage() {
       <div style={s.card}>
         <h1 style={s.heading}>Tenant Hub</h1>
         <p style={s.subBrands}>
-          Ash Shahada Housing Association Ltd · Matty&apos;s Place · Reliance
+          The complete operating system for supported housing
         </p>
 
         <button type="button" onClick={onGoogle} style={{...s.submit, backgroundColor: "#fff", color: "#333", border: "1px solid #ddd", marginBottom: "16px"}}>

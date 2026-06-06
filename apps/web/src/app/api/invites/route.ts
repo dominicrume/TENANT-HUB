@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { withRouteHandler } from "../../../lib/api-handler";
-import { adminClient } from "@tenant-hub/db/src/client"; // Use admin client to invite users
 import { createSupabaseServer } from "../../../lib/supabase-server";
+import { createClient } from "@supabase/supabase-js";
+
+const adminClient = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export const POST = withRouteHandler(
   { resource: "sessions", action: "create", rateLimit: true }, // Using sessions as proxy for managers

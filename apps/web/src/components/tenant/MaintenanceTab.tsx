@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { formatShortDate } from "../../../lib/format";
+import { formatShortDate } from "../../lib/format";
 import { FormSection, TextField, SelectField } from "../form/fields";
 
 export function MaintenanceTab({ tenantId, roomNumber }: { tenantId: string; roomNumber?: string }) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatMoney, formatShortDate } from "../../../../lib/format";
+import { formatMoney, formatShortDate } from "../../../../../lib/format";
 
 export default function StatementPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);

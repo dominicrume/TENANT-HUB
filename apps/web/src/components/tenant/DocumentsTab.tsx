@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { formatShortDate } from "../../../lib/format";
+import { formatShortDate } from "../../lib/format";
 
 export function DocumentsTab({ tenantId }: { tenantId: string }) {
   const [docs, setDocs] = useState<any[]>([]);

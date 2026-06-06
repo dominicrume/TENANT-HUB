@@ -13,9 +13,7 @@ const ROLES = [
 ] as const;
 
 const BRANDS = [
-  { value: "mattys_place", label: "Matthew's Place" },
-  { value: "ash_shahada", label: "Ash Shahada Housing Association Ltd" },
-  { value: "reliance", label: "Reliance" },
+  { value: "tenant_hub", label: "Tenant Hub Workspace" },
 ] as const;
 
 export default function SignupPage() {
@@ -24,7 +22,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<(typeof ROLES)[number]["value"]>("support_worker");
-  const [brand, setBrand] = useState<(typeof BRANDS)[number]["value"]>("mattys_place");
+  const [brand, setBrand] = useState<(typeof BRANDS)[number]["value"]>("tenant_hub");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
