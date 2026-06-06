@@ -4,7 +4,7 @@
 -- ============================================================
 
 CREATE TABLE settings (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   brand brand NOT NULL UNIQUE,
   service_charge_default NUMERIC(10,2) NOT NULL DEFAULT 150.00,
   updated_at TIMESTAMPTZ DEFAULT NOW()

@@ -26,7 +26,7 @@ CREATE TABLE profiles (
 
 -- ── Tenants ──────────────────────────────────────────────────
 CREATE TABLE tenants (
-  id                    UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id                    UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title                 TEXT CHECK (title IN ('Mr','Mrs','Ms','Miss','Dr')),
   full_name             TEXT NOT NULL,
   dob                   DATE,
@@ -63,7 +63,7 @@ CREATE TABLE tenants (
 
 -- ── Sessions ─────────────────────────────────────────────────
 CREATE TABLE sessions (
-  id           UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   tenant_id    UUID REFERENCES tenants(id) ON DELETE CASCADE NOT NULL,
   session_type TEXT CHECK (session_type IN ('daily','weekly','monthly')) NOT NULL,
   session_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -76,7 +76,7 @@ CREATE TABLE sessions (
 
 -- ── Service Charges ──────────────────────────────────────────
 CREATE TABLE service_charges (
-  id          UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE NOT NULL,
   week_label  TEXT NOT NULL,
   due_date    DATE NOT NULL,
@@ -89,7 +89,7 @@ CREATE TABLE service_charges (
 
 -- ── Audit Logs (append-only) ─────────────────────────────────
 CREATE TABLE audit_logs (
-  id              UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   tenant_id       UUID REFERENCES tenants(id) ON DELETE SET NULL,
   action          audit_action NOT NULL,
   table_name      TEXT NOT NULL,
@@ -110,7 +110,7 @@ CREATE RULE audit_logs_no_delete AS ON DELETE TO audit_logs DO INSTEAD NOTHING;
 
 -- ── Intake Drafts (H5: server-side, never browser storage) ───
 CREATE TABLE drafts (
-  id             UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   created_by     UUID REFERENCES profiles(id) NOT NULL,
   machine_state  JSONB NOT NULL,   -- XState snapshot
   step           INTEGER NOT NULL DEFAULT 1,
@@ -122,7 +122,7 @@ CREATE TABLE drafts (
 
 -- ── Stamp Queue (H6: transactional outbox) ───────────────────
 CREATE TABLE stamp_queue (
-  id          UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   tenant_id   UUID REFERENCES tenants(id),
   audit_hash  TEXT NOT NULL,
   status      stamp_status DEFAULT 'pending',
@@ -135,7 +135,7 @@ CREATE TABLE stamp_queue (
 
 -- Intake checklists
 CREATE TABLE intake_checklists (
-  id                      UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id                      UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   tenant_id               UUID REFERENCES tenants(id) ON DELETE CASCADE NOT NULL UNIQUE,
   housing_benefit_claim   BOOLEAN DEFAULT FALSE,
   personal_details_form   BOOLEAN DEFAULT FALSE,
