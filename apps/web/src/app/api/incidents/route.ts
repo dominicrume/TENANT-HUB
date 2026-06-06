@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getApiAuth } from "../../../../lib/api-auth";
+import { getApiAuth } from "../../../lib/api-auth";
 
 export async function GET(req: Request) {
   const auth = await getApiAuth();
