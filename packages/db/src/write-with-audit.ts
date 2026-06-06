@@ -38,14 +38,29 @@ export async function writeWithAudit<T extends Record<string, unknown>>(
 
   const auditRecord = await buildAuditRecord(entry, timestamp);
 
-  // Atomic: write record + audit log in one RPC call
-  const { data, error } = await adminClient.rpc("write_with_audit", {
-    p_table:      opts.table,
-    p_record:     opts.record,
-    p_audit:      auditRecord,
-  });
+  let attempt = 0;
+  const MAX_RETRIES = 3;
+  while (attempt < MAX_RETRIES) {
+    try {
+      // Atomic: write record + audit log in one RPC call
+      const { data, error } = await adminClient.rpc("write_with_audit", {
+        p_table:      opts.table,
+        p_record:     opts.record,
+        p_audit:      auditRecord,
+      });
 
-  if (error) throw new Error(`writeWithAudit failed on ${opts.table}: ${error.message}`);
+      if (error) throw new Error(error.message);
 
-  return { data: data as T, audit_hash: auditRecord.hash };
+      return { data: data as T, audit_hash: auditRecord.hash };
+    } catch (error: any) {
+      attempt++;
+      if (attempt >= MAX_RETRIES) {
+        throw new Error(`writeWithAudit failed on ${opts.table} after ${MAX_RETRIES} attempts: ${error.message}`);
+      }
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 200));
+    }
+  }
+  
+  throw new Error("Unreachable");
 }

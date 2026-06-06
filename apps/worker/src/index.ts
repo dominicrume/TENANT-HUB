@@ -30,6 +30,14 @@ async function drainQueue() {
         const nextRetry = (job.retry_count ?? 0) + 1;
         if (nextRetry >= MAX_RETRY) {
           await updateStampStatus(job.id, { status: "dead_letter", error: errorMsg, retry_count: nextRetry });
+          // Alert via Webhook if configured
+          if (process.env.WEBHOOK_ALERT_URL) {
+            await fetch(process.env.WEBHOOK_ALERT_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ event: "stamp_dead_letter", jobId: job.id, error: errorMsg })
+            }).catch(e => console.error("Webhook alert failed", e));
+          }
         } else {
           // Revert to pending for next poll, increment retry
           await updateStampStatus(job.id, { status: "pending", error: errorMsg, retry_count: nextRetry });

@@ -41,6 +41,14 @@ export function useTenants() {
 
   useEffect(() => { void fetchTenants(); }, [fetchTenants]);
 
+  const addOptimisticTenant = useCallback((tenant: CanonicalTenant) => {
+    setTenants(prev => [tenant, ...prev]);
+  }, []);
+
+  const updateOptimisticTenant = useCallback((id: string, updates: Partial<CanonicalTenant>) => {
+    setTenants(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  }, []);
+
   return {
     tenants,
     activeTenants: tenants.filter(t => t.is_active),
@@ -48,5 +56,7 @@ export function useTenants() {
     loading,
     error,
     refetch: fetchTenants,
+    addOptimisticTenant,
+    updateOptimisticTenant,
   };
 }
