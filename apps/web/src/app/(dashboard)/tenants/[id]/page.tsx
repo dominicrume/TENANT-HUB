@@ -24,20 +24,16 @@ import { SessionsTab } from "../../../../components/tenant/SessionsTab";
 import { LedgerTab } from "../../../../components/tenant/LedgerTab";
 import { ChecklistTab } from "../../../../components/tenant/ChecklistTab";
 import { GoalsTab } from "../../../../components/tenant/GoalsTab";
+import { DynamicFormTab, type FormTemplate } from "../../../../components/tenant/DynamicFormTab";
 import { FormsPanel } from "../../../../components/layout/FormsPanel";
 
-const TABS = [
+const CORE_TABS = [
   { key: "personal", label: "Personal Details" },
   { key: "goals", label: "Support Plan Goals" },
   { key: "sessions", label: "Sessions" },
   { key: "ledger", label: "Service Charge" },
   { key: "checklist", label: "Intake Checklist" },
-  { key: "hb", label: "Housing Benefit" },
-  { key: "missing", label: "Missing Person" },
-  { key: "risk", label: "Risk Assessment" },
-  { key: "confidentiality", label: "Confidentiality" },
-  { key: "initial", label: "Initial Assessment" },
-] as const;
+];
 
 type FormState = Record<string, string>;
 
@@ -72,6 +68,14 @@ export default function TenantDetailPage() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<Record<string, string>>({});
   const [latestAudit, setLatestAudit] = useState<{ user_name?: string; blockchain_hash?: string } | null>(null);
+  const [templates, setTemplates] = useState<FormTemplate[]>([]);
+
+  const TABS = useMemo(() => {
+    return [
+      ...CORE_TABS,
+      ...templates.map((t) => ({ key: t.key, label: t.name, template: t }))
+    ];
+  }, [templates]);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/tenants/${id}`);
@@ -86,6 +90,10 @@ export default function TenantDetailPage() {
     // Get the creation audit log to show who entered this record
     const a = await fetch(`/api/audit-logs?tenant=${id}&action=CREATE&limit=1`).then((r) => (r.ok ? r.json() : []));
     if (Array.isArray(a) && a[0]) setLatestAudit(a[0]);
+
+    // Get the custom form templates available
+    const tRes = await fetch(`/api/form-templates`);
+    if (tRes.ok) setTemplates(await tRes.json());
   }, [id]);
 
   useEffect(() => {
@@ -305,14 +313,8 @@ export default function TenantDetailPage() {
       {tab === "sessions" && <SessionsTab tenantId={id} />}
       {tab === "ledger" && <LedgerTab tenantId={id} />}
       {tab === "checklist" && <ChecklistTab tenantId={id} />}
-      {["hb", "missing", "risk", "confidentiality", "initial"].includes(tab) && (
-        <div style={{ padding: "40px 20px", textAlign: "center", color: "#7A8499", background: "#F8F4EF", borderRadius: "8px", border: "1px dashed #EDE8E1", marginTop: "20px" }}>
-          <span style={{ fontSize: "24px", display: "block", marginBottom: "8px" }}>🚧</span>
-          <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--navy)", marginBottom: "4px" }}>Form Builder Scheduled for Sprint 2</h3>
-          <p style={{ fontSize: "12px", maxWidth: "400px", margin: "0 auto" }}>
-            These digital forms are currently in active development. You will soon be able to fill them out directly within the tenant profile.
-          </p>
-        </div>
+      {TABS.find(t => t.key === tab && 'template' in t) && (
+        <DynamicFormTab tenantId={id} template={(TABS.find(t => t.key === tab) as any).template} />
       )}
       </div>
 
