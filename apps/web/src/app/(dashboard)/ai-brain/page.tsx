@@ -121,13 +121,13 @@ export default function AiBrainPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {claims.map((c, i) => (
                       <div key={i} style={{ fontSize: "12px", background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
-                        <div style={{ color: "#334", fontWeight: 500, marginBottom: "4px" }}>"{c.claim}"</div>
+                        <div style={{ color: "#334", fontWeight: 500, marginBottom: "4px" }}>&quot;{c.claim}&quot;</div>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <span style={{ fontSize: "10px", background: "#E2E8F0", padding: "2px 6px", borderRadius: "4px", color: "#475569", fontFamily: "monospace" }}>
                             {c.factHash}
                           </span>
                           <span style={{ fontSize: "11px", color: "#64748B" }}>
-                            ✓ Validated from source: {factMap[c.factHash] ? `"${factMap[c.factHash]}"` : "Unknown Source"}
+                            ✓ Validated from source: {factMap[c.factHash] ? <>&quot;{factMap[c.factHash]}&quot;</> : "Unknown Source"}
                           </span>
                         </div>
                       </div>
