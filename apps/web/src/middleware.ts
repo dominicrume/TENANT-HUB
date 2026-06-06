@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseMiddleware } from "./lib/supabase-middleware";
+import { ratelimit } from "./lib/rate-limit";
 
 const PUBLIC_PREFIXES = ["/login", "/signup", "/reset-password", "/intake/verify"];
 
@@ -7,6 +8,19 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const { supabase, res } = createSupabaseMiddleware(req);
+
+  // Rate limiting for API routes
+  if (pathname.startsWith("/api/")) {
+    const ip = req.ip ?? req.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    try {
+      const { success } = await ratelimit.limit(ip);
+      if (!success) {
+        return new NextResponse("Too many requests", { status: 429 });
+      }
+    } catch (e) {
+      console.warn("Ratelimit error", e);
+    }
+  }
 
   // getUser() validates the JWT with Supabase (getSession only decodes locally).
   const {

@@ -13,6 +13,10 @@ export async function GET(_req: Request, { params }: Params) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
+  if (!can(auth.actor.user_role, "tenants", "read")) {
+    return NextResponse.json({ error: "Permission denied" }, { status: 403 });
+  }
+
   const { data, error } = await auth.supabase
     .from("tenants")
     .select("*")
