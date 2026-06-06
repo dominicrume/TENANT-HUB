@@ -80,8 +80,8 @@ export default function TenantDetailPage() {
     const data = (await res.json()) as CanonicalTenant;
     setTenant(data);
     setForm(toForm(data));
-    // Latest audit hash and user for the stamp bar.
-    const a = await fetch(`/api/audit-logs?tenant=${id}&limit=1`).then((r) => (r.ok ? r.json() : []));
+    // Get the creation audit log to show who entered this record
+    const a = await fetch(`/api/audit-logs?tenant=${id}&action=CREATE&limit=1`).then((r) => (r.ok ? r.json() : []));
     if (Array.isArray(a) && a[0]) setLatestAudit(a[0]);
   }, [id]);
 
