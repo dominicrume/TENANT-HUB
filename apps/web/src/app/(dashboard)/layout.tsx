@@ -38,14 +38,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { brand, setBrand } = useBrand();
 
   async function handleSignOut() {
-    await signOut();
     try {
-      localStorage.removeItem("th_brand"); // S5-D: clear brand preference
-    } catch {
-      /* ignore */
-    }
-    router.push("/login");
-    router.refresh();
+      await signOut(); // Clears browser client session
+      await fetch("/auth/signout", { method: "POST" }); // Best effort server signout
+    } catch { /* ignore */ }
+    
+    try {
+      // BRUTE FORCE: Wipe every single cookie from the browser to guarantee middleware sees no session
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/");
+      });
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch { /* ignore */ }
+
+    window.location.href = "/login";
   }
 
   return (

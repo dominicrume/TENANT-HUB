@@ -29,6 +29,8 @@ export default function AiBrainPage() {
   const [questions, setQuestions] = useState<string[] | null>(null);
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
+  const [claims, setClaims] = useState<{ claim: string, factHash: string }[]>([]);
+  const [factMap, setFactMap] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [flags, setFlags] = useState<Flag[]>([]);
 
@@ -45,13 +47,23 @@ export default function AiBrainPage() {
   async function ask() {
     setBusy(true);
     setAnswer(null);
+    setClaims([]);
+    setFactMap({});
     const res = await fetch("/api/ai/task", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tenantId: tenantId || undefined, prompt }),
     });
     const b = await res.json().catch(() => null);
-    setAnswer(b?.response ?? b?.error ?? "No response");
+    
+    if (res.status === 422 && b?.error) {
+      setAnswer(`🛑 CRYPTOGRAPHIC EXPLAINABILITY REJECTION\n\nThis response was blocked because it failed the Strict Hash Verification.\n\nReason: ${b.error.replace("Grounding Verification Failed: ", "")}`);
+    } else {
+      setAnswer(b?.response ?? b?.error ?? "No response");
+      if (b?.claims) setClaims(b.claims);
+      if (b?.factMap) setFactMap(b.factMap);
+    }
+    
     setBusy(false);
   }
 
@@ -96,8 +108,33 @@ export default function AiBrainPage() {
             {busy ? "Working…" : "Ask"}
           </button>
           {answer && (
-            <div style={{ marginTop: "12px", whiteSpace: "pre-wrap", fontSize: "13px", color: "#334", background: "#FBFAFF", border: `1px solid ${CHAIN}22`, borderRadius: "8px", padding: "12px" }}>
-              {answer}
+            <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ whiteSpace: "pre-wrap", fontSize: "13px", color: "#334", background: "#FBFAFF", border: `1px solid ${CHAIN}22`, borderRadius: "8px", padding: "12px" }}>
+                {answer}
+              </div>
+              
+              {claims.length > 0 && (
+                <div style={{ padding: "12px", background: "#F1F5F9", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+                  <h3 style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "#64748B", marginBottom: "8px", letterSpacing: "0.05em" }}>
+                    🔒 Cryptographic Entailment Proof
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {claims.map((c, i) => (
+                      <div key={i} style={{ fontSize: "12px", background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+                        <div style={{ color: "#334", fontWeight: 500, marginBottom: "4px" }}>"{c.claim}"</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span style={{ fontSize: "10px", background: "#E2E8F0", padding: "2px 6px", borderRadius: "4px", color: "#475569", fontFamily: "monospace" }}>
+                            {c.factHash}
+                          </span>
+                          <span style={{ fontSize: "11px", color: "#64748B" }}>
+                            ✓ Validated from source: {factMap[c.factHash] ? `"${factMap[c.factHash]}"` : "Unknown Source"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -44,7 +44,7 @@ export default function ExtractPage() {
     const res = await fetch("/api/intake/ocr", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: rawText }),
+      body: JSON.stringify({ text: rawText, image: imageUrl }),
     });
     const body = await res.json();
     setData((prev) => ({ ...prev, ...(body.extracted ?? {}) }));
@@ -85,8 +85,8 @@ export default function ExtractPage() {
             onChange={(e) => setRawText(e.target.value)}
             style={{ width: "100%", minHeight: "120px", marginTop: "10px", padding: "10px", borderRadius: "8px", border: "1px solid #EDE8E1", fontFamily: "'Sora',sans-serif", fontSize: "13px", boxSizing: "border-box" }}
           />
-          <button onClick={extract} disabled={busy || !rawText.trim()}
-            style={{ marginTop: "10px", minHeight: "44px", padding: "0 18px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", color: "var(--navy)", fontWeight: 600, cursor: busy ? "not-allowed" : "pointer" }}>
+          <button onClick={extract} disabled={busy || (!rawText.trim() && !imageUrl)}
+            style={{ marginTop: "10px", minHeight: "44px", padding: "0 18px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", color: "var(--navy)", fontWeight: 600, cursor: (busy || (!rawText.trim() && !imageUrl)) ? "not-allowed" : "pointer" }}>
             {busy ? "Extracting…" : "Extract fields"}
           </button>
           {note && <p style={{ fontSize: "12px", color: "#7A8499", marginTop: "8px" }}>{note}</p>}

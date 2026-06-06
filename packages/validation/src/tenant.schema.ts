@@ -6,10 +6,21 @@
 import { z } from "zod";
 import { NinoSchema, UkPhoneSchema, UkDateSchema, UkPostcodeSchema, MoneyGbpSchema } from "./primitives";
 
-export const TitleSchema = z.enum(["Mr", "Mrs", "Ms", "Miss", "Dr"]);
-export const BenefitTypeSchema = z.enum(["Universal Credit", "Housing Benefit", "PIP", "ESA", "JSA", "Other"]);
-export const BenefitFrequencySchema = z.enum(["Monthly", "Fortnightly", "Weekly"]);
-export const BrandSchema = z.enum(["mattys_place", "ash_shahada", "reliance"]);
+const preprocessEnum = (validValues: string[]) => z.preprocess((v) => {
+  if (typeof v !== "string") return v;
+  const normalized = v.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  const match = validValues.find(val => val.toLowerCase().replace(/[^a-z0-9]/g, "") === normalized);
+  return match ?? v;
+}, z.enum(validValues as [string, ...string[]]));
+
+export const TITLES = ["Mr", "Mrs", "Ms", "Miss", "Dr"] as const;
+export const BENEFIT_TYPES = ["Universal Credit", "Housing Benefit", "PIP", "ESA", "JSA", "Other"] as const;
+export const BENEFIT_FREQUENCIES = ["Monthly", "Fortnightly", "Weekly"] as const;
+
+export const TitleSchema = preprocessEnum([...TITLES]);
+export const BenefitTypeSchema = preprocessEnum([...BENEFIT_TYPES]);
+export const BenefitFrequencySchema = preprocessEnum([...BENEFIT_FREQUENCIES]);
+export const BrandSchema = preprocessEnum(["mattys_place", "ash_shahada", "reliance"]);
 export const EntryMethodSchema = z.enum(["manual", "ocr", "voice"]);
 export const UserRoleSchema = z.enum(["manager", "support_worker", "tenant"]);
 
@@ -27,7 +38,7 @@ export const CanonicalTenantSchema = z.object({
   // Accommodation
   address:         z.string().min(5).max(200),
   postcode:        UkPostcodeSchema,
-  room_number:     z.string().regex(/^Room\s\d+$/i, "Format: Room N"),
+  room_number:     z.preprocess((v) => (typeof v === "string" && /^\d+$/.test(v.trim()) ? `Room ${v.trim()}` : v), z.string().regex(/^Room\s\d+$/i, "Format: Room N")),
   moved_in:        UkDateSchema,
   mobile:          UkPhoneSchema,
   email:           z.string().email().optional(),

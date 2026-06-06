@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { complete, activeProvider } from "@tenant-hub/ai";
+import { generateStrictlyGrounded, activeProvider } from "@tenant-hub/ai";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { makeSecureGateway } from "../../../../lib/secure-gateway";
 
@@ -7,6 +7,7 @@ import { makeSecureGateway } from "../../../../lib/secure-gateway";
  * POST /api/ai/task — open agent tasking. { tenantId?, prompt }.
  * Reads context through the SecureDbGateway (RLS, H2). The model may only
  * PROPOSE — it has no write path. Returns { response }.
+ * Now utilizes Verifiable Explainability Model Layer for Strict Grounding.
  */
 export async function POST(req: Request) {
   const auth = await getApiAuth();
@@ -21,17 +22,30 @@ export async function POST(req: Request) {
   }
 
   const gateway = makeSecureGateway();
-  let context = "";
+  let facts: string[] = [];
   try {
     if (body.tenantId) {
+      const tenants = await gateway.readTenants();
+      const tenant = tenants.find(t => t.id === body.tenantId);
       const sessions = await gateway.readSessions(body.tenantId);
-      context = `Recent sessions:\n${sessions.slice(0, 5).map((s) => `- ${s.session_date} (${s.session_type}): ${s.notes}`).join("\n")}`;
+      
+      if (tenant) {
+        facts.push(`Tenant Name: ${tenant.full_name}`);
+        facts.push(`Tenant Room: ${tenant.room_number}`);
+        facts.push(`Tenant Date of Birth: ${tenant.dob}`);
+        facts.push(`Tenant Benefit: ${tenant.benefit_type}`);
+        facts.push(`Tenant Moved in: ${tenant.moved_in}`);
+      }
+      
+      sessions.slice(0, 5).forEach((s) => {
+        facts.push(`Session on ${s.session_date} (${s.session_type}): ${s.notes}`);
+      });
     } else {
       const tenants = await gateway.readTenants();
-      context = `Active tenants: ${tenants.map((t) => `${t.full_name} (${t.room_number})`).join(", ")}`;
+      tenants.forEach(t => facts.push(`Active Tenant: ${t.full_name} in Room ${t.room_number}`));
     }
   } catch {
-    /* context is best-effort */
+    /* facts are best-effort */
   }
 
   const system =
@@ -40,10 +54,17 @@ export async function POST(req: Request) {
     "directly. Respond helpfully and professionally in a UK housing context.";
 
   try {
-    const response = await complete({ system, prompt: `${prompt}\n\n${context}`, maxTokens: 900 });
-    return NextResponse.json({ response });
+    const { text, claims, factMap } = await generateStrictlyGrounded({ 
+      system, 
+      prompt, 
+      facts,
+      maxTokens: 1500 
+    });
+    return NextResponse.json({ response: text, claims, factMap });
   } catch (err) {
     const message = err instanceof Error ? err.message : "AI request failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // 422 if it's a grounding verification failure, else 500
+    const status = message.includes("Grounding Verification Failed") ? 422 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

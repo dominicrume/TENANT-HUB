@@ -48,7 +48,7 @@ export const FIELD_LABELS: Record<string, string> = {
   nationality: "Nationality", date_entry_uk: "Date of Entry to UK",
   address: "Address", postcode: "Postcode", room_number: "Room Number",
   moved_in: "Moved-in Date", mobile: "Mobile", email: "Email", languages: "Languages",
-  benefit_type: "Benefit Type", benefit_frequency: "Frequency", benefit_amount: "Amount (£)",
+  benefit_type: "Benefit Type", benefit_frequency: "Benefit Frequency", benefit_amount: "Amount (£)",
   nok_name: "Next of Kin", nok_relationship: "Relationship", nok_phone: "NOK Phone",
   nok_address: "NOK Address", doctor: "Doctor / GP", probation_officer: "Probation Officer",
 };

@@ -3,3 +3,4 @@
 export { rlsClient } from "./client";
 export * from "./repositories/tenant.repo";
 export * from "./write-with-audit";
+export * from "./worker";

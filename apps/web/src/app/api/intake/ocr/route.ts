@@ -21,24 +21,25 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
   const text: string | undefined = body?.text;
-  if (!text) {
-    // We only forward extracted OCR text here; image→text happens client-side or
-    // is pasted. Keeps this route provider-portable.
-    return NextResponse.json({ extracted: {}, confidence: {}, note: "No text supplied" });
+  const image: string | undefined = body?.image;
+  
+  if (!text && !image) {
+    return NextResponse.json({ extracted: {}, confidence: {}, note: "No text or image supplied" });
   }
 
-  const prompt = `You are extracting fields from a UK supported-housing intake form.
-From the text below, return ONLY a JSON object with any of these keys you can find:
+  let prompt = `You are extracting fields from a UK supported-housing intake form.
+From the provided document, return ONLY a JSON object with any of these keys you can find:
 title, full_name, dob (YYYY-MM-DD), nino, nationality, date_entry_uk, address, postcode,
 room_number, moved_in (YYYY-MM-DD), mobile, email, languages, benefit_type, benefit_frequency,
 benefit_amount (number), nok_name, nok_relationship, nok_phone, nok_address, doctor, probation_officer.
-Omit keys you cannot find. No commentary.
+Omit keys you cannot find. No commentary.`;
 
-FORM TEXT:
-${text}`;
+  if (text) {
+    prompt += `\n\nFORM TEXT:\n${text}`;
+  }
 
   try {
-    const raw = await complete({ prompt, maxTokens: 700 });
+    const raw = await complete({ prompt, image, maxTokens: 700 });
     const json = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
     const extracted = JSON.parse(json) as Record<string, unknown>;
     const confidence = Object.fromEntries(Object.keys(extracted).map((k) => [k, "high"]));

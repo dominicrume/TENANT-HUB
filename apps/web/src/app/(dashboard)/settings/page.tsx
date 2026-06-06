@@ -6,7 +6,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BRAND_LABELS } from "../../../contexts/BrandContext";
+import { useBrand, BRAND_LABELS } from "../../../contexts/BrandContext";
 import { formatDateTime, truncateHash } from "../../../lib/format";
 
 type Tab = "users" | "charges" | "brands" | "blockchain";
@@ -21,11 +21,44 @@ export default function SettingsPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [stamps, setStamps] = useState<Stamp[]>([]);
   const [rate, setRate] = useState("150");
+  const [settingId, setSettingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  
+  const { brand } = useBrand();
 
   useEffect(() => {
     fetch("/api/profiles").then((r) => (r.ok ? r.json() : [])).then((d) => setProfiles(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/stamp-queue").then((r) => (r.ok ? r.json() : [])).then((d) => setStamps(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
+
+  // Fetch settings when brand changes
+  useEffect(() => {
+    fetch(`/api/settings?brand=${brand}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => {
+        if (d && d.length > 0) {
+          setSettingId(d[0].id);
+          setRate(String(d[0].service_charge_default));
+        }
+      })
+      .catch(() => {});
+  }, [brand]);
+
+  async function handleSaveRate() {
+    if (!settingId) return;
+    setSaving(true);
+    try {
+      await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: settingId, service_charge_default: Number(rate) })
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "users", label: "Users" },
@@ -67,11 +100,25 @@ export default function SettingsPage() {
         {tab === "charges" && (
           <div>
             <h2 style={{ color: "var(--navy)", fontSize: "16px", fontWeight: 700, marginBottom: "10px" }}>Service Charges</h2>
-            <label style={{ fontSize: "13px", color: "#445" }}>Default weekly rate (£)
-              <input value={rate} onChange={(e) => setRate(e.target.value)} type="number"
-                style={{ display: "block", minHeight: "44px", padding: "8px 11px", borderRadius: "8px", border: "1px solid #EDE8E1", marginTop: "6px", maxWidth: "200px" }} />
-            </label>
-            <p style={{ fontSize: "12px", color: "#7A8499", marginTop: "8px" }}>Persisting this needs a settings table (not yet in the schema).</p>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "12px" }}>
+              <label style={{ fontSize: "13px", color: "#445" }}>Default weekly rate (£)
+                <input value={rate} onChange={(e) => setRate(e.target.value)} type="number"
+                  style={{ display: "block", minHeight: "44px", padding: "8px 11px", borderRadius: "8px", border: "1px solid #EDE8E1", marginTop: "6px", maxWidth: "200px", fontFamily: "inherit" }} />
+              </label>
+              <button 
+                onClick={handleSaveRate} 
+                disabled={saving || !settingId}
+                style={{
+                  height: "44px", padding: "0 16px", borderRadius: "8px", border: "none",
+                  background: "var(--amber)", color: "var(--navy)", fontWeight: 700,
+                  cursor: (saving || !settingId) ? "not-allowed" : "pointer", opacity: (saving || !settingId) ? 0.6 : 1,
+                  fontFamily: "'Sora',sans-serif"
+                }}
+              >
+                {saving ? "Saving..." : "Save Rate"}
+              </button>
+            </div>
+            <p style={{ fontSize: "12px", color: "#34C87A", marginTop: "8px" }}>Rate is persisted in the global settings table.</p>
           </div>
         )}
 

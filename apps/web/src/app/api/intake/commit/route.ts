@@ -27,6 +27,10 @@ export async function POST(req: Request) {
   const { data: draft, error } = await auth.supabase.from("drafts").select("*").eq("id", draftId).single();
   if (error || !draft) return NextResponse.json({ error: error?.message ?? "Draft not found" }, { status: 404 });
 
+  if (draft.step === 5) {
+    return NextResponse.json({ error: "This intake has already been completed." }, { status: 409 });
+  }
+
   const state = draft.machine_state as DraftState;
   if (!state?.signature) {
     return NextResponse.json({ error: "Draft not signed" }, { status: 409 });
@@ -43,11 +47,12 @@ export async function POST(req: Request) {
 
   const parsed = TenantCreateSchema.safeParse({
     ...state.extracted,
-    brand: state.extracted.brand ?? "mattys_place",
+    brand: auth.actor.brand,
     entry_method: state.input_mode,
   });
   if (!parsed.success) {
-    return NextResponse.json({ error: "Validation failed", issues: parsed.error.issues }, { status: 422 });
+    const issuesList = parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join(", ");
+    return NextResponse.json({ error: `Validation failed: ${issuesList}`, issues: parsed.error.issues }, { status: 422 });
   }
 
   try {

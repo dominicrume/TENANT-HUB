@@ -10,6 +10,7 @@ export interface Actor {
   user_id: string;
   user_name: string;
   user_role: UserRole;
+  brand: string;
 }
 
 export interface ApiAuth {
@@ -26,7 +27,7 @@ export async function getApiAuth(): Promise<ApiAuth | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role")
+    .select("full_name, role, brand")
     .eq("id", user.id)
     .single();
 
@@ -36,6 +37,7 @@ export async function getApiAuth(): Promise<ApiAuth | null> {
       user_id: user.id,
       user_name: (profile?.full_name as string | undefined) ?? user.email ?? user.id,
       user_role: (profile?.role as UserRole | undefined) ?? "tenant",
+      brand: (profile?.brand as string | undefined) ?? "mattys_place",
     },
   };
 }

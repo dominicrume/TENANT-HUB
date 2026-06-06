@@ -11,9 +11,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
-  TitleSchema,
-  BenefitTypeSchema,
-  BenefitFrequencySchema,
+  TITLES,
+  BENEFIT_TYPES,
+  BENEFIT_FREQUENCIES,
   type CanonicalTenant,
 } from "@tenant-hub/validation";
 import { useTenants } from "../../../../hooks/useTenants";
@@ -30,6 +30,11 @@ const TABS = [
   { key: "sessions", label: "Sessions" },
   { key: "ledger", label: "Service Charge" },
   { key: "checklist", label: "Intake Checklist" },
+  { key: "hb", label: "Housing Benefit" },
+  { key: "missing", label: "Missing Person" },
+  { key: "risk", label: "Risk Assessment" },
+  { key: "confidentiality", label: "Confidentiality" },
+  { key: "initial", label: "Initial Assessment" },
 ] as const;
 
 type FormState = Record<string, string>;
@@ -63,7 +68,7 @@ export default function TenantDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
-  const [lastHash, setLastHash] = useState<string | null>(null);
+  const [latestAudit, setLatestAudit] = useState<{ user_name?: string; blockchain_hash?: string } | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/tenants/${id}`);
@@ -75,9 +80,9 @@ export default function TenantDetailPage() {
     const data = (await res.json()) as CanonicalTenant;
     setTenant(data);
     setForm(toForm(data));
-    // Latest audit hash for the stamp bar.
+    // Latest audit hash and user for the stamp bar.
     const a = await fetch(`/api/audit-logs?tenant=${id}&limit=1`).then((r) => (r.ok ? r.json() : []));
-    setLastHash(Array.isArray(a) && a[0] ? a[0].blockchain_hash : null);
+    if (Array.isArray(a) && a[0]) setLatestAudit(a[0]);
   }, [id]);
 
   useEffect(() => {
@@ -162,7 +167,7 @@ export default function TenantDetailPage() {
       {tab === "personal" && (
         <div>
           <FormSection title="1 · Personal Information">
-            <SelectField label="Title" value={form["title"] ?? ""} onChange={(v) => set("title", v)} options={TitleSchema.options} required />
+            <SelectField label="Title" value={form["title"] ?? ""} onChange={(v) => set("title", v)} options={TITLES as unknown as string[]} required />
             <TextField label="Full Name" value={form["full_name"] ?? ""} onChange={(v) => set("full_name", v)} required />
             <TextField label="Date of Birth" type="date" value={form["dob"] ?? ""} onChange={(v) => set("dob", v)} required />
             <TextField label="National Insurance No." value={form["nino"] ?? ""} onChange={(v) => set("nino", v)} mono required />
@@ -181,8 +186,8 @@ export default function TenantDetailPage() {
           </FormSection>
 
           <FormSection title="3 · Financial">
-            <SelectField label="Benefit Type" value={form["benefit_type"] ?? ""} onChange={(v) => set("benefit_type", v)} options={BenefitTypeSchema.options} required />
-            <SelectField label="Frequency" value={form["benefit_frequency"] ?? ""} onChange={(v) => set("benefit_frequency", v)} options={BenefitFrequencySchema.options} required />
+            <SelectField label="Benefit Type" value={form["benefit_type"] ?? ""} onChange={(v) => set("benefit_type", v)} options={BENEFIT_TYPES as unknown as string[]} required />
+            <SelectField label="Frequency" value={form["benefit_frequency"] ?? ""} onChange={(v) => set("benefit_frequency", v)} options={BENEFIT_FREQUENCIES as unknown as string[]} required />
             <TextField label="Amount (£)" type="number" value={form["benefit_amount"] ?? ""} onChange={(v) => set("benefit_amount", v)} mono required />
           </FormSection>
 
@@ -221,10 +226,10 @@ export default function TenantDetailPage() {
 
           <div style={{ marginBottom: "14px" }}>
             <AuditStampBar
-              enteredBy={tenant?.created_by ? "Staff" : null}
+              enteredBy={latestAudit?.user_name ?? "Staff"}
               timestamp={tenant?.updated_at ?? tenant?.created_at}
               method={tenant?.entry_method}
-              hash={lastHash}
+              hash={latestAudit?.blockchain_hash}
             />
           </div>
 
@@ -260,6 +265,15 @@ export default function TenantDetailPage() {
       {tab === "sessions" && <SessionsTab tenantId={id} />}
       {tab === "ledger" && <LedgerTab tenantId={id} />}
       {tab === "checklist" && <ChecklistTab tenantId={id} />}
+      {["hb", "missing", "risk", "confidentiality", "initial"].includes(tab) && (
+        <div style={{ padding: "40px 20px", textAlign: "center", color: "#7A8499", background: "#F8F4EF", borderRadius: "8px", border: "1px dashed #EDE8E1", marginTop: "20px" }}>
+          <span style={{ fontSize: "24px", display: "block", marginBottom: "8px" }}>🚧</span>
+          <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--navy)", marginBottom: "4px" }}>Form Builder Scheduled for Sprint 2</h3>
+          <p style={{ fontSize: "12px", maxWidth: "400px", margin: "0 auto" }}>
+            These digital forms are currently in active development. You will soon be able to fill them out directly within the tenant profile.
+          </p>
+        </div>
+      )}
       </div>
 
       {tenant && <FormsPanel tenant={tenant} />}
