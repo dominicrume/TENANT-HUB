@@ -11,7 +11,7 @@ ON profiles(role);
 
 -- Sessions: frequent active sessions lookup
 CREATE INDEX IF NOT EXISTS idx_sessions_tenant_active 
-ON sessions(tenant_id) WHERE is_active = true;
+ON sessions(tenant_id);
 
 -- Stamp Queue: worker polls this every 30 seconds
 CREATE INDEX IF NOT EXISTS idx_stamp_queue_status 
