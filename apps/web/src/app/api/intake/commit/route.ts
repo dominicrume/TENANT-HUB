@@ -68,6 +68,14 @@ export async function POST(req: Request) {
       ...auth.actor,
     });
 
+    // Create the checklist record with personal details form marked complete
+    await writeWithAudit({
+      table: "intake_checklists",
+      record: { tenant_id: tenant.id, personal_details_form: true } as Record<string, unknown>,
+      action: "CREATE",
+      ...auth.actor,
+    });
+
     // Mark the draft completed (best-effort; audited like any draft write).
     await writeWithAudit({
       table: "drafts",

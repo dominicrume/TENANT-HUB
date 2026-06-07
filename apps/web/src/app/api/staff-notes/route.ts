@@ -9,8 +9,9 @@ export async function GET(req: Request) {
   const tenantId = url.searchParams.get("tenantId");
 
   let query = auth.supabase
-    .from("maintenance_tickets")
+    .from("staff_notes")
     .select("*, tenant:tenants(full_name)")
+    .eq("org_id", auth.actor.org_id)
     .order("created_at", { ascending: false });
 
   if (tenantId) {
@@ -27,22 +28,17 @@ export async function POST(req: Request) {
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  if (!body || !body.room_number || !body.issue_type || !body.description) {
+  if (!body || !body.note_content) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
   }
 
   const { data, error } = await auth.supabase
-    .from("maintenance_tickets")
+    .from("staff_notes")
     .insert({
       org_id: auth.actor.org_id,
       tenant_id: body.tenant_id || null,
-      room_number: body.room_number,
-      issue_type: body.issue_type,
-      description: body.description,
-      status: body.status || "Open",
-      reported_by: auth.actor.user_name,
-      assigned_to: body.assigned_to || null,
-      photo_url: body.photo_url || null
+      author_name: auth.actor.user_name,
+      note_content: body.note_content
     })
     .select("*")
     .single();

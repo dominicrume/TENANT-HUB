@@ -26,6 +26,7 @@ import { ChecklistTab } from "../../../../components/tenant/ChecklistTab";
 import { GoalsTab } from "../../../../components/tenant/GoalsTab";
 import { MaintenanceTab } from "../../../../components/tenant/MaintenanceTab";
 import { DocumentsTab } from "../../../../components/tenant/DocumentsTab";
+import { NotesTab } from "../../../../components/tenant/NotesTab";
 import { DynamicFormTab, type FormTemplate } from "../../../../components/tenant/DynamicFormTab";
 import { FormsPanel } from "../../../../components/layout/FormsPanel";
 
@@ -37,6 +38,7 @@ const CORE_TABS = [
   { key: "checklist", label: "Intake Checklist" },
   { key: "maintenance", label: "Maintenance" },
   { key: "documents", label: "Documents" },
+  { key: "notes", label: "Staff Notes" },
 ];
 
 type FormState = Record<string, string>;
@@ -321,6 +323,23 @@ export default function TenantDetailPage() {
             >
               🖨️ Print Form
             </button>
+            <button
+              onClick={() => window.open(`/tenants/${id}/print`, '_blank')}
+              style={{
+                minHeight: "56px",
+                padding: "0 26px",
+                borderRadius: "8px",
+                border: "1px solid #1E7F4F",
+                background: "#f0fdf4",
+                color: "#1E7F4F",
+                fontWeight: 600,
+                fontSize: "14px",
+                cursor: "pointer",
+                fontFamily: "'Sora', sans-serif",
+              }}
+            >
+              📑 Print Full Dossier
+            </button>
             {saveMsg && (
               <span style={{ fontSize: "13px", color: saveMsg.startsWith("✓") ? "#1E7F4F" : "#E05252" }}>
                 {saveMsg}
@@ -336,6 +355,7 @@ export default function TenantDetailPage() {
       {tab === "checklist" && <ChecklistTab tenantId={id} />}
       {tab === "maintenance" && <MaintenanceTab tenantId={id} roomNumber={tenant?.room_number} />}
       {tab === "documents" && <DocumentsTab tenantId={id} />}
+      {tab === "notes" && <NotesTab tenantId={id} />}
       {TABS.find(t => t.key === tab && 'template' in t) && (
         <DynamicFormTab tenantId={id} template={(TABS.find(t => t.key === tab) as any).template} />
       )}

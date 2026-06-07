@@ -9,9 +9,10 @@ export async function GET(req: Request) {
   const tenantId = url.searchParams.get("tenantId");
 
   let query = auth.supabase
-    .from("maintenance_tickets")
+    .from("communications")
     .select("*, tenant:tenants(full_name)")
-    .order("created_at", { ascending: false });
+    .eq("org_id", auth.actor.org_id)
+    .order("sent_at", { ascending: false });
 
   if (tenantId) {
     query = query.eq("tenant_id", tenantId);
@@ -27,22 +28,22 @@ export async function POST(req: Request) {
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  if (!body || !body.room_number || !body.issue_type || !body.description) {
+  if (!body || !body.channel || !body.message_type || !body.content) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
   }
 
+  // Simulate sending communication (e.g. via Twilio or Resend)
+  // For now, we just log it in the database.
+  
   const { data, error } = await auth.supabase
-    .from("maintenance_tickets")
+    .from("communications")
     .insert({
       org_id: auth.actor.org_id,
       tenant_id: body.tenant_id || null,
-      room_number: body.room_number,
-      issue_type: body.issue_type,
-      description: body.description,
-      status: body.status || "Open",
-      reported_by: auth.actor.user_name,
-      assigned_to: body.assigned_to || null,
-      photo_url: body.photo_url || null
+      channel: body.channel,
+      message_type: body.message_type,
+      content: body.content,
+      sent_by: auth.actor.user_name
     })
     .select("*")
     .single();

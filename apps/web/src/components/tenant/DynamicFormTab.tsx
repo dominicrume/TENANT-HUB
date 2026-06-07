@@ -140,6 +140,62 @@ export function DynamicFormTab({ tenantId, template }: { tenantId: string; templ
         >
           {saving ? "Saving…" : "Save Form"}
         </button>
+        
+        <label style={{
+            minHeight: "48px",
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "0 24px",
+            borderRadius: "8px",
+            border: "1px solid var(--amber)",
+            background: "#fff",
+            color: "var(--amber)",
+            fontWeight: 700,
+            fontSize: "13px",
+            cursor: saving ? "not-allowed" : "pointer",
+        }}>
+          {saving ? "Extracting..." : "✨ Auto-fill with AI"}
+          <input 
+            type="file" 
+            accept="image/*,application/pdf" 
+            disabled={saving}
+            style={{ display: "none" }} 
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setSaving(true);
+              setSaveMsg("Extracting fields with AI...");
+              try {
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                  const base64 = reader.result as string;
+                  const res = await fetch("/api/forms/ocr", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ image: base64, templateId: template.id })
+                  });
+                  if (res.ok) {
+                    const { extracted } = await res.json();
+                    if (extracted && Object.keys(extracted).length > 0) {
+                      setData(prev => ({ ...prev, ...extracted }));
+                      setSaveMsg("✓ Fields extracted successfully");
+                    } else {
+                      setSaveMsg("✗ AI found no fields");
+                    }
+                  } else {
+                    setSaveMsg("✗ AI Extraction failed");
+                  }
+                  setSaving(false);
+                };
+                reader.readAsDataURL(file);
+              } catch(err) {
+                setSaving(false);
+                setSaveMsg("✗ AI Extraction failed");
+              }
+            }} 
+          />
+        </label>
+
         {saveMsg && (
           <span style={{ fontSize: "13px", color: saveMsg.startsWith("✓") ? "#1E7F4F" : "#E05252" }}>
             {saveMsg}

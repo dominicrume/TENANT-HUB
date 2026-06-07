@@ -87,3 +87,20 @@ export async function complete(opts: CompleteOptions): Promise<string> {
 
   return "";
 }
+
+export async function transcribe(audioFile: File | Blob): Promise<string> {
+  if (process.env["OPENAI_API_KEY"]) {
+    try {
+      const openai = new OpenAI();
+      const res = await openai.audio.transcriptions.create({
+        file: audioFile as any,
+        model: "whisper-1",
+      });
+      return res.text;
+    } catch (err: any) {
+      console.warn("OpenAI Whisper API failed:", err?.message);
+      throw err;
+    }
+  }
+  throw new Error("No OpenAI API key available for transcription");
+}

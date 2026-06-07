@@ -6,9 +6,7 @@ import { getApiAuth } from "../../../lib/api-auth";
 export async function GET() {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  if (auth.actor.user_role !== "manager") {
-    return NextResponse.json({ error: "Permission denied" }, { status: 403 });
-  }
+  // Allow all org users to see profiles (RLS protects cross-org access)
 
   const { data, error } = await auth.supabase
     .from("profiles")

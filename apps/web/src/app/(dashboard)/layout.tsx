@@ -19,6 +19,7 @@ const NAV = [
   { href: "/ledger", label: "Ledger", icon: "💷" },
   { href: "/maintenance", label: "Maintenance", icon: "🔧" },
   { href: "/handovers", label: "Handovers", icon: "📋" },
+  { href: "/communications", label: "Communications", icon: "📩" },
   { href: "/audit-log", label: "Audit Log", icon: "🔒" },
   { href: "/risk-flags", label: "Risk Flags", icon: "⚠️" },
   { href: "/analytics", label: "Analytics", icon: "📈" },

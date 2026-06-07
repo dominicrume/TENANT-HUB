@@ -20,8 +20,7 @@ export default function IntakeNewPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function start(mode: InputMode) {
-    if (mode === "voice") return;
+  async function start(mode: "manual" | "ocr" | "voice") {
     setBusy(true);
     setError(null);
     const res = await fetch("/api/drafts", {
@@ -36,7 +35,11 @@ export default function IntakeNewPage() {
       return;
     }
     const draft = await res.json();
-    router.push(mode === "ocr" ? `/intake/${draft.id}/extract` : `/intake/${draft.id}/review`);
+    if (mode === "voice") {
+      router.push(`/intake/${draft.id}/voice`);
+    } else {
+      router.push(mode === "ocr" ? `/intake/${draft.id}/extract` : `/intake/${draft.id}/review`);
+    }
   }
 
   return (
@@ -59,14 +62,11 @@ export default function IntakeNewPage() {
           <span style={{ fontSize: "12px", color: "#7A8499" }}>Upload a physical Ash Shahada form. Fields extracted automatically.</span>
         </button>
 
-        <div style={{ ...CARD, cursor: "not-allowed", opacity: 0.6 }} aria-disabled>
+        <button style={CARD} onClick={() => start("voice")} disabled={busy}>
           <span style={{ fontSize: "26px" }}>🎤</span>
           <strong style={{ color: "var(--navy)" }}>Voice Input</strong>
-          <span style={{ fontSize: "12px", color: "#7A8499" }}>Speak the details aloud.</span>
-          <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--navy)", background: "var(--amber)", borderRadius: "5px", padding: "2px 6px", alignSelf: "flex-start" }}>
-            Coming in Sprint 5
-          </span>
-        </div>
+          <span style={{ fontSize: "12px", color: "#7A8499" }}>Speak the details aloud. AI will transcribe and extract.</span>
+        </button>
       </div>
     </div>
   );
