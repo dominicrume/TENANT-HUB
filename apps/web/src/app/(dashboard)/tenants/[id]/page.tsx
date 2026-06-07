@@ -285,7 +285,7 @@ export default function TenantDetailPage() {
           </div>
 
           {/* SAVE ACTION BAR */}
-          <div className="action-bar" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <div className="action-bar no-print" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <button
               onClick={onSave}
               disabled={saving}
@@ -303,6 +303,23 @@ export default function TenantDetailPage() {
               }}
             >
               {saving ? "Saving…" : "Save changes"}
+            </button>
+            <button
+              onClick={() => window.print()}
+              style={{
+                minHeight: "56px",
+                padding: "0 26px",
+                borderRadius: "8px",
+                border: "1px solid #38bdf8",
+                background: "#f0f9ff",
+                color: "#0ea5e9",
+                fontWeight: 600,
+                fontSize: "14px",
+                cursor: "pointer",
+                fontFamily: "'Sora', sans-serif",
+              }}
+            >
+              🖨️ Print Form
             </button>
             {saveMsg && (
               <span style={{ fontSize: "13px", color: saveMsg.startsWith("✓") ? "#1E7F4F" : "#E05252" }}>

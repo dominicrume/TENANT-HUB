@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowser } from "../../../lib/supabase-browser";
 import * as s from "../_authStyles";
 
@@ -16,13 +16,17 @@ const BRANDS = [
   { value: "tenant_hub", label: "Tenant Hub Workspace" },
 ] as const;
 
-export default function SignupPage() {
+function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialPlan = searchParams.get("plan") || "starter";
+  
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<(typeof ROLES)[number]["value"]>("support_worker");
+  const [role, setRole] = useState<(typeof ROLES)[number]["value"]>("manager"); // default to manager for signups
   const [brand, setBrand] = useState<(typeof BRANDS)[number]["value"]>("tenant_hub");
+  const [plan, setPlan] = useState(initialPlan);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -98,6 +102,10 @@ export default function SignupPage() {
 
           {error && <div style={s.errorBox}>{error}</div>}
 
+          <div style={{ padding: "12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "16px", textAlign: "center", fontSize: "14px", color: "#475569" }}>
+            Selected Plan: <strong style={{color: "#0f172a", textTransform: "capitalize"}}>{plan}</strong>
+          </div>
+
           <button type="submit" style={s.submit} disabled={loading}>
             {loading ? "Creating account…" : "Create account"}
           </button>
@@ -108,5 +116,14 @@ export default function SignupPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+import { Suspense } from 'react';
+export default function SignupPageWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SignupPage />
+    </Suspense>
   );
 }

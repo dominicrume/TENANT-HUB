@@ -72,10 +72,14 @@ export default function VerifyPage() {
 
         {error && <div style={{ color: "#E05252", fontSize: "14px", marginTop: "12px" }}>{error}</div>}
 
-        <div style={{ display: "flex", gap: "12px", marginTop: "18px", flexWrap: "wrap" }}>
+        <div className="no-print" style={{ display: "flex", gap: "12px", marginTop: "18px", flexWrap: "wrap" }}>
           <button onClick={confirm} disabled={busy || !name.trim()}
             style={{ flex: "1 1 240px", minHeight: "56px", borderRadius: "8px", border: "none", background: "var(--amber)", color: "var(--navy)", fontWeight: 700, fontSize: "16px", cursor: busy || !name.trim() ? "not-allowed" : "pointer" }}>
             ✓ Confirm &amp; Sign
+          </button>
+          <button onClick={() => window.print()}
+            style={{ minHeight: "56px", padding: "0 20px", borderRadius: "8px", border: "1px solid #38bdf8", background: "#f0f9ff", color: "#0ea5e9", fontWeight: 600, cursor: "pointer" }}>
+            🖨️ Print Form
           </button>
           <button onClick={() => router.push(`/intake/${draftId}/review`)}
             style={{ minHeight: "56px", padding: "0 20px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", color: "#7A8499", fontWeight: 600, cursor: "pointer" }}>

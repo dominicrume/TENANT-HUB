@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useBrand, BRAND_LABELS } from "../../../contexts/BrandContext";
 import { formatDateTime, truncateHash } from "../../../lib/format";
 
-type Tab = "users" | "charges" | "brands" | "blockchain";
+type Tab = "users" | "charges" | "brands" | "billing" | "blockchain";
 
 interface Profile { id: string; full_name: string; role: string; email: string | null }
 interface Stamp { id: string; status: string; audit_hash: string; tx_hash: string | null; created_at: string; tenant_id: string | null }
@@ -64,6 +64,7 @@ export default function SettingsPage() {
     { key: "users", label: "Users" },
     { key: "charges", label: "Service Charges" },
     { key: "brands", label: "Brands" },
+    { key: "billing", label: "Billing & Subscription" },
     { key: "blockchain", label: "Blockchain Status" },
   ];
 
@@ -132,6 +133,55 @@ export default function SettingsPage() {
                   <div style={{ fontSize: "12px", color: "#7A8499" }}>Signatory: AHSAN REHMAN</div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {tab === "billing" && (
+          <div>
+            <h2 style={{ color: "var(--navy)", fontSize: "16px", fontWeight: 700, marginBottom: "10px" }}>Billing &amp; Subscription</h2>
+            
+            <div style={{ padding: "20px", border: "1px solid #EDE8E1", borderRadius: "12px", background: "#fff", maxWidth: "600px", marginBottom: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+                <div>
+                  <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--navy)", marginBottom: "4px" }}>Professional Plan</h3>
+                  <p style={{ fontSize: "13px", color: "#1E7F4F", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: "#34C87A" }}></span> Active
+                  </p>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>£99<span style={{ fontSize: "14px", fontWeight: 400, color: "#7A8499" }}>/mo</span></div>
+                  <div style={{ fontSize: "12px", color: "#7A8499" }}>Next billing date: 1st July</div>
+                </div>
+              </div>
+              
+              <div style={{ borderTop: "1px solid #F3EEE7", paddingTop: "16px", display: "flex", gap: "12px" }}>
+                <button style={{ padding: "8px 16px", borderRadius: "6px", background: "var(--amber)", color: "var(--navy)", fontWeight: 600, border: "none", cursor: "pointer", fontSize: "13px" }}>
+                  Manage in Stripe
+                </button>
+                <button style={{ padding: "8px 16px", borderRadius: "6px", background: "transparent", color: "#445", fontWeight: 600, border: "1px solid #EDE8E1", cursor: "pointer", fontSize: "13px" }}>
+                  View Invoices
+                </button>
+              </div>
+            </div>
+
+            <h3 style={{ color: "var(--navy)", fontSize: "14px", fontWeight: 700, marginBottom: "8px" }}>Usage</h3>
+            <div style={{ padding: "16px", border: "1px solid #EDE8E1", borderRadius: "12px", background: "#fff", maxWidth: "600px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "13px", color: "#445" }}>
+                <span>Active Tenants</span>
+                <span style={{ fontWeight: 600 }}>12 / 50</span>
+              </div>
+              <div style={{ width: "100%", height: "8px", background: "#F3EEE7", borderRadius: "4px", overflow: "hidden", marginBottom: "20px" }}>
+                <div style={{ width: "24%", height: "100%", background: "#38bdf8" }}></div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "13px", color: "#445" }}>
+                <span>AI Intake Extractions</span>
+                <span style={{ fontWeight: 600 }}>85 / 500</span>
+              </div>
+              <div style={{ width: "100%", height: "8px", background: "#F3EEE7", borderRadius: "4px", overflow: "hidden" }}>
+                <div style={{ width: "17%", height: "100%", background: "var(--amber)" }}></div>
+              </div>
             </div>
           </div>
         )}
