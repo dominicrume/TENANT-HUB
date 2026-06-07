@@ -19,33 +19,38 @@ export function activeProvider(): "openai" | "anthropic" | "none" {
   return "none";
 }
 
-/** Single-shot completion. Returns plain text (empty string on no provider). */
 export async function complete(opts: CompleteOptions): Promise<string> {
   const maxTokens = opts.maxTokens ?? 400;
-  const provider = activeProvider();
 
-  if (provider === "openai") {
-    const openai = new OpenAI();
-    const res = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_tokens: maxTokens,
-      messages: [
-        ...(opts.system ? [{ role: "system" as const, content: opts.system }] : []),
-        { 
-          role: "user" as const, 
-          content: opts.image 
-            ? [
-                { type: "text", text: opts.prompt },
-                { type: "image_url", image_url: { url: opts.image } }
-              ] 
-            : opts.prompt 
-        },
-      ],
-    });
-    return res.choices[0]?.message?.content ?? "";
+  if (process.env["OPENAI_API_KEY"]) {
+    try {
+      const openai = new OpenAI();
+      const res = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_tokens: maxTokens,
+        messages: [
+          ...(opts.system ? [{ role: "system" as const, content: opts.system }] : []),
+          { 
+            role: "user" as const, 
+            content: opts.image 
+              ? [
+                  { type: "text", text: opts.prompt },
+                  { type: "image_url", image_url: { url: opts.image } }
+                ] 
+              : opts.prompt 
+          },
+        ],
+      });
+      return res.choices[0]?.message?.content ?? "";
+    } catch (err: any) {
+      console.warn("OpenAI API failed, attempting Anthropic fallback. Error:", err?.message);
+      if (!process.env["ANTHROPIC_API_KEY"]) {
+        throw err;
+      }
+    }
   }
 
-  if (provider === "anthropic") {
+  if (process.env["ANTHROPIC_API_KEY"]) {
     const anthropic = new Anthropic();
     
     let content: any = opts.prompt;
@@ -71,7 +76,7 @@ export async function complete(opts: CompleteOptions): Promise<string> {
     }
 
     const res = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-3-5-sonnet-20240620",
       max_tokens: maxTokens,
       ...(opts.system ? { system: opts.system } : {}),
       messages: [{ role: "user", content }],
