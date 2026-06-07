@@ -24,6 +24,7 @@ export const BRAND_LABELS: Record<Brand, string> = {
   mattys_place: "Matty's Place",
   ash_shahada: "Ash Shahada Housing Association Ltd",
   reliance: "Reliance Housing",
+  tenant_hub: "Tenant Hub Workspace",
 };
 
 const STORAGE_KEY = "th_brand";

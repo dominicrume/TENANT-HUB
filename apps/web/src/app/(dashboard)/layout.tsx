@@ -27,11 +27,12 @@ const NAV = [
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
-const BRANDS: Brand[] = ["mattys_place", "ash_shahada", "reliance"];
+const BRANDS: Brand[] = ["mattys_place", "ash_shahada", "reliance", "tenant_hub"];
 const SHORT: Record<Brand, string> = {
   mattys_place: "Matty's",
   ash_shahada: "Ash Shahada",
   reliance: "Reliance",
+  tenant_hub: "Tenant Hub Workspace",
 };
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {

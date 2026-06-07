@@ -20,7 +20,7 @@ export const BENEFIT_FREQUENCIES = ["Monthly", "Fortnightly", "Weekly"] as const
 export const TitleSchema = preprocessEnum([...TITLES]);
 export const BenefitTypeSchema = preprocessEnum([...BENEFIT_TYPES]);
 export const BenefitFrequencySchema = preprocessEnum([...BENEFIT_FREQUENCIES]);
-export const BrandSchema = preprocessEnum(["mattys_place", "ash_shahada", "reliance"]);
+export const BrandSchema = preprocessEnum(["mattys_place", "ash_shahada", "reliance", "tenant_hub"]);
 export const EntryMethodSchema = z.enum(["manual", "ocr", "voice"]);
 export const UserRoleSchema = z.enum(["manager", "support_worker", "tenant"]);
 
