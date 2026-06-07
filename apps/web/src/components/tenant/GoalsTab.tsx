@@ -41,8 +41,9 @@ export function GoalsTab({ tenantId }: { tenantId: string }) {
   const [loading, setLoading] = useState(true);
 
   // New Goal State
-  const [newArea, setNewArea] = useState(AREAS[0]);
-  const [newCategory, setNewCategory] = useState(CATEGORIES[AREAS[0]][0]);
+  const defaultArea = AREAS[0] as string;
+  const [newArea, setNewArea] = useState(defaultArea);
+  const [newCategory, setNewCategory] = useState(CATEGORIES[defaultArea]?.[0] || "");
   const [initialComment, setInitialComment] = useState("");
   const [adding, setAdding] = useState(false);
 
@@ -105,7 +106,7 @@ export function GoalsTab({ tenantId }: { tenantId: string }) {
               value={newArea}
               onChange={(e) => {
                 setNewArea(e.target.value);
-                setNewCategory(CATEGORIES[e.target.value][0]);
+                setNewCategory(CATEGORIES[e.target.value]?.[0] || "");
               }}
               style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #EDE8E1", fontSize: "13px" }}
             >
@@ -119,7 +120,7 @@ export function GoalsTab({ tenantId }: { tenantId: string }) {
               onChange={(e) => setNewCategory(e.target.value)}
               style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #EDE8E1", fontSize: "13px" }}
             >
-              {CATEGORIES[newArea].map(c => <option key={c} value={c}>{c}</option>)}
+              {(CATEGORIES[newArea] || []).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </div>

@@ -22,8 +22,8 @@ export async function POST(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
-  // Only managers/admins can modify form schemas
-  if (auth.actor.user_role !== "manager" && auth.actor.user_role !== "admin") {
+  // Only managers can modify form schemas
+  if (auth.actor.user_role !== "manager") {
     return NextResponse.json({ error: "Permission denied" }, { status: 403 });
   }
 

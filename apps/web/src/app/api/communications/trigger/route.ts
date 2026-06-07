@@ -6,7 +6,6 @@ export async function POST(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
-  const supabase = await supabaseServer();
 
   try {
     const body = await req.json();
@@ -16,11 +15,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const supabase = createSupabaseServer();
-    const { data, error } = await supabase
+    const { data, error } = await auth.supabase
       .from("communications_log")
       .insert({
-        org_id: auth.orgId,
+        org_id: auth.actor.org_id,
         tenant_id: tenantId || null,
         type,
         recipient,
