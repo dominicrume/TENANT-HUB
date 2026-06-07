@@ -167,17 +167,34 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <div style={{ color: "#9AA6BC", fontSize: "11px", marginBottom: "8px", textTransform: "capitalize" }}>
               {profile?.role?.replace("_", " ") ?? ""}
             </div>
-            <a
-              href="/auth/signout"
+            <button
+              onClick={async () => {
+                try {
+                  // 1. Nuke local storage directly to be 100% sure
+                  Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('sb-')) {
+                      localStorage.removeItem(key);
+                    }
+                  });
+                  // 2. Call Supabase signout (clears other client state)
+                  const { getSupabaseBrowser } = await import('../../lib/supabase-browser');
+                  await getSupabaseBrowser().auth.signOut();
+                  // 3. Nuke server cookies
+                  await fetch("/auth/signout");
+                } catch (err) {
+                  console.error("Signout error", err);
+                }
+                // 4. Hard redirect
+                window.location.href = "/login";
+              }}
               style={{
-                display: "block", textAlign: "center", textDecoration: "none",
-                width: "100%", minHeight: "40px", lineHeight: "40px", borderRadius: "8px",
+                width: "100%", minHeight: "40px", borderRadius: "8px",
                 border: "1px solid rgba(255,255,255,0.15)", background: "transparent",
                 color: "#C7CFDD", fontSize: "13px", cursor: "pointer", fontFamily: "'Sora',sans-serif",
               }}
             >
               Sign Out
-            </a>
+            </button>
           </div>
         </nav>
 
