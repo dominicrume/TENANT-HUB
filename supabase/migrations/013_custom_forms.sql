@@ -39,14 +39,14 @@ CREATE POLICY "Managers can insert form templates"
     ON public.form_templates FOR INSERT
     WITH CHECK (
         org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()) AND
-        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'admin')
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager')
     );
 
 CREATE POLICY "Managers can update form templates"
     ON public.form_templates FOR UPDATE
     USING (
         org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()) AND
-        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'admin')
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager')
     );
 
 -- Policies for tenant_forms
