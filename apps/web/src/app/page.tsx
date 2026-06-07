@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { getSupabaseServer } from "../lib/supabase-server";
+import { createSupabaseServer } from "../lib/supabase-server";
 import { redirect } from "next/navigation";
 
 export default async function LandingPage() {
-  const supabase = getSupabaseServer();
+  const supabase = createSupabaseServer();
   const { data: { session } } = await supabase.auth.getSession();
 
   // If already logged in, show a subtle banner at the top, but let them see the landing page

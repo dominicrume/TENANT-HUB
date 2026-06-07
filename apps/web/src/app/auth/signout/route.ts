@@ -12,9 +12,12 @@ export async function GET(request: Request) {
   const cookieHeader = request.headers.get('cookie');
   if (cookieHeader) {
     cookieHeader.split(';').forEach(cookie => {
-      const cookieName = cookie.split('=')[0].trim();
-      if (cookieName.startsWith('sb-')) {
-        response.cookies.set(cookieName, '', { maxAge: -1, path: '/' });
+      const parts = cookie.split('=');
+      if (parts && parts.length > 0 && parts[0]) {
+        const cookieName = parts[0].trim();
+        if (cookieName.startsWith('sb-')) {
+          response.cookies.set(cookieName, '', { maxAge: -1, path: '/' });
+        }
       }
     });
   }
