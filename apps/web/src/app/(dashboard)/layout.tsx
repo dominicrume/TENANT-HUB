@@ -38,16 +38,8 @@ const SHORT: Record<Brand, string> = {
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
   const { brand, setBrand } = useBrand();
-
-  async function handleSignOut() {
-    try {
-      await signOut(); // Clears browser client session
-      await fetch("/auth/signout", { method: "POST" }); // Best effort server signout
-    } catch { /* ignore */ }
-    window.location.href = "/login";
-  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
@@ -175,16 +167,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <div style={{ color: "#9AA6BC", fontSize: "11px", marginBottom: "8px", textTransform: "capitalize" }}>
               {profile?.role?.replace("_", " ") ?? ""}
             </div>
-            <button
-              onClick={handleSignOut}
+            <a
+              href="/auth/signout"
               style={{
-                width: "100%", minHeight: "40px", borderRadius: "8px",
+                display: "block", textAlign: "center", textDecoration: "none",
+                width: "100%", minHeight: "40px", lineHeight: "40px", borderRadius: "8px",
                 border: "1px solid rgba(255,255,255,0.15)", background: "transparent",
                 color: "#C7CFDD", fontSize: "13px", cursor: "pointer", fontFamily: "'Sora',sans-serif",
               }}
             >
               Sign Out
-            </button>
+            </a>
           </div>
         </nav>
 
