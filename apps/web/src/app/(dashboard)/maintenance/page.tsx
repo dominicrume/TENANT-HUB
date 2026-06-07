@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { formatShortDate } from "../../../lib/format";
-import { useSupabase } from "../../../hooks/useSupabase";
+import { getSupabaseBrowser } from "../../../lib/supabase-browser";
 
 export default function MaintenancePage() {
   const [tickets, setTickets] = useState<any[]>([]);
@@ -18,7 +18,7 @@ export default function MaintenancePage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [assignedTo, setAssignedTo] = useState("");
 
-  const supabase = useSupabase();
+  const supabase = getSupabaseBrowser();
 
   const load = useCallback(async () => {
     setLoading(true);
