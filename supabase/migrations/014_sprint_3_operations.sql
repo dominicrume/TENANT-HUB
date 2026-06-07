@@ -51,30 +51,30 @@ ALTER TABLE public.incident_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shift_handovers ENABLE ROW LEVEL SECURITY;
 
 -- Policies for maintenance_tickets
-CREATE POLICY "Staff can view org maintenance" ON public.maintenance_tickets FOR SELECT USING (org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()));
-CREATE POLICY "Staff can insert maintenance" ON public.maintenance_tickets FOR INSERT WITH CHECK (org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()));
-CREATE POLICY "Staff can update maintenance" ON public.maintenance_tickets FOR UPDATE USING (org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()));
+CREATE POLICY "Staff can view org maintenance" ON public.maintenance_tickets FOR SELECT USING (org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can insert maintenance" ON public.maintenance_tickets FOR INSERT WITH CHECK (org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can update maintenance" ON public.maintenance_tickets FOR UPDATE USING (org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()));
 
 -- Policies for tenant_documents
 CREATE POLICY "Staff can view tenant docs" ON public.tenant_documents FOR SELECT USING (
-    tenant_id IN (SELECT t.id FROM public.tenants t JOIN public.users u ON t.org_id = u.org_id WHERE u.id = auth.uid())
+    tenant_id IN (SELECT t.id FROM public.tenants t JOIN public.profiles u ON t.org_id = u.org_id WHERE u.id = auth.uid())
 );
 CREATE POLICY "Staff can insert tenant docs" ON public.tenant_documents FOR INSERT WITH CHECK (
-    tenant_id IN (SELECT t.id FROM public.tenants t JOIN public.users u ON t.org_id = u.org_id WHERE u.id = auth.uid())
+    tenant_id IN (SELECT t.id FROM public.tenants t JOIN public.profiles u ON t.org_id = u.org_id WHERE u.id = auth.uid())
 );
 CREATE POLICY "Staff can delete tenant docs" ON public.tenant_documents FOR DELETE USING (
-    tenant_id IN (SELECT t.id FROM public.tenants t JOIN public.users u ON t.org_id = u.org_id WHERE u.id = auth.uid())
+    tenant_id IN (SELECT t.id FROM public.tenants t JOIN public.profiles u ON t.org_id = u.org_id WHERE u.id = auth.uid())
 );
 
 -- Policies for incident_reports
-CREATE POLICY "Staff can view org incidents" ON public.incident_reports FOR SELECT USING (org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()));
-CREATE POLICY "Staff can insert incidents" ON public.incident_reports FOR INSERT WITH CHECK (org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()));
-CREATE POLICY "Staff can update incidents" ON public.incident_reports FOR UPDATE USING (org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()));
+CREATE POLICY "Staff can view org incidents" ON public.incident_reports FOR SELECT USING (org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can insert incidents" ON public.incident_reports FOR INSERT WITH CHECK (org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can update incidents" ON public.incident_reports FOR UPDATE USING (org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()));
 
 -- Policies for shift_handovers
-CREATE POLICY "Staff can view org handovers" ON public.shift_handovers FOR SELECT USING (org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()));
-CREATE POLICY "Staff can insert handovers" ON public.shift_handovers FOR INSERT WITH CHECK (org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()));
-CREATE POLICY "Staff can update handovers" ON public.shift_handovers FOR UPDATE USING (org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()));
+CREATE POLICY "Staff can view org handovers" ON public.shift_handovers FOR SELECT USING (org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can insert handovers" ON public.shift_handovers FOR INSERT WITH CHECK (org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can update handovers" ON public.shift_handovers FOR UPDATE USING (org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()));
 
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$
@@ -92,9 +92,9 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('tenant-documents', 'tena
 -- Bucket Security Policies
 CREATE POLICY "Staff can view org documents bucket" ON storage.objects FOR SELECT USING (
     bucket_id = 'tenant-documents' AND
-    (auth.uid() IN (SELECT id FROM public.users))
+    (auth.uid() IN (SELECT id FROM public.profiles))
 );
 CREATE POLICY "Staff can upload to documents bucket" ON storage.objects FOR INSERT WITH CHECK (
     bucket_id = 'tenant-documents' AND
-    (auth.uid() IN (SELECT id FROM public.users))
+    (auth.uid() IN (SELECT id FROM public.profiles))
 );

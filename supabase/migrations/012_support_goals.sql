@@ -27,30 +27,30 @@ ALTER TABLE public.tenant_goal_updates ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Staff can view goals"
     ON public.tenant_goals FOR SELECT
     USING (
-        (SELECT role FROM public.users WHERE id = auth.uid()) IN ('manager', 'support_worker')
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'support_worker')
     );
 
 CREATE POLICY "Staff can insert goals"
     ON public.tenant_goals FOR INSERT
     WITH CHECK (
-        (SELECT role FROM public.users WHERE id = auth.uid()) IN ('manager', 'support_worker')
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'support_worker')
     );
 
 CREATE POLICY "Staff can update goals"
     ON public.tenant_goals FOR UPDATE
     USING (
-        (SELECT role FROM public.users WHERE id = auth.uid()) IN ('manager', 'support_worker')
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'support_worker')
     );
 
 -- Policies for tenant_goal_updates
 CREATE POLICY "Staff can view goal updates"
     ON public.tenant_goal_updates FOR SELECT
     USING (
-        (SELECT role FROM public.users WHERE id = auth.uid()) IN ('manager', 'support_worker')
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'support_worker')
     );
 
 CREATE POLICY "Staff can insert goal updates"
     ON public.tenant_goal_updates FOR INSERT
     WITH CHECK (
-        (SELECT role FROM public.users WHERE id = auth.uid()) IN ('manager', 'support_worker')
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'support_worker')
     );

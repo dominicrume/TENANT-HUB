@@ -33,20 +33,20 @@ ALTER TABLE public.tenant_forms ENABLE ROW LEVEL SECURITY;
 -- Policies for form_templates
 CREATE POLICY "Users can view org form templates"
     ON public.form_templates FOR SELECT
-    USING (org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()));
+    USING (org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()));
 
 CREATE POLICY "Managers can insert form templates"
     ON public.form_templates FOR INSERT
     WITH CHECK (
-        org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()) AND
-        (SELECT role FROM public.users WHERE id = auth.uid()) IN ('manager', 'admin')
+        org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()) AND
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'admin')
     );
 
 CREATE POLICY "Managers can update form templates"
     ON public.form_templates FOR UPDATE
     USING (
-        org_id = (SELECT org_id FROM public.users WHERE id = auth.uid()) AND
-        (SELECT role FROM public.users WHERE id = auth.uid()) IN ('manager', 'admin')
+        org_id = (SELECT org_id FROM public.profiles WHERE id = auth.uid()) AND
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'admin')
     );
 
 -- Policies for tenant_forms
@@ -55,7 +55,7 @@ CREATE POLICY "Staff can view tenant forms"
     USING (
         tenant_id IN (
             SELECT t.id FROM public.tenants t 
-            JOIN public.users u ON t.org_id = u.org_id 
+            JOIN public.profiles u ON t.org_id = u.org_id 
             WHERE u.id = auth.uid()
         )
     );
@@ -65,10 +65,10 @@ CREATE POLICY "Staff can insert tenant forms"
     WITH CHECK (
         tenant_id IN (
             SELECT t.id FROM public.tenants t 
-            JOIN public.users u ON t.org_id = u.org_id 
+            JOIN public.profiles u ON t.org_id = u.org_id 
             WHERE u.id = auth.uid()
         ) AND
-        (SELECT role FROM public.users WHERE id = auth.uid()) IN ('manager', 'support_worker')
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'support_worker')
     );
 
 CREATE POLICY "Staff can update tenant forms"
@@ -76,10 +76,10 @@ CREATE POLICY "Staff can update tenant forms"
     USING (
         tenant_id IN (
             SELECT t.id FROM public.tenants t 
-            JOIN public.users u ON t.org_id = u.org_id 
+            JOIN public.profiles u ON t.org_id = u.org_id 
             WHERE u.id = auth.uid()
         ) AND
-        (SELECT role FROM public.users WHERE id = auth.uid()) IN ('manager', 'support_worker')
+        (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('manager', 'support_worker')
     );
 
 -- Trigger for updated_at on tenant_forms
