@@ -11,10 +11,10 @@ BEGIN
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', 'New User'),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'support_worker')::user_role,
+    COALESCE(NEW.raw_user_meta_data->>'role', 'support_worker')::public.user_role,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'brand', 'mattys_place')
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
