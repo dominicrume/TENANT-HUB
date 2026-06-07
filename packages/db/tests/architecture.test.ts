@@ -29,7 +29,7 @@ describe("Hardening Architecture Enforcement", () => {
     
     // We already removed the breach in check_draft.ts and force_create.ts. 
     // This test ensures it doesn't happen again.
-    const hasBreach = searchRecursive(path.resolve(__dirname, "../../apps/web/src"));
+    const hasBreach = searchRecursive(path.resolve(__dirname, "../../../apps/web/src"));
     expect(hasBreach).toBe(false);
   });
 });
