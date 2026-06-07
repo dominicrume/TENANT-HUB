@@ -4,6 +4,8 @@ import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../lib/api-auth";
 import type { DraftState } from "../../../../lib/intake";
 
+export const dynamic = "force-dynamic";
+
 /** GET /api/drafts/[id] — load a draft (RLS-scoped). */
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const auth = await getApiAuth();

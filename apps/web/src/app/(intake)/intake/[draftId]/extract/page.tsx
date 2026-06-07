@@ -21,7 +21,7 @@ export default function ExtractPage() {
   const [note, setNote] = useState<string | null>(null);
 
   const loadDraft = useCallback(async () => {
-    const res = await fetch(`/api/drafts/${draftId}`);
+    const res = await fetch(`/api/drafts/${draftId}`, { cache: "no-store" });
     if (res.ok) {
       const d = (await res.json()) as Draft;
       setData((d.machine_state?.extracted as Record<string, unknown>) ?? {});
@@ -55,11 +55,18 @@ export default function ExtractPage() {
 
   async function confirm() {
     setBusy(true);
-    await fetch(`/api/drafts/${draftId}`, {
+    const res = await fetch(`/api/drafts/${draftId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ machine_state: { input_mode: "ocr", extracted: data }, step: 2 }),
     });
+    
+    if (!res.ok) {
+      setNote("Failed to save draft. Please try again.");
+      setBusy(false);
+      return;
+    }
+    
     router.push(`/intake/${draftId}/review`);
   }
 

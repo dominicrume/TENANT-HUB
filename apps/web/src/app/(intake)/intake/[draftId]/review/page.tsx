@@ -21,7 +21,7 @@ export default function ReviewPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/drafts/${draftId}`);
+    const res = await fetch(`/api/drafts/${draftId}`, { cache: "no-store" });
     if (res.ok) {
       const d = (await res.json()) as Draft;
       setData((d.machine_state?.extracted as Record<string, unknown>) ?? {});
@@ -36,7 +36,7 @@ export default function ReviewPage() {
   async function confirm() {
     setBusy(true);
     const hash = await hashRecord(canonicalSubset(data));
-    await fetch(`/api/drafts/${draftId}`, {
+    const res = await fetch(`/api/drafts/${draftId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -50,6 +50,13 @@ export default function ReviewPage() {
         canonical_hash: hash,
       }),
     });
+    
+    if (!res.ok) {
+      alert("Failed to save draft. Please try again.");
+      setBusy(false);
+      return;
+    }
+    
     router.push(`/intake/${draftId}/verify`);
   }
 

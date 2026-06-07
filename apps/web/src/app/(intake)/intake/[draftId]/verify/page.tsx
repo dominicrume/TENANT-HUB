@@ -21,7 +21,7 @@ export default function VerifyPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/drafts/${draftId}`);
+    const res = await fetch(`/api/drafts/${draftId}`, { cache: "no-store" });
     if (res.ok) setDraft((await res.json()) as Draft);
   }, [draftId]);
 
@@ -42,7 +42,7 @@ export default function VerifyPage() {
       setBusy(false);
       return;
     }
-    await fetch(`/api/drafts/${draftId}`, {
+    const res = await fetch(`/api/drafts/${draftId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -50,6 +50,14 @@ export default function VerifyPage() {
         step: 4,
       }),
     });
+    
+    if (!res.ok) {
+      const b = await res.json().catch(() => null);
+      setError(b?.error ?? "Failed to save signature");
+      setBusy(false);
+      return;
+    }
+    
     router.push(`/intake/${draftId}/complete`);
   }
 

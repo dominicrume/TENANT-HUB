@@ -4,6 +4,8 @@ import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
 import type { DraftState } from "../../../lib/intake";
 
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/drafts — create an intake draft (H5: server-side, never browser).
  * Written through writeWithAudit so the drafts table keeps audit coverage (H1).

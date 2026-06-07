@@ -24,7 +24,8 @@ export const POST = withRouteHandler(
       return NextResponse.json({ error: "You must belong to an organisation" }, { status: 400 });
     }
 
-    await inviteUser(email, role, profile.org_id, email.split("@")[0], auth.actor.brand);
+    const namePrefix = email.split("@")[0] || "Team Member";
+    await inviteUser(email, role, profile.org_id, namePrefix, auth.actor.brand || "tenant_hub");
 
     return NextResponse.json({ success: true, message: "Invitation sent" }, { status: 200 });
   }
