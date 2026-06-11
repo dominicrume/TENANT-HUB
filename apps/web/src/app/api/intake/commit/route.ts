@@ -51,8 +51,24 @@ export async function POST(req: Request) {
     entry_method: state.input_mode,
   });
   if (!parsed.success) {
-    const issuesList = parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join(", ");
-    return NextResponse.json({ error: `Validation failed: ${issuesList}`, issues: parsed.error.issues }, { status: 422 });
+    return NextResponse.json(
+      { error: "Validation failed", issues: parsed.error.issues },
+      { status: 422 },
+    );
+  }
+
+  // Emergency fallback in case Next.js fetch cache omitted org_id from the profile
+  if (!auth.actor.org_id) {
+    const { data: freshProfile } = await auth.supabase
+      .from("profiles")
+      .select("org_id")
+      .eq("id", auth.actor.user_id)
+      .single();
+    if (freshProfile?.org_id) {
+      auth.actor.org_id = freshProfile.org_id;
+    } else {
+      return NextResponse.json({ error: "Critical configuration error: Missing organization ID" }, { status: 500 });
+    }
   }
 
   try {
@@ -60,6 +76,7 @@ export async function POST(req: Request) {
       table: "tenants",
       record: {
         ...parsed.data,
+        org_id: auth.actor.org_id,
         created_by: auth.actor.user_id,
         tenant_signature_hash: draft.canonical_hash,
       } as Record<string, unknown>,
