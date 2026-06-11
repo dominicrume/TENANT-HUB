@@ -182,17 +182,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <button
               onClick={async () => {
                 try {
-                  // 1. Nuke local storage directly to be 100% sure
+                  // 1. Nuke server cookies FIRST
+                  await fetch("/auth/signout", { method: "POST" });
+
+                  // 2. Call Supabase signout (clears other client state)
+                  const { getSupabaseBrowser } = await import('../../lib/supabase-browser');
+                  await getSupabaseBrowser().auth.signOut();
+
+                  // 3. Nuke local storage directly to be 100% sure
                   Object.keys(localStorage).forEach(key => {
                     if (key.startsWith('sb-')) {
                       localStorage.removeItem(key);
                     }
                   });
-                  // 2. Call Supabase signout (clears other client state)
-                  const { getSupabaseBrowser } = await import('../../lib/supabase-browser');
-                  await getSupabaseBrowser().auth.signOut();
-                  // 3. Nuke server cookies
-                  await fetch("/auth/signout", { method: "POST" });
                 } catch (err) {
                   console.error("Signout error", err);
                 }

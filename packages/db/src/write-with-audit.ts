@@ -22,6 +22,7 @@ export async function writeWithAudit<T extends Record<string, unknown>>(
   opts: WriteAuditOptions<T>
 ): Promise<{ data: T; audit_hash: string }> {
   const timestamp = new Date().toISOString();
+  console.log("[writeWithAudit] opts.record:", JSON.stringify(opts.record, null, 2));
 
   const entry: AuditEntry = {
     table_name:   opts.table,

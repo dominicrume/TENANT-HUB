@@ -27,9 +27,32 @@ describe("Hardening Architecture Enforcement", () => {
       return breached;
     };
     
-    // We already removed the breach in check_draft.ts and force_create.ts. 
-    // This test ensures it doesn't happen again.
-    const hasBreach = searchRecursive(path.resolve(__dirname, "../../../apps/web/src"));
+    // Walk up to find the monorepo root
+    let rootDir = path.resolve(__dirname);
+    while (rootDir && rootDir !== "/" && !fs.existsSync(path.join(rootDir, "pnpm-workspace.yaml"))) {
+      const parent = path.dirname(rootDir);
+      if (parent === rootDir) break;
+      rootDir = parent;
+    }
+    let appsWebSrc = path.join(rootDir, "apps/web/src");
+
+    // Fallback if rootDir was not correctly identified (e.g. in bundled test runs)
+    if (!fs.existsSync(appsWebSrc)) {
+      let currentDir = process.cwd();
+      while (currentDir && currentDir !== "/") {
+        const candidate = path.join(currentDir, "apps/web/src");
+        if (fs.existsSync(candidate)) {
+          appsWebSrc = candidate;
+          break;
+        }
+        const parent = path.dirname(currentDir);
+        if (parent === currentDir) break;
+        currentDir = parent;
+      }
+    }
+    
+    // This test ensures no administrative role keys are imported outside of packages/db.
+    const hasBreach = searchRecursive(appsWebSrc);
     expect(hasBreach).toBe(false);
   });
 });

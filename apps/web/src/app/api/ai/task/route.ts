@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (!prompt) return NextResponse.json({ error: "prompt required" }, { status: 400 });
 
   if (activeProvider() === "none") {
-    return NextResponse.json({ response: "No AI provider is configured (set OPENAI_API_KEY or ANTHROPIC_API_KEY)." });
+    return NextResponse.json({ response: "No AI provider is configured (set RUNCRATE_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY)." });
   }
 
   const gateway = makeSecureGateway();

@@ -143,12 +143,12 @@ export default function TenantPortalLayout({ children }: { children: ReactNode }
 
   async function handleSignOut() {
     try {
+      await fetch("/auth/signout", { method: "POST" });
+      const { getSupabaseBrowser } = await import("../../lib/supabase-browser");
+      await getSupabaseBrowser().auth.signOut();
       Object.keys(localStorage).forEach((key) => {
         if (key.startsWith("sb-")) localStorage.removeItem(key);
       });
-      const { getSupabaseBrowser } = await import("../../lib/supabase-browser");
-      await getSupabaseBrowser().auth.signOut();
-      await fetch("/auth/signout", { method: "POST" });
     } catch (err) {
       console.error("Signout error", err);
     }

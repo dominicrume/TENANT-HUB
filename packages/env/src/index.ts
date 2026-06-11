@@ -12,6 +12,7 @@ const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   // One of these powers the AI features. Both optional; the AI gateway picks a
   // provider at runtime (OpenAI preferred when present). See DECISIONS.md D3.
+  RUNCRATE_API_KEY:          z.string().optional(),
   ANTHROPIC_API_KEY:         z.string().optional(),
   OPENAI_API_KEY:            z.string().optional(),
   POLYGON_RPC_URL:           z.string().url().optional(),

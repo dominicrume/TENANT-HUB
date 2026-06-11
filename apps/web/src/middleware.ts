@@ -36,8 +36,18 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Signed-in user hitting an auth page → send to the dashboard.
+  // Signed-in user hitting an auth page → send to the appropriate home.
   if (user && (pathname.startsWith("/login") || pathname.startsWith("/signup"))) {
+    // Peek at role to decide where to send them (avoid an extra query below).
+    const { data: p } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    const r = (p?.role as string) ?? "tenant";
+    if (r === "tenant") {
+      return NextResponse.redirect(new URL("/my-home", req.url));
+    }
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
@@ -45,18 +55,32 @@ export async function middleware(req: NextRequest) {
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, tenant_id")
       .eq("id", user.id)
       .single();
     
     const role = (profile?.role as string) ?? "tenant";
+    const tenantId = (profile as Record<string, unknown> | null)?.tenant_id as string | null;
     res.headers.set("x-user-role", role);
     res.headers.set("x-user-id", user.id);
+    if (tenantId) res.headers.set("x-tenant-id", tenantId);
 
     // Contractor routing enforcement
     if (role === "contractor") {
       if (pathname === "/dashboard" || pathname.startsWith("/tenants")) {
         return NextResponse.redirect(new URL("/jobs", req.url));
+      }
+    }
+
+    // Tenant routing enforcement — confine to the tenant portal pages.
+    if (role === "tenant") {
+      const TENANT_ALLOWED = ["/my-home", "/my-ledger", "/report-issue"];
+      const isAllowed =
+        TENANT_ALLOWED.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
+        pathname.startsWith("/api/") ||
+        pathname.startsWith("/auth/");
+      if (!isAllowed) {
+        return NextResponse.redirect(new URL("/my-home", req.url));
       }
     }
   }

@@ -61,6 +61,14 @@ export default function VerifyPage() {
     router.push(`/intake/${draftId}/complete`);
   }
 
+  if (!draft) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "200px", color: "var(--navy)" }}>
+        Loading draft details...
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--navy)", marginBottom: "16px" }}>

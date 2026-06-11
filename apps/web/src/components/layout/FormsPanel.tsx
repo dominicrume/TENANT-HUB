@@ -21,12 +21,12 @@ interface FormCard {
 
 const FORMS: FormCard[] = [
   { key: "personal", name: "Personal Details", page: "Page 3", tint: "#4C7CE8", tab: "personal", checklist: "personal_details_form" },
-  { key: "hb", name: "Housing Benefit", page: "Page 1", tint: "#34C87A", tab: "personal", checklist: "housing_benefit_claim" },
-  { key: "missing", name: "Missing Person", page: "Pages 5-6", tint: "#E8A84C", tab: "personal", checklist: "missing_person_form" },
+  { key: "hb", name: "Housing Benefit", page: "Page 1", tint: "#34C87A", tab: "hb", checklist: "housing_benefit_claim" },
+  { key: "missing", name: "Missing Person", page: "Pages 5-6", tint: "#E8A84C", tab: "missing", checklist: "missing_person_form" },
   { key: "charge", name: "Service Charge", page: "Ledger", tint: "#0FB5A6", tab: "ledger", checklist: "service_charge_agreement" },
-  { key: "risk", name: "Risk Assessment", page: "Page 7", tint: "#E05252", tab: "personal", checklist: "risk_assessment" },
+  { key: "risk", name: "Risk Assessment", page: "Page 7", tint: "#E05252", tab: "risk", checklist: "risk_assessment" },
   { key: "confidentiality", name: "Confidentiality", page: "Pages 6-7", tint: "#7C3AED", tab: "personal", checklist: "confidentiality_form" },
-  { key: "initial", name: "Initial Assessment", page: "Page 8", tint: "#0F1C2E", tab: "personal", checklist: "initial_assessment" },
+  { key: "initial", name: "Initial Assessment", page: "Page 8", tint: "#0F1C2E", tab: "initial", checklist: "initial_assessment" },
 ];
 
 export function FormsPanel({ tenant }: { tenant: CanonicalTenant }) {
@@ -64,7 +64,16 @@ export function FormsPanel({ tenant }: { tenant: CanonicalTenant }) {
         {FORMS.map((f) => (
           <button
             key={f.key}
-            onClick={() => f.tab && router.replace(`/tenants/${tenant.id}?tab=${f.tab}`)}
+            onClick={() => {
+              if (f.key === "confidentiality") {
+                router.replace(`/tenants/${tenant.id}?tab=personal#confidentiality`);
+                setTimeout(() => {
+                  document.getElementById("confidentiality")?.scrollIntoView({ behavior: "smooth" });
+                }, 100);
+              } else if (f.tab) {
+                router.replace(`/tenants/${tenant.id}?tab=${f.tab}`);
+              }
+            }}
             style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 10px", borderRadius: "9px", border: "1px solid #EDE8E1", background: "#fff", cursor: f.tab ? "pointer" : "default", textAlign: "left" }}
           >
             <span style={{ width: "8px", height: "28px", borderRadius: "4px", background: f.tint, flexShrink: 0 }} />

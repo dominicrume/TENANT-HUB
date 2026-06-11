@@ -257,7 +257,7 @@ export default function TenantDetailPage() {
           </FormSection>
 
           {/* 6 · Confidentiality Declaration (static authorisation text) */}
-          <section style={{ marginBottom: "22px" }}>
+          <section id="confidentiality" style={{ marginBottom: "22px" }}>
             <h3 style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--amber)", marginBottom: "10px", borderBottom: "1px solid #EDE8E1", paddingBottom: "5px" }}>
               6 · Confidentiality Declaration
             </h3>

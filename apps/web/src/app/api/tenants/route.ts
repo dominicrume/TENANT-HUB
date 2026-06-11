@@ -53,7 +53,11 @@ export async function POST(req: Request) {
   try {
     const { data } = await writeWithAudit({
       table: "tenants",
-      record: { ...parsed.data, created_by: auth.actor.user_id } as Record<string, unknown>,
+      record: {
+        ...parsed.data,
+        org_id: auth.actor.org_id,
+        created_by: auth.actor.user_id,
+      } as Record<string, unknown>,
       action: "CREATE",
       entry_method: parsed.data.entry_method,
       ...auth.actor,

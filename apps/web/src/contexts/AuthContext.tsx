@@ -51,29 +51,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function loadProfile(u: User | null) {
       if (!u) {
         setProfile(null);
-        return;
+        return null;
       }
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, role, email")
-        .eq("id", u.id)
-        .single();
-      setProfile((data as Profile) ?? null);
+      // Populate immediately from metadata to avoid showing empty values/dashes during load
+      const metaName = u.user_metadata?.full_name || u.user_metadata?.name || "";
+      const metaRole = u.user_metadata?.role || "support_worker";
+      const initialProfile = {
+        id: u.id,
+        full_name: metaName,
+        role: metaRole as any,
+        email: u.email ?? null
+      };
+      setProfile(initialProfile);
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, role, email")
+          .eq("id", u.id)
+          .single();
+        if (error) {
+          console.error("AuthContext: loadProfile DB error:", error.message);
+          // Keep the initial metadata-based profile if DB read fails
+          return initialProfile;
+        }
+        const p = (data as Profile) ?? null;
+        if (p) {
+          setProfile(p);
+        }
+        return p;
+      } catch (err) {
+        console.error("AuthContext: loadProfile exception:", err);
+        return initialProfile;
+      }
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      await loadProfile(u);
-      settled.current = true;
-      setLoading(false);
-    });
-
-    // Kick an initial read in case the listener doesn't fire immediately.
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (settled.current) return;
-      setUser(data.user);
-      await loadProfile(data.user);
+      if (u) {
+        setLoading(true);
+        await loadProfile(u);
+      } else {
+        setProfile(null);
+      }
       settled.current = true;
       setLoading(false);
     });
