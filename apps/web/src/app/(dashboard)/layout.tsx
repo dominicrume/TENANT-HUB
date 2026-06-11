@@ -192,7 +192,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   const { getSupabaseBrowser } = await import('../../lib/supabase-browser');
                   await getSupabaseBrowser().auth.signOut();
                   // 3. Nuke server cookies
-                  await fetch("/auth/signout");
+                  await fetch("/auth/signout", { method: "POST" });
                 } catch (err) {
                   console.error("Signout error", err);
                 }
