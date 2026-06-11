@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useBrand, BRAND_LABELS, type Brand } from "../../contexts/BrandContext";
 import { TenantSidebar } from "../../components/layout/TenantSidebar";
@@ -41,21 +41,29 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { profile } = useAuth();
   const { brand, setBrand } = useBrand();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       {/* ── TOPBAR ─────────────────────────────────────────────── */}
       <header
+        className="flex items-center gap-4 px-4 shrink-0"
         style={{
           height: "56px",
           background: "var(--navy)",
-          display: "flex",
-          alignItems: "center",
-          gap: "16px",
-          padding: "0 16px",
-          flexShrink: 0,
         }}
       >
+        <button
+          className="md:hidden flex items-center justify-center w-8 h-8 rounded text-white"
+          style={{ background: "rgba(255,255,255,0.08)" }}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          ☰
+        </button>
         <Link href="/dashboard" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
           <span
             style={{
@@ -119,16 +127,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </header>
 
       {/* ── BODY ───────────────────────────────────────────────── */}
-      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+      <div className="flex flex-1 min-h-0 relative">
         {/* SIDEBAR */}
         <nav
+          className={`${mobileMenuOpen ? "flex" : "hidden"} md:flex`}
           style={{
             width: "240px",
             background: "var(--navy)",
-            display: "flex",
             flexDirection: "column",
             padding: "12px",
             flexShrink: 0,
+            position: mobileMenuOpen ? "absolute" : "relative",
+            zIndex: 40,
+            height: mobileMenuOpen ? "100%" : "auto",
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: "1px", marginBottom: "12px" }}>
