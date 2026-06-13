@@ -46,6 +46,10 @@ CREATE POLICY "org_tenants_update"
   ON tenants FOR UPDATE
   USING (org_id = get_my_org_id() AND get_my_role() IN ('manager', 'support_worker'));
 
+CREATE POLICY "org_tenants_delete"
+  ON tenants FOR DELETE
+  USING (org_id = get_my_org_id() AND get_my_role() = 'manager');
+
 -- 4. Sessions (Linked to Tenant)
 CREATE POLICY "org_sessions_read"
   ON sessions FOR SELECT
@@ -54,6 +58,14 @@ CREATE POLICY "org_sessions_read"
 CREATE POLICY "org_sessions_insert"
   ON sessions FOR INSERT
   WITH CHECK (tenant_id IN (SELECT id FROM tenants WHERE org_id = get_my_org_id()) AND get_my_role() IN ('manager', 'support_worker'));
+
+CREATE POLICY "org_sessions_update"
+  ON sessions FOR UPDATE
+  USING (tenant_id IN (SELECT id FROM tenants WHERE org_id = get_my_org_id()) AND get_my_role() IN ('manager', 'support_worker'));
+
+CREATE POLICY "org_sessions_delete"
+  ON sessions FOR DELETE
+  USING (tenant_id IN (SELECT id FROM tenants WHERE org_id = get_my_org_id()) AND get_my_role() = 'manager');
 
 -- 5. Service Charges (Linked to Tenant)
 CREATE POLICY "org_charges_read"
@@ -67,6 +79,10 @@ CREATE POLICY "org_charges_insert"
 CREATE POLICY "org_charges_update"
   ON service_charges FOR UPDATE
   USING (tenant_id IN (SELECT id FROM tenants WHERE org_id = get_my_org_id()) AND get_my_role() IN ('manager', 'support_worker'));
+
+CREATE POLICY "org_charges_delete"
+  ON service_charges FOR DELETE
+  USING (tenant_id IN (SELECT id FROM tenants WHERE org_id = get_my_org_id()) AND get_my_role() = 'manager');
 
 -- 6. Audit Logs (Linked to Tenant or User Org)
 CREATE POLICY "org_audit_read"
@@ -87,6 +103,10 @@ CREATE POLICY "org_draft_insert"
 
 CREATE POLICY "org_draft_update"
   ON drafts FOR UPDATE
+  USING (created_by = auth.uid());
+
+CREATE POLICY "org_draft_delete"
+  ON drafts FOR DELETE
   USING (created_by = auth.uid());
 
 -- 8. Stamp Queue
