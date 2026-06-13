@@ -15,7 +15,7 @@ const fallbackLimiter = (limit: number, windowSecs: number) => {
         const threshold = now - (windowSecs * 1000 * 2);
         for (const k of localCache.keys()) {
           const tsMatch = k.match(/-(\d+)$/);
-          if (tsMatch && parseInt(tsMatch[1]) * windowSecs * 1000 < threshold) {
+          if (tsMatch && tsMatch[1] && parseInt(tsMatch[1]) * windowSecs * 1000 < threshold) {
             localCache.delete(k);
           }
         }

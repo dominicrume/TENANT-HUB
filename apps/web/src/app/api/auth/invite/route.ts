@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { adminClient } from "@tenant-hub/db/src/client";
-import { getApiAuth } from "../../../../../lib/api-auth";
+import { adminClient } from "@tenant-hub/db";
+import { getApiAuth } from "../../../../lib/api-auth";
 import { z } from "zod";
 
 const InviteSchema = z.object({

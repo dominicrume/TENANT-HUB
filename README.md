@@ -1,28 +1,42 @@
 # Tenant Hub
+**The Enterprise HMO Management Platform**
 
-An enterprise-grade, multi-tenant digital intake and support management portal designed for housing associations. 
-Tenant Hub streamlines the process of onboarding new tenants by extracting data from paper forms using AI, presenting it for staff review, and executing a cryptographically-verifiable sign-off by the tenant.
+Tenant Hub is a secure, multi-tenant SaaS application engineered to streamline housing association operations, case worker intake flows, and tenant data compliance. Built on a hardened, append-only architectural foundation, Tenant Hub delivers unmatched auditability and scale.
 
-## Key Features
-- **AI-Powered Intake**: Extracts tenant details directly from uploaded images of paper forms.
-- **Blockchain Audit Trail**: Every database write (creation, updates, deletions) is cryptographically hashed and chained to a genesis block. This ensures that records are immutable and provides unquestionable provenance.
-- **Dynamic Support Plan (Goals)**: Follows the Reliance format, allowing staff to track goals across 5 core areas (Achieve Economic Wellbeing, Being Healthy, Enjoy and Achieve, Make a Positive Contribution, Staying Safe). Includes 3-month review alerts and interaction logs.
-- **Unified Master Record**: All forms are combined into a single unified record. Updating a tenant's details once reflects everywhere.
-- **True Multi-Tenancy**: Built for SaaS with distinct data isolation per organisation (`org_id`).
+## Core Features
+*   **Immutable Audit Log:** Every write operation is inextricably tied to a cryptographic hash in an append-only ledger (`write_with_audit` RPC).
+*   **Enterprise Authentication & RBAC:** Fine-grained role-based access control mirrored strictly by Row Level Security (RLS) policies.
+*   **SaaS Multi-tenancy:** Strict data isolation using `org_id` across all database operations.
+*   **End-to-End Compliance:** Built-in GDPR Right-to-Erasure workflows and automated data anonymisation.
+*   **Blockchain Verification:** Background worker process asynchronously anchors audit logs to a blockchain for immutable proof-of-state.
 
-## Architecture
-- **Frontend**: Next.js 14 (App Router), React, Radix UI.
-- **Backend**: Next.js API Routes, Supabase (PostgreSQL), Redis (Upstash) for Rate Limiting.
-- **Worker**: Standalone background Node.js process using BullMQ to handle intensive cryptographic hashing and blockchain anchoring.
+## Tech Stack
+*   **Frontend & API:** Next.js 14 (App Router), React, Tailwind CSS
+*   **Database & Auth:** Supabase (PostgreSQL), Supabase Auth
+*   **State Management & Performance:** SWR, Vercel Edge caching
+*   **Validation:** Zod
+*   **Infrastructure:** Vercel (Web), Custom polling workers (Blockchain)
+*   **Monorepo:** Turborepo, pnpm
 
-## Getting Started
+## Commercial Model
+Tenant Hub operates on a standard B2B SaaS subscription model:
+-   **Starter:** Up to 100 active tenants.
+-   **Professional:** Up to 500 active tenants, advanced analytics.
+-   **Enterprise:** Unlimited tenants, priority SLA, custom SSO integrations.
 
-1. **Install dependencies**: `pnpm install`
-2. **Start the database locally**: `npx supabase start`
-3. **Run the development server**: `pnpm dev`
-4. **Run the worker**: `cd apps/worker && pnpm dev`
+Payments and subscriptions are securely managed via **Stripe**.
 
-## Deployment
-This project is configured for deployment on **Vercel** with the database hosted on **Supabase Cloud**. 
-- Push to the `main` branch to trigger a Vercel production build.
-- Database migrations are applied using `npx supabase db push`.
+## Development
+```bash
+# Install dependencies
+pnpm install
+
+# Run the development server
+pnpm dev
+
+# Run tests
+pnpm test
+```
+
+## Security & Compliance
+This repository adheres to strict hardening rules. For complete details, see `docs/HARDENING.md`.

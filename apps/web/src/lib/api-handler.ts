@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { can, type Resource, type Action } from "@tenant-hub/auth";
 import { getApiAuth, type ApiAuth } from "./api-auth";
-import { ratelimit } from "./rate-limit";
+import { genericRateLimit } from "./rate-limit";
 
 type RouteHandler = (
   req: Request,
@@ -20,7 +20,7 @@ export function withRouteHandler(config: RouteConfig, handler: RouteHandler) {
     try {
       if (config.rateLimit) {
         const ip = req.headers.get("x-forwarded-for") ?? "127.0.0.1";
-        const { success } = await ratelimit.limit(ip);
+        const { success } = await genericRateLimit.limit(ip);
         if (!success) {
           return NextResponse.json({ error: "Too many requests" }, { status: 429 });
         }

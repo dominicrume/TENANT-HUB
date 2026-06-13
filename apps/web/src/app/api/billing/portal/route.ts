@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getApiAuth } from "../../../../../lib/api-auth";
-import { stripe } from "../../../../../lib/stripe";
+import { getApiAuth } from "../../../../lib/api-auth";
+import { stripe } from "../../../../lib/stripe";
 
 export async function POST(req: Request) {
   const auth = await getApiAuth();
