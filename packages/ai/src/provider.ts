@@ -24,11 +24,13 @@ export async function complete(opts: CompleteOptions): Promise<string> {
   const maxTokens = opts.maxTokens ?? 1500;
   const errors: string[] = [];
 
-  const provider = opts.provider || (activeProvider() as AIBrainProvider);
+  const providerId = opts.provider || activeProvider();
 
-  if (provider === "none") {
+  if (providerId === "none") {
     throw new Error("No AI provider is configured. Please check your .env keys.");
   }
+
+  const provider = providerId as AIBrainProvider;
 
   try {
     const model = getBrainModel(provider);

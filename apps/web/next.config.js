@@ -15,5 +15,12 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
   },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'zod/v3': require.resolve('zod'),
+    };
+    return config;
+  },
 };
 module.exports = nextConfig;

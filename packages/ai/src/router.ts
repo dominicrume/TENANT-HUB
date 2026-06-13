@@ -9,7 +9,7 @@ export type AIBrainProvider = "openai" | "azure" | "claude" | "gemini" | "xai";
 /**
  * Returns the correct Vercel AI SDK language model instance based on the selected provider.
  */
-export function getBrainModel(provider: AIBrainProvider): LanguageModelV1 {
+export function getBrainModel(provider: AIBrainProvider): any {
   switch (provider) {
     case "azure": {
       const azure = createAzure({
