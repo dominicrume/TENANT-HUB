@@ -15,10 +15,12 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
   const prompt: string | undefined = body?.prompt;
+  const provider: any = body?.provider;
+
   if (!prompt) return NextResponse.json({ error: "prompt required" }, { status: 400 });
 
-  if (activeProvider() === "none") {
-    return NextResponse.json({ response: "No AI provider is configured (set RUNCRATE_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY)." });
+  if (!provider && activeProvider() === "none") {
+    return NextResponse.json({ response: "No AI provider is configured." });
   }
 
   const gateway = makeSecureGateway();
@@ -58,7 +60,8 @@ export async function POST(req: Request) {
       system, 
       prompt, 
       facts,
-      maxTokens: 1500 
+      maxTokens: 1500,
+      provider: provider || undefined
     });
     return NextResponse.json({ response: text, claims, factMap });
   } catch (err) {

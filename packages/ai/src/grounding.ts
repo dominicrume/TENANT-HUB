@@ -28,11 +28,14 @@ export function verifyGrounding(claims: EntailmentClaim[], factMap: FactMap): vo
  * Generates a response strictly derived from the provided discrete facts.
  * Enforces Cryptographic Faithfulness Anchoring by requiring structured Entailment Proofs.
  */
+import { AIBrainProvider } from "./router";
+
 export async function generateStrictlyGrounded(opts: {
   system: string;
   prompt: string;
   facts: string[]; // Array of discrete facts (e.g. ["Name: John", "Room: 12A"])
   maxTokens?: number;
+  provider?: AIBrainProvider;
 }): Promise<{ text: string; claims: EntailmentClaim[]; factMap: FactMap }> {
   
   // 1. Build the FactMap (Merkle-like Dictionary)
@@ -66,6 +69,7 @@ Do NOT invent information. If the context does not contain the answer, output a 
     system: strictSystem,
     prompt: fullPrompt,
     maxTokens: opts.maxTokens ?? 1500,
+    provider: opts.provider,
   });
 
   // 3. Parse JSON safely

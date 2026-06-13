@@ -26,6 +26,7 @@ export default function AiBrainPage() {
   const { activeTenants } = useTenants();
   const router = useRouter();
   const [tenantId, setTenantId] = useState("");
+  const [provider, setProvider] = useState("azure");
   const [questions, setQuestions] = useState<string[] | null>(null);
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export default function AiBrainPage() {
     const res = await fetch("/api/ai/task", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tenantId: tenantId || undefined, prompt }),
+      body: JSON.stringify({ tenantId: tenantId || undefined, prompt, provider }),
     });
     const b = await res.json().catch(() => null);
     
@@ -72,11 +73,22 @@ export default function AiBrainPage() {
       <h1 style={{ color: CHAIN, fontSize: "22px", fontWeight: 700, marginBottom: "4px" }}>✨ AI Brain</h1>
       <p style={{ color: "#7A8499", fontSize: "13px", marginBottom: "16px" }}>Read-only assistant — proposes, never writes (H2).</p>
 
-      <select value={tenantId} onChange={(e) => setTenantId(e.target.value)}
-        style={{ minHeight: "44px", padding: "8px 11px", borderRadius: "8px", border: "1px solid #EDE8E1", marginBottom: "16px" }}>
-        <option value="">All tenants</option>
-        {activeTenants.map((t) => <option key={t.id} value={t.id}>{t.full_name} · {t.room_number}</option>)}
-      </select>
+      <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+        <select value={tenantId} onChange={(e) => setTenantId(e.target.value)}
+          style={{ flex: 1, minHeight: "44px", padding: "8px 11px", borderRadius: "8px", border: "1px solid #EDE8E1" }}>
+          <option value="">All tenants</option>
+          {activeTenants.map((t) => <option key={t.id} value={t.id}>{t.full_name} · {t.room_number}</option>)}
+        </select>
+        
+        <select value={provider} onChange={(e) => setProvider(e.target.value)}
+          style={{ flex: 1, minHeight: "44px", padding: "8px 11px", borderRadius: "8px", border: "1px solid #EDE8E1" }}>
+          <option value="azure">Azure OpenAI (GPT-4o)</option>
+          <option value="openai">OpenAI (GPT-4o)</option>
+          <option value="claude">Anthropic (Claude 3.5 Sonnet)</option>
+          <option value="gemini">Google (Gemini 1.5 Pro)</option>
+          <option value="xai">xAI (Grok)</option>
+        </select>
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         {/* A — Session intelligence */}
