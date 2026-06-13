@@ -22,7 +22,7 @@ export default async function LandingPage() {
           ) : (
             <>
               <Link href="/login" style={btnGhost}>Log in</Link>
-              <Link href="/signup" style={btnPrimary}>Start Free Trial</Link>
+              <Link href="/onboarding/subscription" style={btnPrimary}>Start Free Trial</Link>
             </>
           )}
         </div>
@@ -37,7 +37,7 @@ export default async function LandingPage() {
           Automate intake forms, track tenant progress, and stay compliant with AI-powered file management. Stop drowning in paperwork and focus on support.
         </p>
         <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-          <Link href={session ? "/dashboard" : "/signup"} style={{ ...btnPrimary, padding: "1rem 2rem", fontSize: "1.125rem" }}>
+          <Link href={session ? "/dashboard" : "/onboarding/subscription"} style={{ ...btnPrimary, padding: "1rem 2rem", fontSize: "1.125rem" }}>
             Get Started Today
           </Link>
         </div>
@@ -79,7 +79,7 @@ export default async function LandingPage() {
                 <li>✓ Custom Form Generation</li>
                 <li>✓ Priority Support</li>
               </ul>
-              <Link href="/signup?plan=pro" style={{...btnPrimary, width: "100%", textAlign: "center" }}>Select Professional</Link>
+              <Link href="/onboarding/subscription" style={{...btnPrimary, width: "100%", textAlign: "center" }}>Select Professional</Link>
             </div>
 
             {/* Enterprise Plan */}

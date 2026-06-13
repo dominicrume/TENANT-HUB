@@ -132,10 +132,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <nav
           className={`${mobileMenuOpen ? "flex" : "hidden"} md:flex`}
           style={{
-            width: "240px",
+            width: "280px",
             background: "var(--navy)",
             flexDirection: "column",
-            padding: "12px",
+            padding: "16px",
             flexShrink: 0,
             position: mobileMenuOpen ? "absolute" : "relative",
             zIndex: 40,
@@ -189,7 +189,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   const { getSupabaseBrowser } = await import('../../lib/supabase-browser');
                   await getSupabaseBrowser().auth.signOut();
 
-                  // 3. Nuke local storage directly to be 100% sure
+                  // 3. Hard clear all cookies directly via document.cookie
+                  document.cookie.split(";").forEach((c) => {
+                    document.cookie = c
+                      .replace(/^ +/, "")
+                      .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                  });
+
+                  // 4. Nuke local storage directly to be 100% sure
                   Object.keys(localStorage).forEach(key => {
                     if (key.startsWith('sb-')) {
                       localStorage.removeItem(key);
@@ -198,8 +205,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 } catch (err) {
                   console.error("Signout error", err);
                 }
-                // 4. Hard redirect
-                window.location.href = "/login";
+                // 5. Hard redirect replacing the current history state
+                window.location.replace("/login");
               }}
               style={{
                 width: "100%", minHeight: "40px", borderRadius: "8px",

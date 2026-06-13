@@ -100,24 +100,25 @@ export function TenantSidebar() {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "10px",
-                  padding: "8px 10px",
+                  gap: "12px",
+                  padding: "10px 12px",
                   borderRadius: "8px",
-                  marginBottom: "2px",
+                  marginBottom: "4px",
                   textDecoration: "none",
                   borderLeft: active ? "3px solid var(--amber)" : "3px solid transparent",
                   background: active ? "rgba(232,168,76,0.12)" : "transparent",
+                  transition: "background 0.2s ease",
                 }}
               >
                 <span
                   style={{
-                    width: "30px",
-                    height: "30px",
+                    width: "34px",
+                    height: "34px",
                     borderRadius: "50%",
                     background: "var(--navy)",
                     border: "1px solid rgba(232,168,76,0.5)",
                     color: "var(--amber)",
-                    fontSize: "11px",
+                    fontSize: "12px",
                     fontWeight: 700,
                     display: "flex",
                     alignItems: "center",
@@ -132,16 +133,18 @@ export function TenantSidebar() {
                     style={{
                       display: "block",
                       fontSize: "13px",
-                      fontWeight: 500,
+                      fontWeight: 600,
                       color: "#fff",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
+                      letterSpacing: "0.01em",
+                      marginBottom: "2px"
                     }}
                   >
                     {t.full_name}
                   </span>
-                  <span style={{ display: "block", fontSize: "11px", color: "#9AA6BC" }}>
+                  <span style={{ display: "block", fontSize: "11px", color: "#9AA6BC", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {t.room_number} · {t.benefit_type}
                   </span>
                 </span>
