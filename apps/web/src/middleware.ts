@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseMiddleware } from "./lib/supabase-middleware";
 import { authRateLimit, aiRateLimit, genericRateLimit } from "./lib/rate-limit";
-const PUBLIC_PREFIXES = ["/login", "/signup", "/reset-password", "/intake/verify"];
+const PUBLIC_PREFIXES = ["/login", "/signup", "/reset-password", "/intake/verify", "/auth/signout"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

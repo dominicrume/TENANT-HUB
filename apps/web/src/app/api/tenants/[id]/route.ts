@@ -21,9 +21,11 @@ export async function GET(_req: Request, { params }: Params) {
     .from("tenants")
     .select("*")
     .eq("id", params.id)
-    .single();
+    .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 404 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
+
   return NextResponse.json(data);
 }
 

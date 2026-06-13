@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const { draftId } = (await req.json().catch(() => ({}))) as { draftId?: string };
   if (!draftId) return NextResponse.json({ error: "draftId required" }, { status: 400 });
 
-  const { data: draft, error } = await auth.supabase.from("drafts").select("*").eq("id", draftId).single();
+  const { data: draft, error } = await auth.supabase.from("drafts").select("*").eq("id", draftId).maybeSingle();
   if (error || !draft) return NextResponse.json({ error: error?.message ?? "Draft not found" }, { status: 404 });
 
   if (draft.step === 5) {

@@ -4,7 +4,11 @@ import { createSupabaseServer } from '../../../lib/supabase-server';
 // Handle POST for clean fetch calls from client components
 export async function POST(request: Request) {
   const supabase = createSupabaseServer();
-  await supabase.auth.signOut();
+  try {
+    await supabase.auth.signOut();
+  } catch (e) {
+    // Ignore error, we still want to nuke cookies
+  }
   
   const response = NextResponse.json({ success: true });
   
@@ -28,7 +32,11 @@ export async function POST(request: Request) {
 // Keep GET for direct navigation / anchor links
 export async function GET(request: Request) {
   const supabase = createSupabaseServer();
-  await supabase.auth.signOut();
+  try {
+    await supabase.auth.signOut();
+  } catch (e) {
+    // Ignore error
+  }
   
   const url = new URL('/login', request.url);
   const response = NextResponse.redirect(url);
