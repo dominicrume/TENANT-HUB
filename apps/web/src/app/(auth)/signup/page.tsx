@@ -35,6 +35,13 @@ function SignupPage() {
     setLoading(true);
     setError(null);
     const supabase = getSupabaseBrowser();
+    const isStrong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/.test(password);
+    if (!isStrong) {
+      setError("Password must be at least 12 characters and include an uppercase letter, lowercase letter, number, and special character.");
+      setLoading(false);
+      return;
+    }
+
     const { error: err } = await supabase.auth.signUp({
       email,
       password,
