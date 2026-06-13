@@ -1,22 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { formatMoney } from "../../../lib/format";
 
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
 export default function AnalyticsPage() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, error, isLoading } = useSWR("/api/analytics", fetcher);
 
-  useEffect(() => {
-    async function load() {
-      const res = await fetch("/api/analytics");
-      if (res.ok) setData(await res.json());
-      setLoading(false);
-    }
-    void load();
-  }, []);
-
-  if (loading) return <div style={{ padding: "1.75rem" }}>Loading Innovate UK Analytics...</div>;
+  if (isLoading) return <div style={{ padding: "1.75rem" }}>Loading Innovate UK Analytics...</div>;
+  if (error) return <div style={{ padding: "1.75rem" }}>Error loading analytics.</div>;
 
   return (
     <div style={{ padding: "1.75rem", fontFamily: "'Sora', sans-serif" }}>
