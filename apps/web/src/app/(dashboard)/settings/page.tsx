@@ -23,12 +23,20 @@ export default function SettingsPage() {
   const [rate, setRate] = useState("150");
   const [settingId, setSettingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [activeTenantsCount, setActiveTenantsCount] = useState<number>(0);
+  const [aiExtractionsCount, setAiExtractionsCount] = useState<number>(0);
   
   const { brand } = useBrand();
 
   useEffect(() => {
     fetch("/api/profiles").then((r) => (r.ok ? r.json() : [])).then((d) => setProfiles(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/stamp-queue").then((r) => (r.ok ? r.json() : [])).then((d) => setStamps(Array.isArray(d) ? d : [])).catch(() => {});
+    
+    // Dynamically fetch usage metrics for the Billing Tab
+    fetch("/api/tenants").then((r) => (r.ok ? r.json() : [])).then((d) => setActiveTenantsCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
+    // Assuming /api/drafts returns the AI intake drafts, we use it for extraction count.
+    // In an enterprise scenario, this would query a dedicated usage table.
+    fetch("/api/drafts").then((r) => (r.ok ? r.json() : [])).then((d) => setAiExtractionsCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
   }, []);
 
   // Fetch settings when brand changes
@@ -169,18 +177,18 @@ export default function SettingsPage() {
             <div style={{ padding: "16px", border: "1px solid #EDE8E1", borderRadius: "12px", background: "#fff", maxWidth: "600px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "13px", color: "#445" }}>
                 <span>Active Tenants</span>
-                <span style={{ fontWeight: 600 }}>12 / 50</span>
+                <span style={{ fontWeight: 600 }}>{activeTenantsCount} / 50</span>
               </div>
               <div style={{ width: "100%", height: "8px", background: "#F3EEE7", borderRadius: "4px", overflow: "hidden", marginBottom: "20px" }}>
-                <div style={{ width: "24%", height: "100%", background: "#38bdf8" }}></div>
+                <div style={{ width: `${Math.min((activeTenantsCount / 50) * 100, 100)}%`, height: "100%", background: "#38bdf8" }}></div>
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "13px", color: "#445" }}>
                 <span>AI Intake Extractions</span>
-                <span style={{ fontWeight: 600 }}>85 / 500</span>
+                <span style={{ fontWeight: 600 }}>{aiExtractionsCount} / 500</span>
               </div>
               <div style={{ width: "100%", height: "8px", background: "#F3EEE7", borderRadius: "4px", overflow: "hidden" }}>
-                <div style={{ width: "17%", height: "100%", background: "var(--amber)" }}></div>
+                <div style={{ width: `${Math.min((aiExtractionsCount / 500) * 100, 100)}%`, height: "100%", background: "var(--amber)" }}></div>
               </div>
             </div>
           </div>
