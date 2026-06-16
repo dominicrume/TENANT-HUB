@@ -6,7 +6,7 @@ import { z } from "zod";
 
 export const NinoSchema = z
   .string()
-  .regex(/^[A-CEGHJ-PR-TW-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]$/i, "Invalid National Insurance number")
+  .regex(/^[A-CEGHJ-PR-TW-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]$/i, "Invalid National Insurance Number. Please enter a valid NINO (e.g. QQ 12 34 56 A).")
   .transform(v => v.replace(/\s/g, "").toUpperCase());
 
 // International phone — accepts numbers from all countries (per the forms brief:
@@ -15,7 +15,7 @@ export const NinoSchema = z
 // alias so existing imports keep working.
 export const PhoneSchema = z
   .string()
-  .regex(/^\+?[\d\s().-]{7,20}$/, "Invalid phone number");
+  .regex(/^\+?[\d\s().-]{7,20}$/, "Invalid phone number. Please enter a valid number (e.g. +44 7700 900000).");
 export const UkPhoneSchema = PhoneSchema;
 
 export const UkDateSchema = z.preprocess((v) => {
@@ -28,11 +28,11 @@ export const UkDateSchema = z.preprocess((v) => {
     return `${y}-${m}-${d}`;
   }
   return v;
-}, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"));
+}, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD format (e.g. 1990-01-31)."));
 
 export const UkPostcodeSchema = z
   .string()
-  .regex(/^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i, "Invalid UK postcode")
+  .regex(/^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i, "Invalid UK postcode. Please enter a valid postcode (e.g. SW1A 1AA).")
   .transform(v => v.toUpperCase());
 
 export const MoneyGbpSchema = z.preprocess(

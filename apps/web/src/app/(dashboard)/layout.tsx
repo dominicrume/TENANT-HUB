@@ -39,7 +39,7 @@ const SHORT: Record<Brand, string> = {
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, signOut } = useAuth();
   const { brand, setBrand } = useBrand();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -180,34 +180,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               {profile?.role?.replace("_", " ") ?? ""}
             </div>
             <button
-              onClick={async () => {
-                try {
-                  // 1. Nuke server cookies FIRST
-                  await fetch("/auth/signout", { method: "POST" });
-
-                  // 2. Call Supabase signout (clears other client state)
-                  const { getSupabaseBrowser } = await import('../../lib/supabase-browser');
-                  await getSupabaseBrowser().auth.signOut();
-
-                  // 3. Hard clear all cookies directly via document.cookie
-                  document.cookie.split(";").forEach((c) => {
-                    document.cookie = c
-                      .replace(/^ +/, "")
-                      .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-                  });
-
-                  // 4. Nuke local storage directly to be 100% sure
-                  Object.keys(localStorage).forEach(key => {
-                    if (key.startsWith('sb-')) {
-                      localStorage.removeItem(key);
-                    }
-                  });
-                } catch (err) {
-                  console.error("Signout error", err);
-                }
-                // 5. Hard redirect replacing the current history state
-                window.location.replace("/login");
-              }}
+              onClick={signOut}
               style={{
                 width: "100%", minHeight: "40px", borderRadius: "8px",
                 border: "1px solid rgba(255,255,255,0.15)", background: "transparent",

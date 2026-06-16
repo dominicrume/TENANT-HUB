@@ -1,19 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function SubscriptionGateway() {
+function SubscriptionGatewayContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [processing, setProcessing] = useState(false);
+
+  const plan = searchParams.get("plan") || "premium";
+  
+  let price = "300";
+  let planName = "Premium Workspace";
+  if (plan === "professional") {
+    price = "99";
+    planName = "Professional Workspace";
+  } else if (plan === "starter") {
+    price = "49";
+    planName = "Starter Workspace";
+  }
 
   const handleSimulatedPayment = () => {
     setProcessing(true);
     // Simulate a gateway delay
     setTimeout(() => {
       // After successful simulated payment, redirect to the real staff signup flow
-      router.push("/signup?plan=premium");
+      router.push(`/signup?plan=${plan}`);
     }, 1500);
   };
 
@@ -25,18 +38,18 @@ export default function SubscriptionGateway() {
           T
         </div>
 
-        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>Tenant Hub Premium</h1>
+        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>Tenant Hub {planName.replace(" Workspace", "")}</h1>
         <p style={{ color: "#94a3b8", fontSize: "1.1rem", marginBottom: "2.5rem" }}>
           Complete your subscription to unlock the full workspace.
         </p>
 
         <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: "1rem", padding: "1.5rem", marginBottom: "2.5rem", border: "1px solid rgba(255,255,255,0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "1rem" }}>
-            <span style={{ color: "#cbd5e1", fontWeight: 500 }}>Premium Workspace</span>
-            <span style={{ fontSize: "1.5rem", fontWeight: 700, color: "#fff" }}>£300<span style={{ fontSize: "1rem", color: "#94a3b8", fontWeight: 400 }}>/mo</span></span>
+            <span style={{ color: "#cbd5e1", fontWeight: 500 }}>{planName}</span>
+            <span style={{ fontSize: "1.5rem", fontWeight: 700, color: "#fff" }}>£{price}<span style={{ fontSize: "1rem", color: "#94a3b8", fontWeight: 400 }}>/mo</span></span>
           </div>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, color: "#94a3b8", fontSize: "0.95rem", display: "flex", flexDirection: "column", gap: "0.5rem", textAlign: "left" }}>
-            <li style={{ display: "flex", alignItems: "center", gap: "8px" }}><span style={{ color: "#34C87A" }}>✓</span> Unlimited Active Tenants</li>
+            <li style={{ display: "flex", alignItems: "center", gap: "8px" }}><span style={{ color: "#34C87A" }}>✓</span> {plan === 'professional' ? "Up to 50 Active Tenants" : plan === 'starter' ? "Up to 10 Tenants" : "Unlimited Active Tenants"}</li>
             <li style={{ display: "flex", alignItems: "center", gap: "8px" }}><span style={{ color: "#34C87A" }}>✓</span> AI Brain Document Extraction</li>
             <li style={{ display: "flex", alignItems: "center", gap: "8px" }}><span style={{ color: "#34C87A" }}>✓</span> Advanced Audit & Risk Flags</li>
           </ul>
@@ -71,7 +84,7 @@ export default function SubscriptionGateway() {
               </svg>
               Processing Gateway...
             </>
-          ) : "Confirm & Enter (£300)"}
+          ) : `Confirm & Enter (£${price})`}
         </button>
 
         <Link href="/" style={{ color: "#64748b", textDecoration: "none", fontSize: "0.9rem" }}>
@@ -86,5 +99,13 @@ export default function SubscriptionGateway() {
         }
       `}} />
     </main>
+  );
+}
+
+export default function SubscriptionGateway() {
+  return (
+    <Suspense fallback={<div style={{ color: "#fff", padding: "2rem", textAlign: "center" }}>Loading checkout...</div>}>
+      <SubscriptionGatewayContent />
+    </Suspense>
   );
 }

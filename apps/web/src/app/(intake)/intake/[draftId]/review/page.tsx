@@ -21,7 +21,7 @@ export default function ReviewPage() {
   const [mode, setMode] = useState("manual");
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/drafts/${draftId}`, { cache: "no-store" });
@@ -39,13 +39,17 @@ export default function ReviewPage() {
 
   async function confirm() {
     setBusy(true);
-    setValidationErrors([]);
+    setValidationErrors({});
 
     const formSchema = TenantCreateSchema.omit({ brand: true, entry_method: true });
     const parsed = formSchema.safeParse(data);
     
     if (!parsed.success) {
-      const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+      const issues: Record<string, string> = {};
+      parsed.error.issues.forEach((i) => {
+        const key = i.path[0] as string;
+        if (!issues[key]) issues[key] = i.message;
+      });
       setValidationErrors(issues);
       setBusy(false);
       return;
@@ -91,7 +95,7 @@ export default function ReviewPage() {
         Confirming as: <strong style={{ color: "var(--navy)" }}>{profile?.full_name || profile?.email || "—"}</strong> · {profile?.role?.replace("_", " ")}
       </p>
 
-      <RecordFields data={data} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} />
+      <RecordFields data={data} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} errors={validationErrors} />
 
       {/* Blockchain stamp preview */}
       <div style={{ marginTop: "18px", background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: "10px", padding: "12px 14px", fontFamily: "'JetBrains Mono',monospace", fontSize: "12px", color: "#4B2E83" }}>
@@ -101,12 +105,9 @@ export default function ReviewPage() {
         <div>Hash preview: will be computed on confirm</div>
       </div>
 
-      {validationErrors.length > 0 && (
+      {Object.keys(validationErrors).length > 0 && (
         <div style={{ marginTop: "18px", padding: "12px", background: "#FEF2F2", border: "1px solid #F87171", borderRadius: "8px", color: "#B91C1C", fontSize: "14px" }}>
-          <strong style={{ display: "block", marginBottom: "8px" }}>Please fix the following issues:</strong>
-          <ul style={{ margin: 0, paddingLeft: "20px" }}>
-            {validationErrors.map((err, i) => <li key={i}>{err}</li>)}
-          </ul>
+          <strong style={{ display: "block" }}>Please fix the errors highlighted above.</strong>
         </div>
       )}
 

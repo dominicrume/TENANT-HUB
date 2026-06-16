@@ -21,7 +21,7 @@ const NAV = [
 export default function TenantPortalLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, loading } = useAuth();
+  const { profile, loading, signOut } = useAuth();
 
   /* ── Role guard ──────────────────────────────────────────── */
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function TenantPortalLayout({ children }: { children: ReactNode }
           <div style={{ flex: 1 }} />
 
           {/* Sign out at bottom of sidebar */}
-          <button onClick={handleSignOut} style={styles.sidebarSignOut}>
+          <button onClick={signOut} style={styles.sidebarSignOut}>
             🚪 Sign Out
           </button>
         </nav>
@@ -121,7 +121,7 @@ export default function TenantPortalLayout({ children }: { children: ReactNode }
             </Link>
           );
         })}
-        <button onClick={handleSignOut} style={styles.bottomNavSignOut}>
+        <button onClick={signOut} style={styles.bottomNavSignOut}>
           <span style={{ fontSize: "22px" }}>🚪</span>
           <span style={{ fontSize: "10px", marginTop: "2px" }}>Sign Out</span>
         </button>
@@ -140,20 +140,6 @@ export default function TenantPortalLayout({ children }: { children: ReactNode }
       `}</style>
     </div>
   );
-
-  async function handleSignOut() {
-    try {
-      await fetch("/auth/signout", { method: "POST" });
-      const { getSupabaseBrowser } = await import("../../lib/supabase-browser");
-      await getSupabaseBrowser().auth.signOut();
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith("sb-")) localStorage.removeItem(key);
-      });
-    } catch (err) {
-      console.error("Signout error", err);
-    }
-    window.location.href = "/login";
-  }
 }
 
 /* ── Inline styles ────────────────────────────────────────────── */

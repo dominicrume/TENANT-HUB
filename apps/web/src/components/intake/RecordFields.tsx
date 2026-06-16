@@ -33,6 +33,7 @@ export function RecordFields(props: {
   readOnly?: boolean;
   large?: boolean;
   confidence?: Record<string, string>;
+  errors?: Record<string, string>;
 }) {
   const fontSize = props.large ? "18px" : "14px";
 
@@ -111,6 +112,11 @@ export function RecordFields(props: {
               {label} {low && <span title="Low confidence" style={{ color: "#E8A84C" }}>⚠️</span>}
             </span>
             {inputElement}
+            {props.errors?.[key] && (
+              <span style={{ display: "block", color: "#E05252", fontSize: "11px", marginTop: "4px" }}>
+                {props.errors[key]}
+              </span>
+            )}
           </label>
         );
       })}

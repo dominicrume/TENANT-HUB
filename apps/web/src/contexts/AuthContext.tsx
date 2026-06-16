@@ -106,9 +106,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signOut() {
-    await getSupabaseBrowser().auth.signOut();
+    try {
+      // 1. Fire and forget server signout
+      fetch("/auth/signout", { method: "POST" }).catch(() => {});
+      // 2. Clear client state instantly
+      getSupabaseBrowser().auth.signOut({ scope: "local" }).catch(() => {});
+      // 3. Clear cookies
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      // 4. Clear localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-')) localStorage.removeItem(key);
+      });
+    } catch (e) {
+      console.error(e);
+    }
     setUser(null);
     setProfile(null);
+    window.location.replace("/login");
   }
 
   return (

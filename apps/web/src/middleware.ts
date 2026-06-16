@@ -5,8 +5,18 @@ const PUBLIC_PREFIXES = ["/login", "/signup", "/reset-password", "/update-passwo
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const hostname = req.headers.get("host") || "";
 
   const { supabase, res } = createSupabaseMiddleware(req);
+
+  // Helper to preserve cookies on redirect
+  const redirectWithCookies = (url: URL) => {
+    const redirectRes = NextResponse.redirect(url);
+    res.cookies.getAll().forEach((cookie) => {
+      redirectRes.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return redirectRes;
+  };
 
   // Rate limiting for API routes
   if (pathname.startsWith("/api/")) {
@@ -38,7 +48,7 @@ export async function middleware(req: NextRequest) {
 
   // No session on a protected route → explicit redirect (fixes silent 401s).
   if (!user && !isPublic) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return redirectWithCookies(new URL("/login", req.url));
   }
 
   // Signed-in user hitting an auth page → send to the appropriate home.
@@ -51,9 +61,9 @@ export async function middleware(req: NextRequest) {
       .single();
     const r = (p?.role as string) ?? "tenant";
     if (r === "tenant") {
-      return NextResponse.redirect(new URL("/my-home", req.url));
+      return redirectWithCookies(new URL("/my-home", req.url));
     }
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return redirectWithCookies(new URL("/dashboard", req.url));
   }
 
   // Attach the role so downstream RBAC checks don't re-query (parity with RLS).
@@ -73,7 +83,7 @@ export async function middleware(req: NextRequest) {
     // Contractor routing enforcement
     if (role === "contractor") {
       if (pathname === "/dashboard" || pathname.startsWith("/tenants")) {
-        return NextResponse.redirect(new URL("/jobs", req.url));
+        return redirectWithCookies(new URL("/jobs", req.url));
       }
     }
 
@@ -85,7 +95,21 @@ export async function middleware(req: NextRequest) {
         pathname.startsWith("/api/") ||
         pathname.startsWith("/auth/");
       if (!isAllowed) {
-        return NextResponse.redirect(new URL("/my-home", req.url));
+        return redirectWithCookies(new URL("/my-home", req.url));
+      }
+    }
+  }
+
+  // Multi-tenant domain logic
+  if (hostname) {
+    // If it's a subdomain like mattysplace.tenanthope.co.uk or mattysplace.localhost:3000
+    const parts = hostname.split(".");
+    if (parts.length >= 3 || (parts.length >= 2 && hostname.includes("localhost"))) {
+      const subdomain = parts[0]?.toLowerCase();
+      if (subdomain && subdomain !== "www" && subdomain !== "app") {
+        // We set x-brand header so the application can read it
+        // A real app would do a DB lookup here. We just pass it down for now.
+        res.headers.set("x-brand", subdomain);
       }
     }
   }

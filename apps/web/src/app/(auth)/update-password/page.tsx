@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowser } from "../../../lib/supabase-browser";
 import * as s from "../_authStyles";
@@ -10,6 +10,25 @@ export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowser();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        // Wait briefly for the hash fragment to be processed by Supabase
+        setTimeout(async () => {
+          const { data: { session: delayedSession } } = await supabase.auth.getSession();
+          if (!delayedSession) {
+            setError("Recovery session expired or invalid. Please request a new link.");
+          }
+          setCheckingSession(false);
+        }, 1000);
+      } else {
+        setCheckingSession(false);
+      }
+    });
+  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -42,8 +61,13 @@ export default function UpdatePasswordPage() {
         <h1 style={s.heading}>Update password</h1>
         <p style={s.subBrands}>Please enter your new password below.</p>
 
-        <form onSubmit={onSubmit}>
-          <label style={s.label} htmlFor="password">New Password</label>
+        {checkingSession ? (
+          <div style={{ textAlign: "center", color: "#64748B", fontSize: "14px", padding: "20px 0" }}>
+            Verifying secure recovery link...
+          </div>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <label style={s.label} htmlFor="password">New Password</label>
           <input
             id="password"
             type="password"
@@ -57,10 +81,11 @@ export default function UpdatePasswordPage() {
 
           {error && <div style={s.errorBox}>{error}</div>}
 
-          <button type="submit" style={s.submit} disabled={loading}>
-            {loading ? "Updating…" : "Update password"}
-          </button>
-        </form>
+            <button type="submit" style={s.submit} disabled={loading}>
+              {loading ? "Updating…" : "Update password"}
+            </button>
+          </form>
+        )}
       </div>
     </main>
   );

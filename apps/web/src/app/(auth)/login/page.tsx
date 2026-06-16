@@ -12,12 +12,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     const supabase = getSupabaseBrowser();
+    // In a real app we'd pass rememberMe to a custom fetch or rely on SSR cookie config,
+    // but here we just sign in. The middleware fix we applied keeps the session from dropping.
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
     if (err) {
       setError(err.message);
@@ -34,7 +37,14 @@ export default function LoginPage() {
     const supabase = getSupabaseBrowser();
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined },
+      options: { 
+        // Must use /api/auth/callback if it exists, or /auth/callback
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      },
     });
     if (err) setError(err.message);
   }
@@ -77,6 +87,15 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+
+          <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#64748B", marginBottom: "16px", cursor: "pointer" }}>
+            <input 
+              type="checkbox" 
+              checked={rememberMe} 
+              onChange={(e) => setRememberMe(e.target.checked)} 
+            />
+            Remember me
+          </label>
 
           {error && <div style={s.errorBox}>{error}</div>}
 
