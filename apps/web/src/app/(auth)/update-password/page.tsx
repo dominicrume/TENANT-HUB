@@ -11,8 +11,22 @@ export default function UpdatePasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [isFatalError, setIsFatalError] = useState(false);
 
   useEffect(() => {
+    // Check if the URL contains error codes from an expired or invalid link
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace("#", "?"));
+    const errCode = searchParams.get("error_code") || hashParams.get("error_code");
+    const errDesc = searchParams.get("error_description") || hashParams.get("error_description");
+
+    if (errCode) {
+      setError(errDesc ? decodeURIComponent(errDesc.replace(/\+/g, " ")) : "This password reset link is invalid or has expired.");
+      setIsFatalError(true);
+      setCheckingSession(false);
+      return;
+    }
+
     const supabase = getSupabaseBrowser();
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
@@ -21,6 +35,7 @@ export default function UpdatePasswordPage() {
           const { data: { session: delayedSession } } = await supabase.auth.getSession();
           if (!delayedSession) {
             setError("Recovery session expired or invalid. Please request a new link.");
+            setIsFatalError(true);
           }
           setCheckingSession(false);
         }, 1000);
@@ -35,7 +50,8 @@ export default function UpdatePasswordPage() {
     setLoading(true);
     setError(null);
     const supabase = getSupabaseBrowser();
-    const isStrong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/.test(password);
+    // Validate: 12 chars, 1 lowercase, 1 uppercase, 1 number, 1 special character (any non-alphanumeric)
+    const isStrong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/.test(password);
     if (!isStrong) {
       setError("Password must be at least 12 characters and include an uppercase letter, lowercase letter, number, and special character.");
       setLoading(false);
@@ -64,6 +80,12 @@ export default function UpdatePasswordPage() {
         {checkingSession ? (
           <div style={{ textAlign: "center", color: "#64748B", fontSize: "14px", padding: "20px 0" }}>
             Verifying secure recovery link...
+          </div>
+        ) : isFatalError ? (
+          <div style={{ textAlign: "center", color: "#E05252", fontSize: "14px", padding: "20px 0", background: "rgba(224, 82, 82, 0.1)", borderRadius: "8px", border: "1px solid rgba(224, 82, 82, 0.2)" }}>
+            {error}
+            <br/><br/>
+            <button onClick={() => router.push("/login")} style={{...s.submit, marginTop: "10px"}}>Return to Login</button>
           </div>
         ) : (
           <form onSubmit={onSubmit}>
