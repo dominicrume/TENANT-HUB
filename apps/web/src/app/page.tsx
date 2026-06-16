@@ -125,7 +125,7 @@ export default async function LandingPage() {
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: "5rem" }}>
             <h2 style={{ fontSize: "3rem", fontWeight: 800, color: "#fff", marginBottom: "1rem", letterSpacing: "-0.03em" }}>Simple, transparent pricing</h2>
-            <p style={{ color: "#94a3b8", fontSize: "1.25rem" }}>Choose the DBMS tier that fits your organisation's scale.</p>
+            <p style={{ color: "#94a3b8", fontSize: "1.25rem" }}>Choose the DBMS tier that fits your organisation&apos;s scale.</p>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "2rem", alignItems: "center" }}>
