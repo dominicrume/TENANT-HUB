@@ -38,7 +38,7 @@ export function TenantSidebar() {
   const firstLoad = loading && activeTenants.length === 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: 0, flex: 1 }}>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "250px", flex: 1 }}>
       <div
         style={{
           display: "flex",

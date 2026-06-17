@@ -141,7 +141,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             flexShrink: 0,
             position: mobileMenuOpen ? "absolute" : "relative",
             zIndex: 40,
-            height: mobileMenuOpen ? "100%" : "auto",
+            height: "100%",
+            overflowY: "auto",
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: "1px", marginBottom: "12px" }}>
