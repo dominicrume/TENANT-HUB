@@ -48,7 +48,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }}>
       {/* ── TOPBAR ─────────────────────────────────────────────── */}
       <header
         className="flex items-center gap-4 px-4 shrink-0"
@@ -58,13 +58,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         }}
       >
         <button
-          className="md:hidden flex items-center justify-center w-8 h-8 rounded text-white"
+          className="md:hidden flex items-center justify-center w-8 h-8 rounded text-white shrink-0"
           style={{ background: "rgba(255,255,255,0.08)" }}
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           ☰
         </button>
-        <Link href="/dashboard" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
+        <Link href="/dashboard" className="shrink-0" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
           <span
             style={{
               width: "30px", height: "30px", borderRadius: "7px", background: "var(--amber)",
@@ -74,13 +74,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           >
             T
           </span>
-          <span style={{ color: "#fff", fontWeight: 700, fontFamily: "'Sora',sans-serif", fontSize: "15px" }}>
+          <span className="hidden sm:inline" style={{ color: "#fff", fontWeight: 700, fontFamily: "'Sora',sans-serif", fontSize: "15px" }}>
             Tenant Hub
           </span>
         </Link>
 
         {/* Letterhead switcher */}
-        <div style={{ display: "flex", gap: "4px" }}>
+        <div className="hidden md:flex" style={{ gap: "4px" }}>
           {BRANDS.map((b) => (
             <button
               key={b}
@@ -107,6 +107,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         <Link
           href="/intake/new"
+          className="hidden sm:inline-flex shrink-0"
           style={{
             background: "var(--amber)", color: "var(--navy)", textDecoration: "none",
             padding: "7px 14px", borderRadius: "7px", fontSize: "13px", fontWeight: 700,
@@ -117,6 +118,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </Link>
 
         <span
+          className="hidden md:inline shrink-0"
           style={{
             fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", color: "var(--navy)",
             background: "var(--amber)", padding: "4px 8px", borderRadius: "5px",

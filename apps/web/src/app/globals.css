@@ -11,10 +11,20 @@
   --surface:#FFFFFF;
 }
 
-body {
+html, body {
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-y;
   background: var(--cream);
   font-family: 'Sora', system-ui, sans-serif;
   color: #1A1A2E;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  display: none; /* Hide standard bulky scrollbars globally to feel like a native app */
 }
 
 /* Narrow screens / tablet: drop the contextual right rail so the main column
