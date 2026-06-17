@@ -7,7 +7,7 @@ export default function TermsOfService() {
       <div className="prose prose-navy">
         <p>Effective Date: {new Date().toLocaleDateString()}</p>
         <h2>1. Acceptance of Terms</h2>
-        <p>By accessing Tenant Hub, you agree to these Terms of Service.</p>
+        <p>By accessing Matty's Place, you agree to these Terms of Service.</p>
         <h2>2. Use of Service</h2>
         <p>You agree to use this service only for lawful purposes related to tenancy management.</p>
         <h2>3. Account Security</h2>

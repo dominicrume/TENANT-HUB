@@ -15,7 +15,7 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
   return (
     <html lang="en">
       <body style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
-        <h2>Tenant Hub hit an unexpected error.</h2>
+        <h2>Matty's Place hit an unexpected error.</h2>
         <p style={{ color: "#E05252" }}>{error.message}</p>
         <button onClick={reset}>Reload</button>
       </body>

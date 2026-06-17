@@ -52,7 +52,7 @@ export function BrandProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <BrandContext.Provider value={{ brand, setBrand, label: BRAND_LABELS[brand] || "Tenant Hub" }}>
+    <BrandContext.Provider value={{ brand, setBrand, label: BRAND_LABELS[brand] || "Matty's Place" }}>
       {children}
     </BrandContext.Provider>
   );

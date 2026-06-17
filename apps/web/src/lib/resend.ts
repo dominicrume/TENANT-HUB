@@ -9,9 +9,9 @@ export async function sendWelcomeEmail(to: string, name: string) {
   }
 
   await resend.emails.send({
-    from: "Tenant Hub <noreply@mattysplace.org.uk>",
+    from: "Matty's Place <noreply@mattysplace.org.uk>",
     to,
-    subject: "Welcome to Tenant Hub",
-    html: `<p>Hi ${name},</p><p>Welcome to Tenant Hub. Your account has been provisioned.</p>`,
+    subject: "Welcome to Matty's Place",
+    html: `<p>Hi ${name},</p><p>Welcome to Matty's Place. Your account has been provisioned.</p>`,
   });
 }

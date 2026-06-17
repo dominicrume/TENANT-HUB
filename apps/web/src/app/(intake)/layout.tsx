@@ -25,7 +25,7 @@ export default function IntakeLayout({ children }: { children: ReactNode }) {
     <div style={{ minHeight: "100vh", background: "var(--cream)", padding: "2rem 1rem", fontFamily: "'Sora', sans-serif" }}>
       <div style={{ maxWidth: "760px", margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: "18px" }}>
-          <span style={{ fontWeight: 800, fontSize: "18px", color: "var(--navy)" }}>Tenant Hub</span>
+          <span style={{ fontWeight: 800, fontSize: "18px", color: "var(--navy)" }}>Matty's Place</span>
           <span style={{ fontSize: "12px", color: "#7A8499", marginLeft: "8px" }}>· New tenant intake</span>
         </div>
 

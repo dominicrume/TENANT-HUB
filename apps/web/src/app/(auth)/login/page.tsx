@@ -53,7 +53,7 @@ export default function LoginPage() {
     <main style={s.page}>
       <span style={s.officialBadge}>OFFICIAL USE ONLY</span>
       <div style={s.card}>
-        <h1 style={s.heading}>Tenant Hub</h1>
+        <h1 style={s.heading}>Matty's Place</h1>
         <p style={s.subBrands}>
           The complete operating system for supported housing
         </p>

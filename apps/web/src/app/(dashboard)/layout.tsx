@@ -72,10 +72,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               justifyContent: "center", fontFamily: "'Sora',sans-serif",
             }}
           >
-            T
+            M
           </span>
           <span className="hidden sm:inline" style={{ color: "#fff", fontWeight: 700, fontFamily: "'Sora',sans-serif", fontSize: "15px" }}>
-            Tenant Hub
+            Matty's Place
           </span>
         </Link>
 

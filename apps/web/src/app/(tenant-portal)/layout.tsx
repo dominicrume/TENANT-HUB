@@ -37,7 +37,7 @@ export default function TenantPortalLayout({ children }: { children: ReactNode }
     return (
       <div style={styles.loadingScreen}>
         <div style={styles.loadingPulse}>
-          <div style={styles.loadingLogo}>T</div>
+          <div style={styles.loadingLogo}>M</div>
           <p style={styles.loadingText}>Loading your portal…</p>
         </div>
       </div>
@@ -53,8 +53,8 @@ export default function TenantPortalLayout({ children }: { children: ReactNode }
       {/* ── TOP HEADER ──────────────────────────────────────── */}
       <header style={styles.header}>
         <Link href="/my-home" style={styles.brandLink}>
-          <span style={styles.logoMark}>T</span>
-          <span style={styles.logoText}>Tenant Hub</span>
+          <span style={styles.logoMark}>M</span>
+          <span style={styles.logoText}>Matty's Place</span>
         </Link>
         <div style={{ flex: 1 }} />
         <div style={styles.userBadge}>

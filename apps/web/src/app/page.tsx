@@ -46,10 +46,10 @@ export default async function LandingPage() {
             width: "38px", height: "38px", borderRadius: "10px", background: "linear-gradient(135deg, #E8A84C, #f59e0b)",
             display: "flex", alignItems: "center", justifyContent: "center", color: "#0B1B3D", fontWeight: 800, fontSize: "20px"
           }}>
-            T
+            M
           </div>
           <div style={{ fontSize: "1.5rem", fontWeight: 800, letterSpacing: "-0.03em", color: "#fff" }}>
-            Tenant<span style={{ color: "#38bdf8" }}>Hub</span>
+            Matty's<span style={{ color: "#38bdf8" }}>Place</span>
           </div>
         </div>
         <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
@@ -194,7 +194,7 @@ export default async function LandingPage() {
       </section>
 
       <footer style={{ padding: "4rem 1rem", textAlign: "center", color: "#475569", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-        <p>© {new Date().getFullYear()} Tenant Hub. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Matty's Place. All rights reserved.</p>
       </footer>
       
       <style dangerouslySetInnerHTML={{__html: `

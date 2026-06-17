@@ -35,10 +35,10 @@ function SubscriptionGatewayContent() {
       <div style={{ maxWidth: "480px", width: "100%", background: "#1e293b", padding: "3rem 2rem", borderRadius: "1.5rem", border: "1px solid #334155", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)", textAlign: "center" }}>
         
         <div style={{ width: "64px", height: "64px", background: "var(--amber, #E8A84C)", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 2rem", color: "var(--navy, #0B1B3D)", fontSize: "24px", fontWeight: 800, fontFamily: "'Sora', sans-serif" }}>
-          T
+          M
         </div>
 
-        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>Tenant Hub {planName.replace(" Workspace", "")}</h1>
+        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>Matty's Place {planName.replace(" Workspace", "")}</h1>
         <p style={{ color: "#94a3b8", fontSize: "1.1rem", marginBottom: "2.5rem" }}>
           Complete your subscription to unlock the full workspace.
         </p>
