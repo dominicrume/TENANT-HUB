@@ -16,6 +16,8 @@ export default function CommunicationsPage() {
   const [content, setContent] = useState("");
   const [showModal, setShowModal] = useState(false);
 
+  const [drafting, setDrafting] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     const res = await fetch("/api/communications");
@@ -45,6 +47,30 @@ export default function CommunicationsPage() {
       setShowModal(false);
       setContent("");
       void load();
+    }
+  }
+
+  async function handleAIDraft() {
+    setDrafting(true);
+    setContent("✨ Generating draft with AI...");
+    
+    try {
+      const recipientName = tenantId ? tenants.find(t => t.id === tenantId)?.full_name : "All Tenants";
+      const res = await fetch("/api/ai/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel, messageType: msgType, recipientName })
+      });
+      const data = await res.json();
+      if (res.ok && data.draft) {
+        setContent(data.draft.trim());
+      } else {
+        setContent(`Error: ${data.error || "Failed to generate draft"}`);
+      }
+    } catch (e: any) {
+      setContent(`Error: ${e.message}`);
+    } finally {
+      setDrafting(false);
     }
   }
 
@@ -128,7 +154,12 @@ export default function CommunicationsPage() {
             </div>
 
             <div>
-              <label style={{ fontSize: "12px", color: "#7A8499", display: "block", marginBottom: "4px" }}>Message Content</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
+                <label style={{ fontSize: "12px", color: "#7A8499", display: "block" }}>Message Content</label>
+                <button type="button" onClick={handleAIDraft} disabled={drafting} style={{ background: "linear-gradient(135deg, #7C3AED 0%, #4C7CE8 100%)", color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "10px", fontWeight: 700, cursor: drafting ? "wait" : "pointer" }}>
+                  {drafting ? "Drafting..." : "✨ Draft with AI"}
+                </button>
+              </div>
               <textarea value={content} onChange={e => setContent(e.target.value)} required placeholder="Type your message here..." style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1", minHeight: "100px", boxSizing: "border-box", fontFamily: "inherit" }} />
             </div>
 
