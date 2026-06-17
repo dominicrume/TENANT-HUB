@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "../../../../lib/auth";
+import { getApiAuth } from "../../../../lib/api-auth";
 import { complete } from "@tenant-hub/ai";
 
 export async function POST(req: Request) {
   try {
-    await requireAuth(); // only logged-in managers can use AI drafter
+    const auth = await getApiAuth();
+    if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
     
     const body = await req.json();
     const { channel, messageType, recipientName } = body;
