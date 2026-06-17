@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminClient } from "@tenant-hub/db";
+import { inviteStaffMember } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { z } from "zod";
 
@@ -28,18 +28,15 @@ export async function POST(req: Request) {
 
   try {
     // 1. Send the invite via Supabase Auth Admin
-    const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: {
-        role,
-        brand: auth.actor.brand,
-        org_id: auth.actor.org_id, // Lock invited user to the manager's org
-      },
-      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/update-password` : undefined
-    });
+    const user = await inviteStaffMember(
+      email,
+      role,
+      auth.actor.org_id,
+      auth.actor.brand,
+      typeof window !== "undefined" ? `${window.location.origin}/update-password` : undefined
+    );
 
-    if (error) throw error;
-
-    return NextResponse.json({ success: true, user: data.user }, { status: 200 });
+    return NextResponse.json({ success: true, user }, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to invite user";
     return NextResponse.json({ error: message }, { status: 500 });

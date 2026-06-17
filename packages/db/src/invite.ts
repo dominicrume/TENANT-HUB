@@ -58,3 +58,26 @@ export async function inviteTenant(
 
   return data.user;
 }
+
+/**
+ * Invite a staff member from the web API.
+ * Uses admin auth to send the invite and set metadata.
+ */
+export async function inviteStaffMember(
+  email: string,
+  role: string,
+  orgId: string,
+  brand: string,
+  redirectTo?: string
+) {
+  const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
+    data: {
+      role,
+      brand,
+      org_id: orgId,
+    },
+    redirectTo,
+  });
+  if (error) throw error;
+  return data.user;
+}
