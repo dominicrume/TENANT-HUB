@@ -298,8 +298,7 @@ const styles: Record<string, React.CSSProperties> = {
     overflowY: "auto",
     background: "var(--cream)",
     padding: "0",
-    WebkitOverflowScrolling: "touch",
-    overscrollBehaviorY: "contain",
+    overscrollBehaviorY: "none",
   },
 
   /* Bottom nav (mobile) */

@@ -195,7 +195,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </nav>
 
         {/* MAIN */}
-        <main style={{ flex: 1, minWidth: 0, overflowY: "auto", background: "var(--cream)", WebkitOverflowScrolling: "touch", overscrollBehaviorY: "contain" }}>
+        <main style={{ flex: 1, minWidth: 0, overflowY: "auto", background: "var(--cream)", overscrollBehaviorY: "none" }}>
           {children}
         </main>
       </div>
