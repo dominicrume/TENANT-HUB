@@ -66,8 +66,8 @@ export async function inviteTenant(
 export async function inviteStaffMember(
   email: string,
   role: string,
-  orgId: string,
-  brand: string,
+  orgId: string | undefined,
+  brand: string | undefined,
   redirectTo?: string
 ) {
   const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
