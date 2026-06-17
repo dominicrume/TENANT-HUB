@@ -1,5 +1,5 @@
 /**
- * BrandContext — which letterhead is active (Matty's Place / Ash Shahada /
+ * BrandContext — which letterhead is active (Matty&apos;s Place / Ash Shahada /
  * Reliance). One click swaps the letterhead; content is identical.
  * Persisted to localStorage 'th_brand'. Default: mattys_place.
  *
@@ -21,7 +21,7 @@ import { BrandSchema } from "@tenant-hub/validation";
 export type Brand = z.infer<typeof BrandSchema>;
 
 export const BRAND_LABELS: Record<Brand, string> = {
-  mattys_place: "Matty's Place",
+  mattys_place: "Matty&apos;s Place",
   ash_shahada: "Ash Shahada Housing Association Ltd",
   reliance: "Reliance Housing",
   tenant_hub: "Tenant Hub Workspace",
@@ -52,7 +52,7 @@ export function BrandProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <BrandContext.Provider value={{ brand, setBrand, label: BRAND_LABELS[brand] || "Matty's Place" }}>
+    <BrandContext.Provider value={{ brand, setBrand, label: BRAND_LABELS[brand] || "Matty&apos;s Place" }}>
       {children}
     </BrandContext.Provider>
   );

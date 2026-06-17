@@ -180,7 +180,10 @@ export function GoalsTab({ tenantId }: { tenantId: string }) {
                         {g.tenant_goal_updates.map((u) => (
                           <div key={u.id} style={{ background: "#fff", padding: "12px", borderRadius: "8px", border: "1px solid #EDE8E1" }}>
                             <div style={{ fontSize: "11px", color: "#7A8499", marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
-                              <strong>{u.entered_by.full_name} ({u.entered_by.role.replace("_", " ")})</strong>
+                              <strong>
+                                {typeof u.entered_by === 'string' ? "Staff" : u.entered_by?.full_name ?? "Staff"} 
+                                ({typeof u.entered_by === 'string' ? "staff" : u.entered_by?.role?.replace("_", " ") ?? "staff"})
+                              </strong>
                               <span>{new Date(u.created_at).toLocaleDateString("en-GB")} {new Date(u.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
                             </div>
                             <div style={{ fontSize: "13px", color: "var(--navy)", lineHeight: 1.5 }}>{u.comment}</div>

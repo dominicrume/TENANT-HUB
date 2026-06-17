@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { formatShortDate } from "../../lib/format";
 
 export function DocumentsTab({ tenantId }: { tenantId: string }) {
@@ -16,10 +16,18 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
 
   useEffect(() => { void load(); }, [load]);
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   // For Sprint 3, we simulate the upload to Supabase storage to keep the walkthrough seamless
-  async function simulateUpload() {
-    const name = prompt("Enter document name (e.g. Right to Rent ID):");
-    if (!name) return;
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const name = prompt(`Enter document name for "${file.name}":`, file.name);
+    if (!name) {
+      e.target.value = '';
+      return;
+    }
     
     await fetch("/api/documents", {
       method: "POST",
@@ -27,9 +35,10 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
       body: JSON.stringify({
         tenant_id: tenantId,
         name: name,
-        file_url: `dummy://tenant-documents/${tenantId}/${Date.now()}.pdf`
+        file_url: `dummy://tenant-documents/${tenantId}/${Date.now()}_${file.name}`
       })
     });
+    e.target.value = '';
     void load();
   }
 
@@ -39,7 +48,13 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
     <div style={{ marginTop: "20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--navy)", margin: 0 }}>Document Vault</h3>
-        <button onClick={simulateUpload} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "var(--amber)", color: "var(--navy)", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          style={{ display: 'none' }} 
+          onChange={handleFileSelected} 
+        />
+        <button onClick={() => fileInputRef.current?.click()} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "var(--amber)", color: "var(--navy)", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
           + Upload Document
         </button>
       </div>

@@ -22,7 +22,32 @@ export async function GET(_req: Request, { params }: Params) {
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+  
+  if (!data || data.length === 0) return NextResponse.json([]);
+
+  const userIds = new Set<string>();
+  data.forEach((g: any) => {
+    g.tenant_goal_updates?.forEach((u: any) => userIds.add(u.entered_by));
+  });
+
+  if (userIds.size > 0) {
+    const { data: profiles } = await auth.supabase
+      .from("profiles")
+      .select("id, full_name, role")
+      .in("id", Array.from(userIds));
+
+    const profileMap = new Map();
+    profiles?.forEach(p => profileMap.set(p.id, p));
+
+    data.forEach((g: any) => {
+      g.tenant_goal_updates = g.tenant_goal_updates?.map((u: any) => ({
+        ...u,
+        entered_by: profileMap.get(u.entered_by) || { full_name: "Staff", role: "staff" }
+      }));
+    });
+  }
+
+  return NextResponse.json(data);
 }
 
 /** POST /api/tenants/[id]/goals — create a goal */

@@ -14,7 +14,7 @@ export default function ContractorLayout({ children }: { children: React.ReactNo
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       <header style={{ height: "56px", background: "var(--navy)", display: "flex", alignItems: "center", padding: "0 16px" }}>
         <span style={{ color: "#fff", fontWeight: 700, fontFamily: "'Sora',sans-serif", fontSize: "15px" }}>
-          Matty's Place Contractor Portal
+          Matty&apos;s Place Contractor Portal
         </span>
         <div style={{ flex: 1 }} />
         <button onClick={signOut} style={{ color: "#fff", border: "1px solid rgba(255,255,255,0.2)", padding: "4px 8px", borderRadius: "4px", background: "transparent", cursor: "pointer" }}>

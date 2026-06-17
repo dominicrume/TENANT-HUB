@@ -38,7 +38,7 @@ function SubscriptionGatewayContent() {
           M
         </div>
 
-        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>Matty's Place {planName.replace(" Workspace", "")}</h1>
+        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>Matty&apos;s Place {planName.replace(" Workspace", "")}</h1>
         <p style={{ color: "#94a3b8", fontSize: "1.1rem", marginBottom: "2.5rem" }}>
           Complete your subscription to unlock the full workspace.
         </p>

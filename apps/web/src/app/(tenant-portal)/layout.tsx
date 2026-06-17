@@ -54,7 +54,7 @@ export default function TenantPortalLayout({ children }: { children: ReactNode }
       <header style={styles.header}>
         <Link href="/my-home" style={styles.brandLink}>
           <span style={styles.logoMark}>M</span>
-          <span style={styles.logoText}>Matty's Place</span>
+          <span style={styles.logoText}>Matty&apos;s Place</span>
         </Link>
         <div style={{ flex: 1 }} />
         <div style={styles.userBadge}>

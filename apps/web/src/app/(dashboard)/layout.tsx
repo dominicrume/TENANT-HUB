@@ -75,7 +75,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             M
           </span>
           <span className="hidden sm:inline" style={{ color: "#fff", fontWeight: 700, fontFamily: "'Sora',sans-serif", fontSize: "15px" }}>
-            Matty's Place
+            Matty&apos;s Place
           </span>
         </Link>
 
