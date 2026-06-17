@@ -12,15 +12,11 @@
 }
 
 html, body {
-  height: 100dvh;
-  width: 100vw;
-  overflow: hidden;
-  overscroll-behavior: none;
-  touch-action: manipulation;
   background: var(--cream);
   font-family: 'Sora', system-ui, sans-serif;
   color: #1A1A2E;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
 }
 
 ::-webkit-scrollbar {
