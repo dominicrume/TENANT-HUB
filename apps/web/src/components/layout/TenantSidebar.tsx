@@ -155,7 +155,10 @@ export function TenantSidebar() {
                       width: "8px",
                       height: "8px",
                       borderRadius: "50%",
-                      background: "#34C87A",
+                      background:
+                        t.housing_benefit_status === "active" ? "#34C87A" : // Green
+                        t.housing_benefit_status === "suspended" ? "#E05252" : // Red
+                        "var(--amber)", // Orange (in progress)
                       flexShrink: 0,
                     }}
                   />

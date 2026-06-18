@@ -107,3 +107,80 @@ export function SelectField(props: {
     </label>
   );
 }
+
+export function RatingField(props: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  required?: boolean;
+}) {
+  return (
+    <label style={{ display: "block" }}>
+      <span style={labelStyle}>
+        {props.label}
+        {props.required && <span style={{ color: "#E05252" }}> *</span>}
+      </span>
+      <div style={{ display: "flex", gap: "8px", minHeight: "44px", alignItems: "center" }}>
+        {[1, 2, 3, 4, 5].map((rating) => (
+          <button
+            key={rating}
+            type="button"
+            onClick={() => props.onChange(rating)}
+            style={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              border: props.value === rating ? "2px solid var(--amber)" : "1px solid #EDE8E1",
+              background: props.value === rating ? "var(--amber)" : "#fff",
+              color: props.value === rating ? "#fff" : "var(--navy)",
+              fontWeight: props.value === rating ? 700 : 400,
+              cursor: "pointer",
+              transition: "all 0.2s ease"
+            }}
+          >
+            {rating}
+          </button>
+        ))}
+      </div>
+    </label>
+  );
+}
+
+export function CheckboxGroupField(props: {
+  label: string;
+  options: string[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const toggle = (opt: string) => {
+    if (props.value.includes(opt)) {
+      props.onChange(props.value.filter(v => v !== opt));
+    } else {
+      props.onChange([...props.value, opt]);
+    }
+  };
+
+  return (
+    <div style={{ display: "block", gridColumn: "1 / -1" }}>
+      <span style={labelStyle}>{props.label}</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+        {props.options.map((opt) => (
+          <label key={opt} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={props.value.includes(opt)}
+              onChange={() => toggle(opt)}
+              style={{
+                width: "18px",
+                height: "18px",
+                accentColor: "var(--amber)",
+                cursor: "pointer"
+              }}
+            />
+            <span style={{ fontSize: "14px", color: "var(--navy)" }}>{opt}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}

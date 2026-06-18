@@ -57,6 +57,7 @@ function toForm(t: CanonicalTenant): FormState {
   f["benefit_type"] = t.benefit_type ?? "";
   f["benefit_frequency"] = t.benefit_frequency ?? "";
   f["benefit_amount"] = t.benefit_amount != null ? String(t.benefit_amount) : "";
+  f["housing_benefit_status"] = t.housing_benefit_status ?? "in_progress";
   return f;
 }
 
@@ -242,6 +243,7 @@ export default function TenantDetailPage() {
             <SelectField label="Benefit Type" value={form["benefit_type"] ?? ""} onChange={(v) => set("benefit_type", v)} options={BENEFIT_TYPES as unknown as string[]} required />
             <SelectField label="Frequency" value={form["benefit_frequency"] ?? ""} onChange={(v) => set("benefit_frequency", v)} options={BENEFIT_FREQUENCIES as unknown as string[]} required />
             <TextField label="Amount (£)" type="number" value={form["benefit_amount"] ?? ""} onChange={(v) => set("benefit_amount", v)} mono required />
+            <SelectField label="Housing Benefit Status" value={form["housing_benefit_status"] ?? ""} onChange={(v) => set("housing_benefit_status", v)} options={["active", "in_progress", "suspended"]} required />
           </FormSection>
 
           <FormSection title="4 · Next of Kin">
