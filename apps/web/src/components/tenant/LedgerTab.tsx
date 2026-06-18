@@ -10,7 +10,7 @@ import type { ServiceCharge } from "@tenant-hub/validation";
 import { formatShortDate, formatMoney } from "../../lib/format";
 import Link from "next/link";
 
-const DEFAULT_WEEKLY = 150;
+const DEFAULT_MONTHLY = 600;
 
 export function LedgerTab({ tenantId }: { tenantId: string }) {
   const [rows, setRows] = useState<ServiceCharge[]>([]);
@@ -36,9 +36,9 @@ export function LedgerTab({ tenantId }: { tenantId: string }) {
     const totalPaid = payments.reduce((s, r) => s + Number(r.amount), 0);
     const totalCharged = rows.reduce((s, r) => s + Number(r.amount), 0);
     const outstanding = Math.max(0, totalCharged - totalPaid);
-    const weeksBehind = Math.floor(outstanding / DEFAULT_WEEKLY);
-    const weekly = rows.length ? Number(rows[rows.length - 1]!.amount) : DEFAULT_WEEKLY;
-    return { totalPaid, outstanding, weeksBehind, weekly, arrears: totalPaid - totalCharged };
+    const monthsBehind = Math.floor(outstanding / DEFAULT_MONTHLY);
+    const monthly = rows.length ? Number(rows[rows.length - 1]!.amount) : DEFAULT_MONTHLY;
+    return { totalPaid, outstanding, monthsBehind, monthly, arrears: totalPaid - totalCharged };
   }, [rows, payments]);
 
   async function toggle(row: ServiceCharge) {
@@ -52,20 +52,30 @@ export function LedgerTab({ tenantId }: { tenantId: string }) {
     setBusy(false);
   }
 
-  async function addWeek() {
+  async function removeRow(row: ServiceCharge) {
+    if (!confirm("Are you sure you want to remove this charge?")) return;
+    setBusy(true);
+    await fetch(`/api/service-charges/${row.id}`, {
+      method: "DELETE",
+    });
+    await load();
+    setBusy(false);
+  }
+
+  async function addMonth() {
     setBusy(true);
     const last = rows[rows.length - 1];
     const base = last ? new Date(last.due_date) : new Date();
-    if (last) base.setDate(base.getDate() + 7);
+    if (last) base.setMonth(base.getMonth() + 1);
     const due = base.toISOString().slice(0, 10);
     await fetch("/api/service-charges", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tenant_id: tenantId,
-        week_label: `Week ${rows.length + 1}`,
+        week_label: `Month ${rows.length + 1}`,
         due_date: due,
-        amount: DEFAULT_WEEKLY,
+        amount: DEFAULT_MONTHLY,
         is_paid: false,
       }),
     });
@@ -84,16 +94,16 @@ export function LedgerTab({ tenantId }: { tenantId: string }) {
     <div className="ledger-print" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
       {/* BALANCE STRIP */}
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", background: "var(--navy)", borderRadius: "12px", padding: "16px" }}>
-        {stat("Weekly Charge", formatMoney(balance.weekly), "#fff")}
+        {stat("Monthly Charge", formatMoney(balance.monthly), "#fff")}
         {stat("Total Paid", formatMoney(balance.totalPaid), "#34C87A")}
         {stat("Arrears Balance", formatMoney(balance.arrears), balance.arrears < 0 ? "#FF8B8B" : "#34C87A")}
-        {stat("Weeks Behind", String(balance.weeksBehind), "#E8A84C")}
+        {stat("Months Behind", String(balance.monthsBehind), "#E8A84C")}
       </div>
 
       <div style={{ display: "flex", gap: "10px" }} className="no-print">
-        <button onClick={addWeek} disabled={busy}
+        <button onClick={addMonth} disabled={busy}
           style={{ minHeight: "44px", padding: "0 16px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", color: "var(--navy)", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
-          + Add Week
+          + Add Month
         </button>
         <Link href={`/tenants/${tenantId}/statement`}
           className="no-print"
@@ -134,16 +144,17 @@ export function LedgerTab({ tenantId }: { tenantId: string }) {
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
           <tr style={{ textAlign: "left", color: "#7A8499", fontSize: "11px", textTransform: "uppercase" }}>
-            <th style={{ padding: "8px 6px" }}>Week</th>
+            <th style={{ padding: "8px 6px" }}>Month</th>
             <th style={{ padding: "8px 6px" }}>Due Date</th>
             <th style={{ padding: "8px 6px" }}>Amount</th>
             <th style={{ padding: "8px 6px" }}>Status</th>
             <th style={{ padding: "8px 6px" }}>Paid Date</th>
+            <th style={{ padding: "8px 6px" }} className="no-print">Actions</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={5} style={{ padding: "12px 6px", color: "#7A8499" }}>No charges yet. Add the first week.</td></tr>
+            <tr><td colSpan={6} style={{ padding: "12px 6px", color: "#7A8499" }}>No charges yet. Add the first month.</td></tr>
           ) : (
             rows.map((r) => (
               <tr key={r.id} style={{ borderTop: "1px solid #F3EEE7" }}>
@@ -162,6 +173,14 @@ export function LedgerTab({ tenantId }: { tenantId: string }) {
                 </td>
                 <td style={{ padding: "8px 6px", fontFamily: "'JetBrains Mono',monospace", color: "#7A8499" }}>
                   {r.paid_date ? formatShortDate(r.paid_date) : "—"}
+                </td>
+                <td style={{ padding: "8px 6px" }} className="no-print">
+                  <button onClick={() => removeRow(r)} disabled={busy}
+                    style={{
+                      border: "none", cursor: "pointer", background: "transparent", color: "#E05252", fontSize: "12px", fontWeight: 600,
+                    }}>
+                    Remove
+                  </button>
                 </td>
               </tr>
             ))

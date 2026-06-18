@@ -45,3 +45,41 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+/**
+ * DELETE /api/service-charges/[id] — Delete a service charge
+ */
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  const auth = await getApiAuth();
+  if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+
+  if (!can(auth.actor.user_role, "service_charges", "delete")) {
+    return NextResponse.json({ error: "Permission denied" }, { status: 403 });
+  }
+
+  const { data: existing, error: readErr } = await auth.supabase
+    .from("service_charges")
+    .select("tenant_id")
+    .eq("id", params.id)
+    .single();
+    
+  if (readErr || !existing) {
+    return NextResponse.json({ error: readErr?.message ?? "Not found" }, { status: 404 });
+  }
+
+  try {
+    const { error } = await auth.supabase
+      .from("service_charges")
+      .delete()
+      .eq("id", params.id);
+      
+    if (error) throw new Error(error.message);
+    
+    // Log deletion manually to audit logs if needed, or rely on triggers.
+    // For now, we'll just return success.
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
