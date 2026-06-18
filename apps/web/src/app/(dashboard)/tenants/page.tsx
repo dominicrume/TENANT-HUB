@@ -49,7 +49,7 @@ export default function TenantsIndexPage() {
               boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
             }}
           >
-            {f === "all" ? "All Tenants" : f === "suspended" ? "Red (Action Required)" : f === "in_progress" ? "Orange (In Progress)" : "Green (Active)"}
+            {f === "all" ? "All Tenants" : f === "suspended" ? "Red (At Financial Risk)" : f === "in_progress" ? "Orange (In Progress)" : "Green (Active)"}
           </button>
         ))}
       </div>

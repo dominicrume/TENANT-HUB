@@ -22,7 +22,7 @@ import { AuditStampBar } from "../../../../components/AuditStampBar";
 import { FormSection, TextField, SelectField } from "../../../../components/form/fields";
 import { SessionsTab } from "../../../../components/tenant/SessionsTab";
 import { LedgerTab } from "../../../../components/tenant/LedgerTab";
-import { ChecklistTab } from "../../../../components/tenant/ChecklistTab";
+import { RelianceIntakeTab } from "../../../../components/tenant/RelianceIntakeTab";
 import { SupportPlanTab } from "../../../../components/tenant/SupportPlanTab";
 import { MaintenanceTab } from "../../../../components/tenant/MaintenanceTab";
 import { DocumentsTab } from "../../../../components/tenant/DocumentsTab";
@@ -32,10 +32,10 @@ import { FormsPanel } from "../../../../components/layout/FormsPanel";
 
 const CORE_TABS = [
   { key: "personal", label: "Personal Details" },
-  { key: "support-plan", label: "Support Plan (Reliance Pack)" },
+  { key: "reliance-intake", label: "Reliance Intake" },
+  { key: "support-plan", label: "Support Plan (Reliance)" },
   { key: "sessions", label: "Sessions" },
   { key: "ledger", label: "Service Charge" },
-  { key: "checklist", label: "Intake Checklist" },
   { key: "maintenance", label: "Maintenance" },
   { key: "documents", label: "Documents" },
   { key: "notes", label: "Staff Notes" },
@@ -355,9 +355,9 @@ export default function TenantDetailPage() {
       )}
 
       {tab === "support-plan" && <SupportPlanTab tenantId={id} tenant={tenant!} />}
+      {tab === "reliance-intake" && <RelianceIntakeTab tenantId={id} tenant={tenant!} />}
       {tab === "sessions" && <SessionsTab tenantId={id} />}
       {tab === "ledger" && <LedgerTab tenantId={id} />}
-      {tab === "checklist" && <ChecklistTab tenantId={id} />}
       {tab === "maintenance" && <MaintenanceTab tenantId={id} roomNumber={tenant?.room_number} />}
       {tab === "documents" && <DocumentsTab tenantId={id} />}
       {tab === "notes" && <NotesTab tenantId={id} />}
