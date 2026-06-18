@@ -23,7 +23,7 @@ import { FormSection, TextField, SelectField } from "../../../../components/form
 import { SessionsTab } from "../../../../components/tenant/SessionsTab";
 import { LedgerTab } from "../../../../components/tenant/LedgerTab";
 import { ChecklistTab } from "../../../../components/tenant/ChecklistTab";
-import { GoalsTab } from "../../../../components/tenant/GoalsTab";
+import { SupportPlanTab } from "../../../../components/tenant/SupportPlanTab";
 import { MaintenanceTab } from "../../../../components/tenant/MaintenanceTab";
 import { DocumentsTab } from "../../../../components/tenant/DocumentsTab";
 import { NotesTab } from "../../../../components/tenant/NotesTab";
@@ -32,7 +32,7 @@ import { FormsPanel } from "../../../../components/layout/FormsPanel";
 
 const CORE_TABS = [
   { key: "personal", label: "Personal Details" },
-  { key: "goals", label: "Support Plan Goals" },
+  { key: "support-plan", label: "Support Plan (Reliance Pack)" },
   { key: "sessions", label: "Sessions" },
   { key: "ledger", label: "Service Charge" },
   { key: "checklist", label: "Intake Checklist" },
@@ -101,6 +101,9 @@ export default function TenantDetailPage() {
     // Get the custom form templates available
     const tRes = await fetch(`/api/form-templates`);
     if (tRes.ok) setTemplates(await tRes.json());
+    
+    // Auto-seed reliance pack
+    await fetch('/api/seed').catch(() => {});
   }, [id]);
 
   useEffect(() => {
@@ -351,7 +354,7 @@ export default function TenantDetailPage() {
         </div>
       )}
 
-      {tab === "goals" && <GoalsTab tenantId={id} />}
+      {tab === "support-plan" && <SupportPlanTab tenantId={id} tenant={tenant!} />}
       {tab === "sessions" && <SessionsTab tenantId={id} />}
       {tab === "ledger" && <LedgerTab tenantId={id} />}
       {tab === "checklist" && <ChecklistTab tenantId={id} />}
