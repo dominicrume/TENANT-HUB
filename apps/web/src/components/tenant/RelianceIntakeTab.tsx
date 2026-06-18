@@ -109,6 +109,28 @@ export function RelianceIntakeTab({ tenantId, tenant }: { tenantId: string; tena
     setData({ ...data, consents: { ...data.consents, [key]: value } });
   };
 
+  async function notifyNextOfKin() {
+    if (!data?.missing_person.next_of_kin_contact) {
+      window.alert("Please provide a contact number first.");
+      return;
+    }
+    const res = await fetch("/api/communications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenant_id: tenantId,
+        channel: "sms",
+        message_type: "notification",
+        content: `Hello, you have been listed as an emergency contact for ${data.missing_person.full_name || tenant?.full_name} at Reliance Social Housing.`
+      })
+    });
+    if (res.ok) {
+      window.alert("SMS Notification dispatched successfully.");
+    } else {
+      window.alert("Failed to send SMS.");
+    }
+  }
+
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -262,7 +284,25 @@ export function RelianceIntakeTab({ tenantId, tenant }: { tenantId: string; tena
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <TextInput label="Name" value={data.missing_person.next_of_kin_name} onChange={(v) => handleMissingChange("next_of_kin_name", v)} />
               <TextInput label="Relationship" value={data.missing_person.next_of_kin_relationship} onChange={(v) => handleMissingChange("next_of_kin_relationship", v)} />
-              <TextInput label="Contact Number" value={data.missing_person.next_of_kin_contact} onChange={(v) => handleMissingChange("next_of_kin_contact", v)} />
+              
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "#7A8499", marginBottom: "6px" }}>Contact Number</label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input 
+                    type="text" 
+                    value={data.missing_person.next_of_kin_contact || ""} 
+                    onChange={(e) => handleMissingChange("next_of_kin_contact", e.target.value)} 
+                    style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #D9D2C7", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                  <button 
+                    onClick={notifyNextOfKin}
+                    style={{ padding: "0 16px", background: "var(--navy)", color: "#fff", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Notify via SMS
+                  </button>
+                </div>
+              </div>
+
               <TextInput label="Likely Destinations" value={data.missing_person.likely_destinations} onChange={(v) => handleMissingChange("likely_destinations", v)} />
             </div>
           </div>
@@ -289,7 +329,9 @@ export function RelianceIntakeTab({ tenantId, tenant }: { tenantId: string; tena
           />
           <ConsentBox 
             title="Service Charge Agreement" 
-            description="I agree to pay my service charge amount of £25.00 per week so I am entitled to my support and utilities."
+            description="I agree to pay my service charge amount so I am entitled to my support and utilities."
+            amount={data.consents.service_charge_amount || "25.00"}
+            onAmountChange={(amt: string) => handleConsentChange("service_charge_amount", amt)}
             signedBy={data.consents.service_charge_agreement_signed_by}
             date={data.consents.service_charge_agreement_date}
             onChange={(sign, dt) => { handleConsentChange("service_charge_agreement_signed_by", sign); handleConsentChange("service_charge_agreement_date", dt); }}
@@ -349,11 +391,24 @@ function TextInput({ label, value, onChange, type = "text" }: any) {
   );
 }
 
-function ConsentBox({ title, description, signedBy, date, onChange, critical }: any) {
+function ConsentBox({ title, description, amount, onAmountChange, signedBy, date, onChange, critical }: any) {
   return (
     <div style={{ background: critical ? "#FEF2F2" : "#F8FAFC", border: `1px solid ${critical ? "#FCA5A5" : "#E2E8F0"}`, borderRadius: "12px", padding: "20px" }}>
       <h4 style={{ margin: "0 0 8px 0", color: critical ? "#991B1B" : "var(--navy)", fontSize: "14px", fontWeight: 700 }}>{title}</h4>
       <p style={{ margin: "0 0 16px 0", fontSize: "13px", color: critical ? "#7F1D1D" : "#64748B" }}>{description}</p>
+      
+      {amount !== undefined && (
+        <div style={{ marginBottom: "16px" }}>
+          <label style={{ display: "block", fontSize: "12px", color: "#7A8499", marginBottom: "6px" }}>Agreed Amount (£/week)</label>
+          <input 
+            type="number" 
+            value={amount} 
+            onChange={(e) => onAmountChange && onAmountChange(e.target.value)} 
+            style={{ width: "150px", padding: "10px", borderRadius: "8px", border: "1px solid #CBD5E1", fontSize: "13px" }}
+          />
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: "16px" }}>
         <div style={{ flex: 1 }}>
           <label style={{ display: "block", fontSize: "12px", color: critical ? "#991B1B" : "#7A8499", marginBottom: "6px" }}>Client Signature</label>

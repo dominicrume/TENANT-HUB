@@ -48,6 +48,7 @@ export const ConsentsSchema = z.object({
   bcc_housing_benefit_consent_signed_by: z.string().optional(),
   bcc_housing_benefit_consent_date: z.string().optional(),
   
+  service_charge_amount: z.string().optional(),
   service_charge_agreement_signed_by: z.string().optional(),
   service_charge_agreement_date: z.string().optional(),
   
