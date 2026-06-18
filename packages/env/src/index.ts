@@ -38,8 +38,12 @@ function parseEnv() {
   if (!client.success) errors.push(...client.error.issues.map(i => `CLIENT: ${i.path.join(".")} — ${i.message}`));
 
   if (errors.length > 0) {
-    console.error("❌ Environment validation failed:\n" + errors.map(e => `  • ${e}`).join("\n"));
-    if (process.env["NODE_ENV"] === "production") process.exit(1);
+    if (process.env.SKIP_ENV_VALIDATION) {
+      console.warn("⚠️ Skipping environment validation for CI build.");
+    } else {
+      console.error("❌ Environment validation failed:\n" + errors.map(e => `  • ${e}`).join("\n"));
+      if (process.env["NODE_ENV"] === "production") process.exit(1);
+    }
   }
 
   return {
