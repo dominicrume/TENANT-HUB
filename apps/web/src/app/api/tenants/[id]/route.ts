@@ -49,6 +49,14 @@ export async function PATCH(req: Request, { params }: Params) {
 
   try {
     const prev = await latestAuditHash(auth.supabase, params.id);
+    
+    // Fetch current tenant to check for NOK changes
+    const { data: currentTenant } = await auth.supabase
+      .from("tenants")
+      .select("nok_name, nok_phone")
+      .eq("id", params.id)
+      .single();
+
     const { data } = await writeWithAudit({
       table: "tenants",
       record: parsed.data as Record<string, unknown>,
@@ -56,6 +64,26 @@ export async function PATCH(req: Request, { params }: Params) {
       prev_hash: prev,
       ...auth.actor,
     });
+
+    // Mock Next of Kin Alert Trigger
+    if (currentTenant && ('nok_name' in parsed.data || 'nok_phone' in parsed.data)) {
+      const newName = 'nok_name' in parsed.data ? parsed.data.nok_name : currentTenant.nok_name;
+      const newPhone = 'nok_phone' in parsed.data ? parsed.data.nok_phone : currentTenant.nok_phone;
+
+      const isChanged = (newName !== currentTenant.nok_name) || (newPhone !== currentTenant.nok_phone);
+      
+      if (isChanged && (newName || newPhone)) {
+        await auth.supabase.from("communications").insert({
+          org_id: auth.actor.org_id,
+          tenant_id: params.id,
+          channel: "SMS",
+          message_type: "System Alert",
+          content: `Automated Next of Kin Alert: NOK details updated to ${newName || "Unknown"} (${newPhone || "Unknown"}).`,
+          sent_by: "System"
+        });
+      }
+    }
+
     return NextResponse.json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

@@ -359,7 +359,7 @@ export default function TenantDetailPage() {
       {tab === "documents" && <DocumentsTab tenantId={id} />}
       {tab === "notes" && <NotesTab tenantId={id} />}
       {TABS.find(t => t.key === tab && 'template' in t) && (
-        <DynamicFormTab tenantId={id} template={(TABS.find(t => t.key === tab) as any).template} />
+        <DynamicFormTab tenantId={id} tenant={tenant!} template={(TABS.find(t => t.key === tab) as any).template} />
       )}
       </div>
 

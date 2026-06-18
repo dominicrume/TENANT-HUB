@@ -19,7 +19,9 @@ export interface FormTemplate {
   schema: FormFieldSchema[];
 }
 
-export function DynamicFormTab({ tenantId, template }: { tenantId: string; template: FormTemplate }) {
+import { CanonicalTenant } from "@tenant-hub/validation";
+
+export function DynamicFormTab({ tenantId, tenant, template }: { tenantId: string; tenant?: CanonicalTenant; template: FormTemplate }) {
   const [data, setData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,12 +33,22 @@ export function DynamicFormTab({ tenantId, template }: { tenantId: string; templ
     if (res.ok) {
       const forms = await res.json();
       const match = forms.find((f: any) => f.template_id === template.id);
-      if (match && match.data) {
+      if (match && match.data && Object.keys(match.data).length > 0) {
         setData(match.data);
+      } else if (tenant) {
+        // Auto-populate based on tenant details
+        const prefilled: Record<string, any> = {};
+        template.schema.forEach(field => {
+          const l = field.label.toLowerCase();
+          if (l.includes("name") && !l.includes("nok") && !l.includes("next of kin")) prefilled[field.id] = tenant.full_name;
+          if (l.includes("dob") || l.includes("date of birth") || l.includes("d.o.b")) prefilled[field.id] = tenant.dob;
+          if (l.includes("nino") || l.includes("national insurance") || l.includes("ni number")) prefilled[field.id] = tenant.nino;
+        });
+        setData(prefilled);
       }
     }
     setLoading(false);
-  }, [tenantId, template.id]);
+  }, [tenantId, template.id, tenant, template.schema]);
 
   useEffect(() => { void load(); }, [load]);
 
