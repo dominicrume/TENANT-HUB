@@ -10,13 +10,14 @@ import { useParams, useRouter } from "next/navigation";
 import { RecordFields } from "../../../../../components/intake/RecordFields";
 import { hashRecord } from "../../../../../lib/hash";
 import { canonicalSubset, type Draft } from "../../../../../lib/intake";
+import { DigitalSignaturePad } from "../../../../../components/form/DigitalSignaturePad";
 
 export default function VerifyPage() {
   const { draftId } = useParams<{ draftId: string }>();
   const router = useRouter();
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [name, setName] = useState("");
-  const [date] = useState(new Date().toISOString().slice(0, 10));
+  const [signatureData, setSignatureData] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -46,7 +47,7 @@ export default function VerifyPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        machine_state: { ...draft.machine_state, signature: { name, date } },
+        machine_state: { ...draft.machine_state, signature: { dataUrl: signatureData, date } },
         step: 4,
       }),
     });
@@ -81,16 +82,23 @@ export default function VerifyPage() {
         <p style={{ fontSize: "16px", color: "var(--navy)", marginBottom: "12px" }}>
           I confirm these details are accurate.
         </p>
-        <label style={{ display: "block", fontSize: "13px", color: "#7A8499", marginBottom: "6px" }}>Type your full name to sign</label>
-        <input value={name} onChange={(e) => setName(e.target.value)}
-          style={{ width: "100%", maxWidth: "420px", minHeight: "56px", padding: "12px", borderRadius: "8px", border: "1px solid #EDE8E1", fontSize: "18px", boxSizing: "border-box" }} />
-        <div style={{ fontSize: "13px", color: "#7A8499", marginTop: "8px", fontFamily: "'JetBrains Mono',monospace" }}>Date: {date}</div>
+        
+        <div style={{ maxWidth: "420px", marginBottom: "16px" }}>
+          <DigitalSignaturePad
+            label="Draw your signature below to sign"
+            value={signatureData}
+            onChange={(base64, dt) => {
+              setSignatureData(base64);
+              if (dt) setDate(dt);
+            }}
+          />
+        </div>
 
         {error && <div style={{ color: "#E05252", fontSize: "14px", marginTop: "12px" }}>{error}</div>}
 
         <div className="no-print" style={{ display: "flex", gap: "12px", marginTop: "18px", flexWrap: "wrap" }}>
-          <button onClick={confirm} disabled={busy || !name.trim()}
-            style={{ flex: "1 1 240px", minHeight: "56px", borderRadius: "8px", border: "none", background: "var(--amber)", color: "var(--navy)", fontWeight: 700, fontSize: "16px", cursor: busy || !name.trim() ? "not-allowed" : "pointer" }}>
+          <button onClick={confirm} disabled={busy || !signatureData}
+            style={{ flex: "1 1 240px", minHeight: "56px", borderRadius: "8px", border: "none", background: "var(--amber)", color: "var(--navy)", fontWeight: 700, fontSize: "16px", cursor: busy || !signatureData ? "not-allowed" : "pointer" }}>
             ✓ Confirm &amp; Sign
           </button>
           <button onClick={() => window.print()}
@@ -106,3 +114,4 @@ export default function VerifyPage() {
     </div>
   );
 }
+
