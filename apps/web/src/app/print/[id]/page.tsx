@@ -59,11 +59,11 @@ export default function PrintPackPage() {
       <div className="print-section">
         <h1 style={{ borderBottom: "2px solid #000", paddingBottom: "10px", marginBottom: "20px" }}>RELIANCE SOCIAL HOUSING CIC - INITIAL ASSESSMENT</h1>
         <Grid>
-          <Field label="Full Name" value={pack.referral?.full_name} />
-          <Field label="NINO" value={pack.referral?.nino} />
-          <Field label="Date of Birth" value={pack.referral?.dob} />
-          <Field label="Contact Number" value={pack.referral?.mobile_no} />
-          <Field label="Registered GP" value={pack.referral?.registered_gp} />
+          <Field label="Full Name" value={tenant.full_name || `${pack.referral?.first_name || ''} ${pack.referral?.surname || ''}`.trim()} />
+          <Field label="NINO" value={pack.referral?.nino || tenant.nino} />
+          <Field label="Date of Birth" value={pack.referral?.dob || tenant.dob} />
+          <Field label="Contact Number" value={pack.referral?.mobile_no || tenant.mobile} />
+          <Field label="Registered GP" value={pack.referral?.registered_gp || tenant.doctor} />
         </Grid>
         <h3 style={{ marginTop: "20px", borderBottom: "1px solid #ccc" }}>Health & Support Needs</h3>
         <Grid>

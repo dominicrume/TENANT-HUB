@@ -5,16 +5,38 @@
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
+  /* Legacy Palette */
   --navy:   #0F1C2E;
   --amber:  #E8A84C;
   --cream:  #F8F4EF;
   --surface:#FFFFFF;
+
+  /* Modern SaaS Palette */
+  --slate-900: #0F172A;
+  --slate-800: #1E293B;
+  --slate-600: #475569;
+  --slate-500: #64748B;
+  --slate-200: #E2E8F0;
+  --slate-100: #F1F5F9;
+  --slate-50:  #F8FAFC;
+  --indigo-600: #4F46E5;
+  --indigo-50:  #EEF2FF;
+  --emerald-500: #10B981;
+  --emerald-50:  #ECFDF5;
+  --rose-500: #F43F5E;
+  --rose-50: #FFF1F2;
+  
+  --bg-app: var(--slate-50);
+  --bg-card: var(--surface);
+  --text-main: var(--slate-900);
+  --text-muted: var(--slate-500);
+  --accent: var(--indigo-600);
 }
 
 html, body {
-  background: var(--cream);
+  background: var(--bg-app);
   font-family: 'Sora', system-ui, sans-serif;
-  color: #1A1A2E;
+  color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
 }

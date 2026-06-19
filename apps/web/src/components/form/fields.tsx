@@ -8,17 +8,17 @@ import type { ReactNode } from "react";
 
 export function FormSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section style={{ marginBottom: "22px" }}>
+    <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100" style={{ marginBottom: "24px" }}>
       <h3
         style={{
-          fontSize: "12px",
+          fontSize: "14px",
           fontWeight: 700,
           textTransform: "uppercase",
           letterSpacing: "0.05em",
-          color: "var(--amber)",
-          marginBottom: "10px",
-          borderBottom: "1px solid #EDE8E1",
-          paddingBottom: "5px",
+          color: "var(--accent)",
+          marginBottom: "16px",
+          borderBottom: "1px solid var(--slate-100)",
+          paddingBottom: "12px",
         }}
       >
         {title}
@@ -32,22 +32,23 @@ export function FormSection({ title, children }: { title: string; children: Reac
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontSize: "11px",
+  fontSize: "12px",
   fontWeight: 600,
-  color: "var(--navy)",
-  marginBottom: "4px",
+  color: "var(--text-main)",
+  marginBottom: "6px",
 };
 
 const controlStyle: React.CSSProperties = {
   width: "100%",
   minHeight: "44px",
-  padding: "9px 11px",
-  borderRadius: "8px",
-  border: "1px solid #EDE8E1",
+  padding: "10px 14px",
+  borderRadius: "10px",
+  border: "1px solid var(--slate-200)",
   fontFamily: "'Sora', sans-serif",
   fontSize: "14px",
   background: "#fff",
   boxSizing: "border-box",
+  transition: "border-color 0.2s ease",
 };
 
 export function TextField(props: {
@@ -73,10 +74,11 @@ export function TextField(props: {
         readOnly={props.readOnly}
         placeholder={props.placeholder}
         onChange={(e) => props.onChange(e.target.value)}
+        className="focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
         style={{
           ...controlStyle,
           fontFamily: props.mono ? "'JetBrains Mono', monospace" : controlStyle.fontFamily,
-          background: props.readOnly ? "#F8F4EF" : "#fff",
+          background: props.readOnly ? "var(--slate-50)" : "#fff",
         }}
       />
     </label>
@@ -96,7 +98,7 @@ export function SelectField(props: {
         {props.label}
         {props.required && <span style={{ color: "#E05252" }}> *</span>}
       </span>
-      <select value={props.value} onChange={(e) => props.onChange(e.target.value)} style={controlStyle}>
+      <select className="focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer hover:bg-slate-50 transition-colors" value={props.value} onChange={(e) => props.onChange(e.target.value)} style={controlStyle}>
         <option value="">—</option>
         {props.options.map((o) => (
           <option key={o} value={o}>
@@ -130,10 +132,10 @@ export function RatingField(props: {
               width: "36px",
               height: "36px",
               borderRadius: "50%",
-              border: props.value === rating ? "2px solid var(--amber)" : "1px solid #EDE8E1",
-              background: props.value === rating ? "var(--amber)" : "#fff",
-              color: props.value === rating ? "#fff" : "var(--navy)",
-              fontWeight: props.value === rating ? 700 : 400,
+              border: props.value === rating ? "2px solid var(--accent)" : "1px solid var(--slate-200)",
+              background: props.value === rating ? "var(--accent)" : "#fff",
+              color: props.value === rating ? "#fff" : "var(--text-main)",
+              fontWeight: props.value === rating ? 700 : 500,
               cursor: "pointer",
               transition: "all 0.2s ease"
             }}
@@ -171,13 +173,13 @@ export function CheckboxGroupField(props: {
               checked={props.value.includes(opt)}
               onChange={() => toggle(opt)}
               style={{
-                width: "18px",
-                height: "18px",
-                accentColor: "var(--amber)",
+                width: "20px",
+                height: "20px",
+                accentColor: "var(--accent)",
                 cursor: "pointer"
               }}
             />
-            <span style={{ fontSize: "14px", color: "var(--navy)" }}>{opt}</span>
+            <span style={{ fontSize: "14px", color: "var(--text-main)", fontWeight: 500 }}>{opt}</span>
           </label>
         ))}
       </div>

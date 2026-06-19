@@ -68,6 +68,21 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleStripePortal() {
+    try {
+      const res = await fetch("/api/billing/portal", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        window.alert(data.error || "Failed to load Stripe Portal. Please try again.");
+      }
+    } catch (err) {
+      console.error("Stripe Portal Error:", err);
+      window.alert("An error occurred connecting to Stripe.");
+    }
+  }
+
   const TABS: { key: Tab; label: string }[] = [
     { key: "users", label: "Users" },
     { key: "charges", label: "Service Charges" },
@@ -165,12 +180,12 @@ export default function SettingsPage() {
               
               <div style={{ borderTop: "1px solid #F3EEE7", paddingTop: "16px", display: "flex", gap: "12px" }}>
                 <button 
-                  onClick={() => window.alert("Stripe Customer Portal integration requires live API keys.")}
+                  onClick={handleStripePortal}
                   style={{ padding: "8px 16px", borderRadius: "6px", background: "var(--amber)", color: "var(--navy)", fontWeight: 600, border: "none", cursor: "pointer", fontSize: "13px" }}>
                   Manage in Stripe
                 </button>
                 <button 
-                  onClick={() => window.alert("Stripe API integration requires live API keys.")}
+                  onClick={handleStripePortal}
                   style={{ padding: "8px 16px", borderRadius: "6px", background: "transparent", color: "#445", fontWeight: 600, border: "1px solid #EDE8E1", cursor: "pointer", fontSize: "13px" }}>
                   View Invoices
                 </button>

@@ -51,30 +51,29 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <div style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }}>
       {/* ── TOPBAR ─────────────────────────────────────────────── */}
       <header
-        className="flex items-center gap-4 px-4 shrink-0"
+        className="flex items-center gap-4 px-4 shrink-0 bg-white border-b border-slate-200 z-50"
         style={{
-          height: "56px",
-          background: "var(--navy)",
+          height: "64px",
         }}
       >
         <button
-          className="md:hidden flex items-center justify-center w-8 h-8 rounded text-white shrink-0"
-          style={{ background: "rgba(255,255,255,0.08)" }}
+          className="md:hidden flex items-center justify-center w-8 h-8 rounded text-slate-600 hover:bg-slate-100 shrink-0 transition-colors"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           ☰
         </button>
-        <Link href="/dashboard" className="shrink-0" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
+        <Link href="/dashboard" className="shrink-0 group" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
           <span
+            className="shadow-sm transition-transform group-hover:scale-105"
             style={{
-              width: "30px", height: "30px", borderRadius: "7px", background: "var(--amber)",
-              color: "var(--navy)", fontWeight: 800, display: "flex", alignItems: "center",
-              justifyContent: "center", fontFamily: "'Sora',sans-serif",
+              width: "32px", height: "32px", borderRadius: "10px", background: "var(--accent)",
+              color: "#fff", fontWeight: 800, display: "flex", alignItems: "center",
+              justifyContent: "center", fontFamily: "'Sora',sans-serif", fontSize: "16px"
             }}
           >
             M
           </span>
-          <span className="hidden sm:inline" style={{ color: "#fff", fontWeight: 700, fontFamily: "'Sora',sans-serif", fontSize: "15px" }}>
+          <span className="hidden sm:inline" style={{ color: "var(--text-main)", fontWeight: 700, fontFamily: "'Sora',sans-serif", fontSize: "16px" }}>
             Matty&apos;s Place
           </span>
         </Link>
@@ -86,16 +85,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               key={b}
               onClick={() => setBrand(b)}
               title={BRAND_LABELS[b]}
+              className="transition-colors hover:-translate-y-[1px]"
               style={{
-                padding: "5px 10px",
-                borderRadius: "6px",
+                padding: "6px 12px",
+                borderRadius: "8px",
                 border: "none",
                 cursor: "pointer",
                 fontSize: "12px",
                 fontWeight: 600,
                 fontFamily: "'Sora',sans-serif",
-                background: brand === b ? "var(--amber)" : "rgba(255,255,255,0.08)",
-                color: brand === b ? "var(--navy)" : "#C7CFDD",
+                background: brand === b ? "var(--indigo-50)" : "var(--slate-50)",
+                color: brand === b ? "var(--accent)" : "var(--text-muted)",
               }}
             >
               {SHORT[b]}
@@ -107,10 +107,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         <Link
           href="/intake/new"
-          className="hidden sm:inline-flex shrink-0"
+          className="hidden sm:inline-flex shrink-0 transition-transform hover:-translate-y-[1px] shadow-sm"
           style={{
-            background: "var(--amber)", color: "var(--navy)", textDecoration: "none",
-            padding: "7px 14px", borderRadius: "7px", fontSize: "13px", fontWeight: 700,
+            background: "var(--accent)", color: "#fff", textDecoration: "none",
+            padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: 600,
             fontFamily: "'Sora',sans-serif",
           }}
         >
@@ -120,8 +120,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <span
           className="hidden md:inline shrink-0"
           style={{
-            fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", color: "var(--navy)",
-            background: "var(--amber)", padding: "4px 8px", borderRadius: "5px",
+            fontSize: "11px", fontWeight: 700, letterSpacing: "0.04em", color: "var(--rose-500)",
+            background: "var(--rose-50)", padding: "4px 10px", borderRadius: "99px",
           }}
         >
           OFFICIAL USE ONLY
@@ -132,12 +132,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="flex flex-1 min-h-0 relative">
         {/* SIDEBAR */}
         <nav
-          className={`${mobileMenuOpen ? "flex" : "hidden"} md:flex`}
+          className={`${mobileMenuOpen ? "flex" : "hidden"} md:flex border-r border-slate-200 bg-white`}
           style={{
             width: "280px",
-            background: "var(--navy)",
             flexDirection: "column",
-            padding: "16px",
+            padding: "20px 16px",
             flexShrink: 0,
             position: mobileMenuOpen ? "absolute" : "relative",
             zIndex: 40,
@@ -145,49 +144,53 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             overflowY: "auto",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: "1px", marginBottom: "12px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "16px" }}>
             {NAV.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
                 <Link
                   key={item.href}
                   href={item.href}
+                  className="transition-colors hover:bg-slate-50"
                   style={{
-                    display: "flex", alignItems: "center", gap: "10px",
-                    padding: "8px 10px", borderRadius: "8px", textDecoration: "none",
-                    fontSize: "13px", fontFamily: "'Sora',sans-serif",
-                    borderLeft: active ? "3px solid var(--amber)" : "3px solid transparent",
-                    background: active ? "rgba(232,168,76,0.12)" : "transparent",
-                    color: active ? "var(--amber)" : "#C7CFDD",
-                    fontWeight: active ? 600 : 400,
+                    display: "flex", alignItems: "center", gap: "12px",
+                    padding: "10px 12px", borderRadius: "10px", textDecoration: "none",
+                    fontSize: "14px", fontFamily: "'Sora',sans-serif",
+                    background: active ? "var(--indigo-50)" : "transparent",
+                    color: active ? "var(--accent)" : "var(--text-muted)",
+                    fontWeight: active ? 600 : 500,
                   }}
                 >
-                  <span style={{ width: "16px", textAlign: "center" }}>{item.icon}</span>
+                  <span style={{ width: "20px", textAlign: "center", fontSize: "16px" }}>{item.icon}</span>
                   {item.label}
                 </Link>
               );
             })}
           </div>
 
-          <div style={{ height: "1px", background: "rgba(255,255,255,0.08)", margin: "4px 0 10px" }} />
+          <div style={{ height: "1px", background: "var(--slate-100)", margin: "4px 0 16px" }} />
 
           {/* Tenant list — single source of truth (H8) */}
-          <TenantSidebar />
+          <div className="flex-1 overflow-y-auto min-h-0">
+             <TenantSidebar />
+          </div>
 
           {/* User info + sign out */}
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "10px", marginTop: "8px" }}>
-            <div style={{ color: "#fff", fontSize: "13px", fontWeight: 600 }}>
+          <div style={{ borderTop: "1px solid var(--slate-100)", paddingTop: "16px", marginTop: "16px" }}>
+            <div style={{ color: "var(--text-main)", fontSize: "14px", fontWeight: 600 }}>
               {profile?.full_name ?? "—"}
             </div>
-            <div style={{ color: "#9AA6BC", fontSize: "11px", marginBottom: "8px", textTransform: "capitalize" }}>
+            <div style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "12px", textTransform: "capitalize" }}>
               {profile?.role?.replace("_", " ") ?? ""}
             </div>
             <button
               onClick={signOut}
+              className="transition-colors hover:bg-slate-50 hover:text-slate-900"
               style={{
-                width: "100%", minHeight: "40px", borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)", background: "transparent",
-                color: "#C7CFDD", fontSize: "13px", cursor: "pointer", fontFamily: "'Sora',sans-serif",
+                width: "100%", minHeight: "42px", borderRadius: "10px",
+                border: "1px solid var(--slate-200)", background: "transparent",
+                color: "var(--text-muted)", fontSize: "13px", cursor: "pointer", fontFamily: "'Sora',sans-serif",
+                fontWeight: 600,
               }}
             >
               Sign Out
@@ -196,7 +199,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </nav>
 
         {/* MAIN */}
-        <main style={{ flex: 1, minWidth: 0, overflowY: "auto", background: "var(--cream)", overscrollBehaviorY: "none" }}>
+        <main style={{ flex: 1, minWidth: 0, overflowY: "auto", background: "var(--bg-app)", overscrollBehaviorY: "none" }}>
           {children}
         </main>
       </div>

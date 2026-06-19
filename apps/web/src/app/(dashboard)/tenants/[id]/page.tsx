@@ -172,10 +172,11 @@ export default function TenantDetailPage() {
         <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
         <div style={{ flex: 1, display: "flex", gap: "16px", alignItems: "center" }}>
           <div 
+            className="transition-transform hover:scale-105"
             style={{ 
-              width: "72px", height: "72px", borderRadius: "50%", background: "#E2E8F0", 
+              width: "80px", height: "80px", borderRadius: "16px", background: "var(--slate-100)", 
               display: "flex", alignItems: "center", justifyContent: "center", 
-              overflow: "hidden", cursor: "pointer", border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", flexShrink: 0
+              overflow: "hidden", cursor: "pointer", border: "2px solid var(--surface)", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", flexShrink: 0
             }}
             onClick={() => {
               const fileInput = document.createElement('input');
@@ -206,6 +207,7 @@ export default function TenantDetailPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: "220px" }}>
           <select 
             value={tenant?.housing_benefit_status || "in_progress"} 
+            className="shadow-sm cursor-pointer hover:shadow transition-shadow outline-none"
             onChange={async (e) => {
               const val = e.target.value;
               set("housing_benefit_status", val);
@@ -213,9 +215,9 @@ export default function TenantDetailPage() {
               void load();
             }}
             style={{ 
-              padding: "10px", borderRadius: "8px", border: "1px solid #EDE8E1", fontSize: "12px", fontWeight: 700,
-              background: tenant?.housing_benefit_status === "active" ? "#f0fdf4" : tenant?.housing_benefit_status === "suspended" ? "#fef2f2" : "#fffbeb",
-              color: tenant?.housing_benefit_status === "active" ? "#166534" : tenant?.housing_benefit_status === "suspended" ? "#991b1b" : "#b45309"
+              padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--slate-200)", fontSize: "13px", fontWeight: 600,
+              background: tenant?.housing_benefit_status === "active" ? "var(--emerald-50)" : tenant?.housing_benefit_status === "suspended" ? "var(--rose-50)" : "#fffbeb",
+              color: tenant?.housing_benefit_status === "active" ? "var(--emerald-500)" : tenant?.housing_benefit_status === "suspended" ? "var(--rose-500)" : "#b45309"
             }}
           >
             <option value="active">🟢 HB ACTIVE (Green)</option>
@@ -224,6 +226,7 @@ export default function TenantDetailPage() {
           </select>
 
           <button 
+            className="transition-transform hover:-translate-y-[1px] shadow-sm"
             onClick={() => {
               if (tenant?.housing_benefit_status !== "active") {
                 window.alert("❌ Cannot mark as Ready to Move-In. Housing Benefit status is not Active (Green). Please resolve the benefit issue first.");
@@ -231,7 +234,7 @@ export default function TenantDetailPage() {
                 window.alert("✅ Tenant marked as Ready to Move-In!");
               }
             }}
-            style={{ padding: "10px", background: "var(--navy)", color: "#fff", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}
+            style={{ padding: "12px", background: "var(--accent)", color: "#fff", borderRadius: "10px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}
           >
             Mark as Ready to Move-In
           </button>
@@ -239,23 +242,24 @@ export default function TenantDetailPage() {
       </div>
 
       {/* TABS */}
-      <div className="tab-row" style={{ display: "flex", gap: "4px", margin: "18px 0 14px", borderBottom: "1px solid #EDE8E1" }}>
+      <div className="tab-row flex flex-wrap" style={{ gap: "4px", margin: "24px 0 20px", borderBottom: "1px solid var(--slate-200)" }}>
         {TABS.map((t) => {
           const active = tab === t.key;
           return (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
+              className="hover:bg-slate-50 transition-colors"
               style={{
-                padding: "9px 14px",
+                padding: "12px 16px",
                 border: "none",
                 background: "transparent",
                 cursor: "pointer",
                 fontFamily: "'Sora', sans-serif",
-                fontSize: "13px",
-                fontWeight: active ? 700 : 500,
-                color: active ? "var(--navy)" : "#7A8499",
-                borderBottom: active ? "2px solid var(--amber)" : "2px solid transparent",
+                fontSize: "14px",
+                fontWeight: active ? 600 : 500,
+                color: active ? "var(--accent)" : "var(--text-muted)",
+                borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
               }}
             >
               {t.label}
@@ -329,22 +333,22 @@ export default function TenantDetailPage() {
           </FormSection>
 
           {/* 6 · Confidentiality Declaration (static authorisation text) */}
-          <section id="confidentiality" style={{ marginBottom: "22px" }}>
-            <h3 style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--amber)", marginBottom: "10px", borderBottom: "1px solid #EDE8E1", paddingBottom: "5px" }}>
+          <section id="confidentiality" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100" style={{ marginBottom: "24px" }}>
+            <h3 style={{ fontSize: "14px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--accent)", marginBottom: "16px", borderBottom: "1px solid var(--slate-100)", paddingBottom: "12px" }}>
               6 · Confidentiality Declaration
             </h3>
-            <p style={{ fontSize: "12px", color: "#445", lineHeight: 1.6, background: "#F8F4EF", padding: "12px", borderRadius: "8px" }}>
+            <p style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: 1.6, background: "var(--slate-50)", padding: "16px", borderRadius: "12px" }}>
               I authorise Ash Shahada Housing Association Ltd to hold and process my personal
               information for the purposes of providing housing and support services, and to share
               it with relevant agencies (local authority, DWP, healthcare and probation services)
               where necessary for my support and statutory obligations. Information will be held
               securely and in accordance with the Data Protection Act 2018 and UK GDPR.
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "12px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
               <TextField label="Print Name" value={form["full_name"] ?? ""} onChange={() => {}} readOnly />
               <TextField label="Date Signed" type="date" value="" onChange={() => {}} />
             </div>
-            <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--navy)", fontWeight: 600 }}>
+            <div style={{ marginTop: "16px", fontSize: "13px", color: "var(--text-main)", fontWeight: 600 }}>
               On behalf of Ash Shahada Housing Association Ltd — AHSAN REHMAN
             </div>
           </section>
@@ -359,19 +363,20 @@ export default function TenantDetailPage() {
           </div>
 
           {/* SAVE ACTION BAR */}
-          <div className="action-bar no-print" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <div className="action-bar no-print" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <button
               onClick={onSave}
               disabled={saving}
+              className="transition-transform hover:-translate-y-[1px] shadow-sm"
               style={{
                 minHeight: "56px",
-                padding: "0 26px",
-                borderRadius: "8px",
+                padding: "0 32px",
+                borderRadius: "12px",
                 border: "none",
-                background: "var(--navy)",
+                background: "var(--accent)",
                 color: "#fff",
-                fontWeight: 700,
-                fontSize: "14px",
+                fontWeight: 600,
+                fontSize: "15px",
                 cursor: saving ? "not-allowed" : "pointer",
                 fontFamily: "'Sora', sans-serif",
               }}
@@ -379,14 +384,15 @@ export default function TenantDetailPage() {
               {saving ? "Saving…" : "Save changes"}
             </button>
             <button
+              className="transition-transform hover:-translate-y-[1px] shadow-sm hover:bg-slate-50"
               onClick={() => window.print()}
               style={{
                 minHeight: "56px",
-                padding: "0 26px",
-                borderRadius: "8px",
-                border: "1px solid #38bdf8",
-                background: "#f0f9ff",
-                color: "#0ea5e9",
+                padding: "0 24px",
+                borderRadius: "12px",
+                border: "1px solid var(--slate-200)",
+                background: "var(--surface)",
+                color: "var(--text-main)",
                 fontWeight: 600,
                 fontSize: "14px",
                 cursor: "pointer",
@@ -396,14 +402,15 @@ export default function TenantDetailPage() {
               🖨️ Print Form
             </button>
             <button
+              className="transition-transform hover:-translate-y-[1px] shadow-sm hover:bg-indigo-50"
               onClick={() => window.open(`/tenants/${id}/print`, '_blank')}
               style={{
                 minHeight: "56px",
-                padding: "0 26px",
-                borderRadius: "8px",
-                border: "1px solid #1E7F4F",
-                background: "#f0fdf4",
-                color: "#1E7F4F",
+                padding: "0 24px",
+                borderRadius: "12px",
+                border: "1px solid var(--indigo-600)",
+                background: "var(--surface)",
+                color: "var(--indigo-600)",
                 fontWeight: 600,
                 fontSize: "14px",
                 cursor: "pointer",

@@ -69,7 +69,11 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
   function updateObjective(catIdx: number, objIdx: number, updater: (obj: SupportPlanObjective) => SupportPlanObjective) {
     if (!data) return;
     const newData = { ...data };
-    newData.categories[catIdx].objectives[objIdx] = updater({ ...newData.categories[catIdx].objectives[objIdx] });
+    const cat = newData.categories[catIdx];
+    if (!cat) return;
+    const obj = cat.objectives[objIdx];
+    if (!obj) return;
+    cat.objectives[objIdx] = updater({ ...obj });
     setData(newData);
   }
 
@@ -78,7 +82,9 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
     const title = window.prompt("Enter new objective title:");
     if (!title) return;
     const newData = { ...data };
-    newData.categories[catIdx].objectives.push({
+    const cat = newData.categories[catIdx];
+    if (!cat) return;
+    cat.objectives.push({
       id: `custom-${Date.now()}`,
       title,
       active: true,
@@ -180,10 +186,12 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
                               checked={step.completed} 
                               onChange={(e) => updateObjective(catIdx, objIdx, (o) => {
                                 const newSteps = [...o.steps];
-                                newSteps[stepIdx].completed = e.target.checked;
-                                if (e.target.checked && !newSteps[stepIdx].completed_date) {
-                                  newSteps[stepIdx].completed_date = new Date().toISOString().slice(0, 10);
-                                  newSteps[stepIdx].signed_by = "Staff"; // Mock signed by
+                                const step = newSteps[stepIdx];
+                                if (!step) return o;
+                                step.completed = e.target.checked;
+                                if (e.target.checked && !step.completed_date) {
+                                  step.completed_date = new Date().toISOString().slice(0, 10);
+                                  step.signed_by = "Staff"; // Mock signed by
                                 }
                                 return {...o, steps: newSteps};
                               })}
@@ -195,7 +203,9 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
                                 value={step.description}
                                 onChange={(e) => updateObjective(catIdx, objIdx, (o) => {
                                   const newSteps = [...o.steps];
-                                  newSteps[stepIdx].description = e.target.value;
+                                  const step = newSteps[stepIdx];
+                                  if (!step) return o;
+                                  step.description = e.target.value;
                                   return {...o, steps: newSteps};
                                 })}
                                 style={{ fontSize: "13px", color: step.completed ? "#94A3B8" : "var(--navy)", textDecoration: step.completed ? "line-through" : "none", width: "100%", background: "transparent", border: "none", outline: "none" }}
