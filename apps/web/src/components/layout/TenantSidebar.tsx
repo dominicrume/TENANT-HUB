@@ -53,12 +53,12 @@ export function TenantSidebar() {
             fontWeight: 700,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            color: "var(--text-muted)",
+            color: "var(--amber)",
           }}
         >
           Tenants
         </span>
-        <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
+        <span style={{ fontSize: "11px", color: "#9AA6BC", fontFamily: "'JetBrains Mono', monospace" }}>
           {count} Active
         </span>
       </div>
@@ -70,24 +70,24 @@ export function TenantSidebar() {
         style={{
           width: "100%",
           minHeight: "36px",
-          padding: "8px 12px",
-          marginBottom: "12px",
-          borderRadius: "10px",
-          border: "1px solid var(--slate-200)",
-          background: "var(--slate-50)",
-          color: "var(--text-main)",
-          fontSize: "13px",
+          padding: "6px 10px",
+          marginBottom: "8px",
+          borderRadius: "8px",
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(255,255,255,0.06)",
+          color: "#fff",
+          fontSize: "12px",
           boxSizing: "border-box",
         }}
       />
 
       <div style={{ overflowY: "auto", flex: 1 }}>
         {error ? (
-          <div style={{ color: "var(--rose-500)", fontSize: "13px", padding: "8px 4px" }}>{error}</div>
+          <div style={{ color: "#F0A0A0", fontSize: "12px", padding: "8px 4px" }}>{error}</div>
         ) : firstLoad ? (
-          <div style={{ color: "var(--text-muted)", fontSize: "13px", padding: "8px 4px" }}>Loading…</div>
+          <div style={{ color: "#9AA6BC", fontSize: "12px", padding: "8px 4px" }}>Loading…</div>
         ) : filtered.length === 0 ? (
-          <div style={{ color: "var(--text-muted)", fontSize: "13px", padding: "8px 4px" }}>
+          <div style={{ color: "#9AA6BC", fontSize: "12px", padding: "8px 4px" }}>
             {activeTenants.length === 0 ? "0 Active" : "No matches"}
           </div>
         ) : (
@@ -97,28 +97,29 @@ export function TenantSidebar() {
               <Link
                 key={t.id}
                 href={`/tenants/${t.id}`}
-                className="hover:bg-slate-50 transition-colors"
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "12px",
-                  padding: "10px 12px",
-                  borderRadius: "10px",
-                  marginBottom: "4px",
+                  padding: "12px 14px",
+                  borderRadius: "8px",
+                  marginBottom: "6px",
                   textDecoration: "none",
                   flexShrink: 0,
-                  background: active ? "var(--indigo-50)" : "transparent",
+                  borderLeft: active ? "3px solid var(--amber)" : "3px solid transparent",
+                  background: active ? "rgba(232,168,76,0.12)" : "transparent",
+                  transition: "background 0.2s ease",
                 }}
               >
                 <span
                   style={{
-                    width: "36px",
-                    height: "36px",
+                    width: "34px",
+                    height: "34px",
                     borderRadius: "50%",
-                    background: active ? "var(--accent)" : "var(--slate-100)",
-                    border: active ? "none" : "1px solid var(--slate-200)",
-                    color: active ? "#fff" : "var(--slate-600)",
-                    fontSize: "13px",
+                    background: "var(--navy)",
+                    border: "1px solid rgba(232,168,76,0.5)",
+                    color: "var(--amber)",
+                    fontSize: "12px",
                     fontWeight: 700,
                     display: "flex",
                     alignItems: "center",
@@ -132,9 +133,9 @@ export function TenantSidebar() {
                   <span
                     style={{
                       display: "block",
-                      fontSize: "14px",
-                      fontWeight: active ? 600 : 500,
-                      color: active ? "var(--accent)" : "var(--text-main)",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#fff",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -144,7 +145,7 @@ export function TenantSidebar() {
                   >
                     {t.full_name}
                   </span>
-                  <span style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <span style={{ display: "block", fontSize: "11px", color: "#9AA6BC", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {t.room_number} · {t.benefit_type}
                   </span>
                 </span>
@@ -155,9 +156,9 @@ export function TenantSidebar() {
                       height: "8px",
                       borderRadius: "50%",
                       background:
-                        t.housing_benefit_status === "active" ? "var(--emerald-500)" : // Green
-                        t.housing_benefit_status === "suspended" ? "var(--rose-500)" : // Red
-                        "#F59E0B", // Amber
+                        t.housing_benefit_status === "active" ? "#34C87A" : // Green
+                        t.housing_benefit_status === "suspended" ? "#E05252" : // Red
+                        "var(--amber)", // Orange (in progress)
                       flexShrink: 0,
                     }}
                   />

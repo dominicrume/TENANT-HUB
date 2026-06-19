@@ -20,11 +20,10 @@ export function AuditStampBar(props: {
         alignItems: "center",
         gap: "10px",
         flexWrap: "wrap",
-        padding: "12px 16px",
-        background: "var(--slate-50)",
-        color: "var(--text-muted)",
-        border: "1px solid var(--slate-200)",
-        borderRadius: "12px",
+        padding: "10px 14px",
+        background: "var(--navy)",
+        color: "#C7CFDD",
+        borderRadius: "10px",
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: "11px",
       }}
@@ -37,7 +36,7 @@ export function AuditStampBar(props: {
       <span>Method: {props.method ?? "manual"}</span>
       <span style={{ opacity: 0.5 }}>·</span>
       <span>
-        Hash: <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{truncateHash(props.hash)}</span>
+        Hash: <span style={{ color: "var(--amber)" }}>{truncateHash(props.hash)}</span>
       </span>
     </div>
   );

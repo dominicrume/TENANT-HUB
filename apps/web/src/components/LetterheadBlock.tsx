@@ -18,10 +18,9 @@ export function LetterheadBlock({ roomNumber, date }: { roomNumber?: string; dat
         alignItems: "center",
         gap: "14px",
         padding: "14px 16px",
-        background: "#fff",
-        border: "1px solid var(--slate-200)",
-        borderRadius: "16px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+        background: "var(--surface)",
+        border: "1px solid #EDE8E1",
+        borderRadius: "12px",
       }}
     >
       <div
@@ -29,8 +28,8 @@ export function LetterheadBlock({ roomNumber, date }: { roomNumber?: string; dat
           width: "48px",
           height: "48px",
           borderRadius: "10px",
-          background: "var(--accent)",
-          color: "#fff",
+          background: "var(--navy)",
+          color: "var(--amber)",
           fontFamily: "'Sora', sans-serif",
           fontWeight: 800,
           fontSize: "24px",
@@ -44,10 +43,10 @@ export function LetterheadBlock({ roomNumber, date }: { roomNumber?: string; dat
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: "var(--text-main)", fontWeight: 700, fontSize: "16px", fontFamily: "'Sora', sans-serif" }}>
+        <div style={{ color: "var(--navy)", fontWeight: 700, fontSize: "16px", fontFamily: "'Sora', sans-serif" }}>
           {label}
         </div>
-        <div style={{ color: "var(--text-muted)", fontSize: "12px", fontFamily: "'JetBrains Mono', monospace" }}>
+        <div style={{ color: "#7A8499", fontSize: "12px", fontFamily: "'JetBrains Mono', monospace" }}>
           {[roomNumber, date].filter(Boolean).join("  ·  ") || "Official record"}
         </div>
       </div>
@@ -57,11 +56,10 @@ export function LetterheadBlock({ roomNumber, date }: { roomNumber?: string; dat
           fontSize: "10px",
           fontWeight: 700,
           letterSpacing: "0.06em",
-          color: "var(--slate-600)",
-          background: "var(--slate-100)",
-          border: "1px solid var(--slate-200)",
+          color: "var(--navy)",
+          background: "var(--amber)",
           padding: "5px 9px",
-          borderRadius: "8px",
+          borderRadius: "6px",
           whiteSpace: "nowrap",
         }}
       >
