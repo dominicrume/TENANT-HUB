@@ -169,7 +169,74 @@ export default function TenantDetailPage() {
   return (
     <div style={{ display: "flex", minHeight: "100%" }}>
       <div className="print-area" style={{ flex: 1, minWidth: 0, padding: "1.75rem", fontFamily: "'Sora', sans-serif", maxWidth: "920px" }}>
-      <LetterheadBlock roomNumber={tenant?.room_number} date={tenant?.full_name} />
+        <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
+        <div style={{ flex: 1, display: "flex", gap: "16px", alignItems: "center" }}>
+          <div 
+            style={{ 
+              width: "72px", height: "72px", borderRadius: "50%", background: "#E2E8F0", 
+              display: "flex", alignItems: "center", justifyContent: "center", 
+              overflow: "hidden", cursor: "pointer", border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", flexShrink: 0
+            }}
+            onClick={() => {
+              const fileInput = document.createElement('input');
+              fileInput.type = 'file';
+              fileInput.accept = 'image/*';
+              fileInput.onchange = async (e: any) => {
+                const file = e.target.files[0];
+                if (file) {
+                  alert("Image uploaded successfully! (Simulated for Sprint 3)");
+                  // In a real app, you would upload to Supabase and save URL to tenant.photo_url
+                }
+              };
+              fileInput.click();
+            }}
+            title="Upload Tenant Photo"
+          >
+            {tenant?.photo_url ? (
+               <img src={tenant.photo_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+               <span style={{ fontSize: "24px" }}>📷</span>
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
+            <LetterheadBlock roomNumber={tenant?.room_number} date={tenant?.full_name} />
+          </div>
+        </div>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: "220px" }}>
+          <select 
+            value={tenant?.housing_benefit_status || "in_progress"} 
+            onChange={async (e) => {
+              const val = e.target.value;
+              set("housing_benefit_status", val);
+              await fetch(`/api/tenants/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ housing_benefit_status: val }) });
+              void load();
+            }}
+            style={{ 
+              padding: "10px", borderRadius: "8px", border: "1px solid #EDE8E1", fontSize: "12px", fontWeight: 700,
+              background: tenant?.housing_benefit_status === "active" ? "#f0fdf4" : tenant?.housing_benefit_status === "suspended" ? "#fef2f2" : "#fffbeb",
+              color: tenant?.housing_benefit_status === "active" ? "#166534" : tenant?.housing_benefit_status === "suspended" ? "#991b1b" : "#b45309"
+            }}
+          >
+            <option value="active">🟢 HB ACTIVE (Green)</option>
+            <option value="in_progress">🟠 HB IN PROGRESS (Orange)</option>
+            <option value="suspended">🔴 HB SUSPENDED (Red)</option>
+          </select>
+
+          <button 
+            onClick={() => {
+              if (tenant?.housing_benefit_status !== "active") {
+                window.alert("❌ Cannot mark as Ready to Move-In. Housing Benefit status is not Active (Green). Please resolve the benefit issue first.");
+              } else {
+                window.alert("✅ Tenant marked as Ready to Move-In!");
+              }
+            }}
+            style={{ padding: "10px", background: "var(--navy)", color: "#fff", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}
+          >
+            Mark as Ready to Move-In
+          </button>
+        </div>
+      </div>
 
       {/* TABS */}
       <div className="tab-row" style={{ display: "flex", gap: "4px", margin: "18px 0 14px", borderBottom: "1px solid #EDE8E1" }}>

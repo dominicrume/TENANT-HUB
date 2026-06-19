@@ -319,6 +319,8 @@ export const SupportPlanSchema = z.object({
   
   categories: z.array(SupportPlanCategorySchema),
   
+  additional_needs: z.string().optional(),
+  
   overall_client_signature: z.string().optional(),
   overall_client_signature_date: z.string().optional(),
   

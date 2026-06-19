@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { CanonicalTenant } from "@tenant-hub/validation";
-import { SUPPORT_PLAN_PRESETS, SupportPlan, SupportPlanObjective } from "@tenant-hub/validation";
+import { SUPPORT_PLAN_PRESETS, SupportPlan, SupportPlanObjective, SupportPlanStep } from "@tenant-hub/validation";
+import { DigitalSignaturePad } from "../form/DigitalSignaturePad";
 
 export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?: CanonicalTenant }) {
   const [data, setData] = useState<SupportPlan | null>(null);
@@ -72,6 +73,31 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
     setData(newData);
   }
 
+  function addObjective(catIdx: number) {
+    if (!data) return;
+    const title = window.prompt("Enter new objective title:");
+    if (!title) return;
+    const newData = { ...data };
+    newData.categories[catIdx].objectives.push({
+      id: `custom-${Date.now()}`,
+      title,
+      active: true,
+      steps: [
+        { description: "Identify first step", completed: false },
+        { description: "Identify second step", completed: false }
+      ],
+      comments: ""
+    });
+    setData(newData);
+  }
+
+  function addStep(catIdx: number, objIdx: number) {
+    if (!data) return;
+    const desc = window.prompt("Enter new action step:");
+    if (!desc) return;
+    updateObjective(catIdx, objIdx, (o) => ({ ...o, steps: [...o.steps, { description: desc, completed: false }] }));
+  }
+
   if (loading || !data) return <div style={{ padding: "40px", color: "#7A8499" }}>Loading Support Plan...</div>;
 
   return (
@@ -104,8 +130,14 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
       {/* CATEGORIES & OBJECTIVES */}
       {data.categories.map((cat, catIdx) => (
         <div key={cat.category} style={{ border: "1px solid #EDE8E1", borderRadius: "12px", overflow: "hidden" }}>
-          <div style={{ background: "var(--navy)", padding: "16px", color: "#fff" }}>
+          <div style={{ background: "var(--navy)", padding: "16px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>{cat.category}</h4>
+            <button 
+              onClick={() => addObjective(catIdx)}
+              style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", cursor: "pointer", fontWeight: "bold" }}
+            >
+              + Add Goal
+            </button>
           </div>
           
           <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -113,12 +145,18 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
               <div key={obj.id} style={{ border: "1px solid #E2E8F0", borderRadius: "8px", overflow: "hidden" }}>
                 {/* Objective Header Toggle */}
                 <div 
-                  onClick={() => updateObjective(catIdx, objIdx, (o) => ({...o, active: !o.active}))}
-                  style={{ background: obj.active ? "#F0FDF4" : "#F8FAFC", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+                  style={{ background: obj.active ? "#F0FDF4" : "#F8FAFC", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <input type="checkbox" checked={obj.active} readOnly style={{ width: "18px", height: "18px", cursor: "pointer" }} />
-                    <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--navy)" }}>{obj.title}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
+                    <input type="checkbox" checked={obj.active} onChange={() => updateObjective(catIdx, objIdx, (o) => ({...o, active: !o.active}))} style={{ width: "18px", height: "18px", cursor: "pointer" }} />
+                    <input 
+                      type="text" 
+                      value={obj.title} 
+                      onChange={(e) => updateObjective(catIdx, objIdx, (o) => ({...o, title: e.target.value}))} 
+                      style={{ fontSize: "14px", fontWeight: 600, color: "var(--navy)", background: "transparent", border: "1px dashed transparent", width: "100%", outline: "none", padding: "2px" }} 
+                      onFocus={(e) => e.target.style.borderBottom = "1px dashed #CBD5E1"}
+                      onBlur={(e) => e.target.style.borderBottom = "1px dashed transparent"}
+                    />
                   </div>
                   <div style={{ fontSize: "12px", color: obj.active ? "#1E7F4F" : "#94A3B8", fontWeight: 600 }}>
                     {obj.active ? "ACTIVE GOAL" : "INACTIVE"}
@@ -129,7 +167,11 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
                 {obj.active && (
                   <div style={{ padding: "16px", borderTop: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: "16px" }}>
                     <div>
-                      <h5 style={{ fontSize: "12px", color: "#7A8499", textTransform: "uppercase", marginBottom: "10px", fontWeight: 600 }}>Action Steps</h5>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                        <h5 style={{ fontSize: "12px", color: "#7A8499", textTransform: "uppercase", margin: 0, fontWeight: 600 }}>Action Steps</h5>
+                        <button onClick={() => addStep(catIdx, objIdx)} style={{ background: "none", border: "none", color: "var(--navy)", fontWeight: 600, fontSize: "11px", cursor: "pointer", textDecoration: "underline" }}>+ Add Step</button>
+                      </div>
+                      
                       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {obj.steps.map((step, stepIdx) => (
                           <div key={stepIdx} style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "10px", background: "#F8FAFC", borderRadius: "6px" }}>
@@ -148,9 +190,16 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
                               style={{ width: "16px", height: "16px", marginTop: "2px", cursor: "pointer" }}
                             />
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: "13px", color: step.completed ? "#94A3B8" : "var(--navy)", textDecoration: step.completed ? "line-through" : "none" }}>
-                                {step.description}
-                              </div>
+                              <input 
+                                type="text"
+                                value={step.description}
+                                onChange={(e) => updateObjective(catIdx, objIdx, (o) => {
+                                  const newSteps = [...o.steps];
+                                  newSteps[stepIdx].description = e.target.value;
+                                  return {...o, steps: newSteps};
+                                })}
+                                style={{ fontSize: "13px", color: step.completed ? "#94A3B8" : "var(--navy)", textDecoration: step.completed ? "line-through" : "none", width: "100%", background: "transparent", border: "none", outline: "none" }}
+                              />
                               {step.completed && (
                                 <div style={{ fontSize: "11px", color: "#1E7F4F", marginTop: "4px", fontWeight: 600 }}>
                                   ✓ Completed {step.completed_date} by {step.signed_by}
@@ -179,6 +228,18 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
         </div>
       ))}
 
+      {/* ADDITIONAL NEEDS */}
+      <div style={{ background: "#F8F4EF", border: "1px solid #EDE8E1", borderRadius: "12px", padding: "20px" }}>
+        <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)", marginBottom: "8px" }}>Additional Needs / Anything Else</h3>
+        <p style={{ fontSize: "12px", color: "#64748B", marginBottom: "16px" }}>Use this section to capture any other requirements, custom notes, or off-script support mechanisms needed for this tenant.</p>
+        <textarea 
+          value={data.additional_needs || ""}
+          onChange={(e) => setData({...data, additional_needs: e.target.value})}
+          placeholder="Enter any additional needs here..."
+          style={{ width: "100%", minHeight: "120px", padding: "12px", borderRadius: "8px", border: "1px solid #CBD5E1", fontSize: "13px", boxSizing: "border-box" }}
+        />
+      </div>
+
       {/* OVERALL SIGNATURE */}
       <div className="no-print" style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "20px" }}>
         <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)", marginBottom: "16px" }}>Digital Signatures</h3>
@@ -186,23 +247,17 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
         
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
           <div>
-            <label style={{ display: "block", fontSize: "12px", color: "#7A8499", marginBottom: "6px" }}>Client Signature</label>
-            <input 
-              type="text" 
-              placeholder="Type tenant name to sign" 
-              value={data.overall_client_signature || ""}
-              onChange={(e) => setData({...data, overall_client_signature: e.target.value, overall_client_signature_date: new Date().toISOString().slice(0, 10)})}
-              style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #CBD5E1", fontSize: "13px", fontFamily: "cursive" }} 
+            <DigitalSignaturePad 
+              label="Client Signature"
+              value={data.overall_client_signature}
+              onChange={(b64, dt) => setData({...data, overall_client_signature: b64, overall_client_signature_date: dt})}
             />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: "12px", color: "#7A8499", marginBottom: "6px" }}>Support Worker Signature</label>
-            <input 
-              type="text" 
-              placeholder="Type worker name to sign" 
-              value={data.overall_worker_signature || ""}
-              onChange={(e) => setData({...data, overall_worker_signature: e.target.value, overall_worker_signature_date: new Date().toISOString().slice(0, 10)})}
-              style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #CBD5E1", fontSize: "13px", fontFamily: "cursive" }} 
+            <DigitalSignaturePad 
+              label="Support Worker Signature"
+              value={data.overall_worker_signature}
+              onChange={(b64, dt) => setData({...data, overall_worker_signature: b64, overall_worker_signature_date: dt})}
             />
           </div>
         </div>

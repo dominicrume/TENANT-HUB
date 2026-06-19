@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { CanonicalTenant, ReliancePack } from "@tenant-hub/validation";
+import { DigitalSignaturePad } from "../form/DigitalSignaturePad";
 
 // The tabs inside the Reliance Intake wizard
 type Step = "dashboard" | "referral" | "missing-person" | "consents";
@@ -68,6 +69,18 @@ export function RelianceIntakeTab({ tenantId, tenant }: { tenantId: string; tena
     setSaving(true);
     setSaveMsg(null);
     
+    // Validate required fields (Simplified check)
+    const missing = [];
+    if (!data.consents?.bcc_housing_benefit_consent_signed_by) missing.push("BCC Housing Benefit Consent");
+    if (!data.consents?.service_charge_agreement_signed_by) missing.push("Service Charge Agreement");
+    if (!data.missing_person?.next_of_kin_name) missing.push("Next of Kin Name");
+    
+    if (missing.length > 0) {
+      window.alert(`Validation Error: Missing required sections:\n- ${missing.join("\n- ")}`);
+      setSaving(false);
+      return;
+    }
+    
     // Save to Forms DB
     const res = await fetch(`/api/tenants/${tenantId}/forms`, {
       method: "POST",
@@ -92,6 +105,15 @@ export function RelianceIntakeTab({ tenantId, tenant }: { tenantId: string; tena
       return;
     }
     setSaveMsg(`✓ Saved — ${new Date().toLocaleTimeString("en-GB")}`);
+  }
+
+  function handlePrint() {
+    // Basic validation before printing
+    if (!data?.consents?.bcc_housing_benefit_consent_signed_by || !data?.consents?.service_charge_agreement_signed_by) {
+      const ok = window.confirm("Warning: Some critical consents are missing signatures. Are you sure you want to print an incomplete pack?");
+      if (!ok) return;
+    }
+    window.open(`/print/${tenantId}`, "_blank");
   }
 
   if (loading || !data) return <div style={{ padding: "40px", color: "#7A8499" }}>Loading Reliance Pack...</div>;
@@ -366,6 +388,26 @@ export function RelianceIntakeTab({ tenantId, tenant }: { tenantId: string; tena
           {saving ? "Saving…" : "Save Reliance Pack"}
         </button>
 
+        <button
+          onClick={handlePrint}
+          style={{
+            minHeight: "48px",
+            padding: "0 24px",
+            borderRadius: "8px",
+            border: "1px solid var(--navy)",
+            background: "#fff",
+            color: "var(--navy)",
+            fontWeight: 700,
+            fontSize: "13px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}
+        >
+          🖨️ Print Full Signup Pack
+        </button>
+
         {saveMsg && (
           <span style={{ fontSize: "13px", color: saveMsg.startsWith("✓") ? "#1E7F4F" : "#E05252", fontWeight: 600 }}>
             {saveMsg}
@@ -388,12 +430,9 @@ function TextInput({ label, value, onChange, type = "text" }: any) {
         style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #D9D2C7", fontSize: "13px", boxSizing: "border-box" }}
       />
     </div>
-  );
-}
-
 function ConsentBox({ title, description, amount, onAmountChange, signedBy, date, onChange, critical }: any) {
   return (
-    <div style={{ background: critical ? "#FEF2F2" : "#F8FAFC", border: `1px solid ${critical ? "#FCA5A5" : "#E2E8F0"}`, borderRadius: "12px", padding: "20px" }}>
+    <div style={{ background: critical ? "#FEF2F2" : "#F8FAFC", border: `1px solid ${critical ? "#FCA5A5" : "#E2E8F0"}`, borderRadius: "12px", padding: "20px", breakInside: "avoid" }}>
       <h4 style={{ margin: "0 0 8px 0", color: critical ? "#991B1B" : "var(--navy)", fontSize: "14px", fontWeight: 700 }}>{title}</h4>
       <p style={{ margin: "0 0 16px 0", fontSize: "13px", color: critical ? "#7F1D1D" : "#64748B" }}>{description}</p>
       
@@ -409,22 +448,12 @@ function ConsentBox({ title, description, amount, onAmountChange, signedBy, date
         </div>
       )}
 
-      <div style={{ display: "flex", gap: "16px" }}>
-        <div style={{ flex: 1 }}>
-          <label style={{ display: "block", fontSize: "12px", color: critical ? "#991B1B" : "#7A8499", marginBottom: "6px" }}>Client Signature</label>
-          <input 
-            type="text" 
-            placeholder="Type tenant name to sign" 
-            value={signedBy || ""}
-            onChange={(e) => onChange(e.target.value, new Date().toISOString().slice(0, 10))}
-            style={{ width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${critical ? "#FCA5A5" : "#CBD5E1"}`, fontSize: "13px", fontFamily: "cursive", boxSizing: "border-box" }} 
-          />
-        </div>
-        {signedBy && (
-           <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: "10px" }}>
-             <span style={{ fontSize: "12px", color: "#1E7F4F", fontWeight: 600 }}>Signed: {date}</span>
-           </div>
-        )}
+      <div>
+        <DigitalSignaturePad 
+          label="Client Signature (Draw below)"
+          value={signedBy}
+          onChange={(b64, dt) => onChange(b64, dt)}
+        />
       </div>
     </div>
   );
