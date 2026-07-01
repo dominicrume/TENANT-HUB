@@ -111,7 +111,7 @@ export default async function LandingPage() {
           Automate intake forms, track tenant progress, and stay strictly compliant with AI-powered file management. Stop drowning in paperwork.
         </p>
         <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-          <Link href={session ? "/dashboard" : "/onboarding/subscription"} style={{ ...btnPrimary, padding: "1.125rem 2.5rem", fontSize: "1.125rem", boxShadow: "0 10px 25px -5px rgba(56, 189, 248, 0.4)" }}>
+          <Link href={session ? "/dashboard" : "/login"} style={{ ...btnPrimary, padding: "1.125rem 2.5rem", fontSize: "1.125rem", boxShadow: "0 10px 25px -5px rgba(56, 189, 248, 0.4)" }}>
             Get Started Today
           </Link>
           <Link href="#pricing" style={{ ...btnGhost, padding: "1.125rem 2.5rem", fontSize: "1.125rem", border: "1px solid rgba(255,255,255,0.1)" }}>
