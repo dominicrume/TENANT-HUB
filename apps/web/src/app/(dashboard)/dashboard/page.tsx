@@ -59,7 +59,6 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
   );
 }
 
-/** Fetch a JSON array; return null on any non-OK (endpoint may not exist yet). */
 function useArrayEndpoint<T = unknown>(url: string): T[] | null {
   const [data, setData] = useState<T[] | null>(null);
   useEffect(() => {
@@ -73,6 +72,40 @@ function useArrayEndpoint<T = unknown>(url: string): T[] | null {
     };
   }, [url]);
   return data;
+}
+
+function useAnalytics() {
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/analytics/dashboard")
+      .then(async (r) => {
+        const d = await r.json().catch(() => null);
+        if (!r.ok) {
+          throw new Error(d?.error || r.statusText || "Analytics failed to load");
+        }
+        return d;
+      })
+      .then((d) => {
+        if (alive) {
+          setData(d);
+          setError(null);
+        }
+      })
+      .catch((err) => {
+        if (alive) {
+          setError(err.message);
+          setData(null);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return { data, error };
 }
 
 export default function DashboardPage() {
@@ -98,6 +131,7 @@ export default function DashboardPage() {
   const unpaid = useArrayEndpoint<{ amount: number }>("/api/service-charges?unpaid=true");
   const risks = useArrayEndpoint("/api/risk-flags");
   const sessions = useArrayEndpoint("/api/sessions?thisWeek=true");
+  const { data: analytics, error: analyticsError } = useAnalytics();
 
   const unpaidTotal =
     unpaid === null ? "—" : formatMoney(unpaid.reduce((s, c) => s + Number(c.amount ?? 0), 0));
@@ -113,10 +147,11 @@ export default function DashboardPage() {
 
       {/* STATS STRIP */}
       <div style={{ display: "flex", gap: "14px", marginTop: "18px", flexWrap: "wrap" }}>
-        <StatCard label="Active Tenants" value={String(count)} />
-        <StatCard label="Unpaid Charges" value={unpaidTotal} accent="#E05252" />
-        <StatCard label="Risk Flags" value={risks === null ? "—" : String(risks.length)} accent="#E8A84C" />
-        <StatCard label="Sessions This Week" value={sessions === null ? "—" : String(sessions.length)} />
+        <StatCard label="Active Tenants" value={analytics ? String(analytics.totalActiveTenants) : "—"} />
+        <StatCard label="Pending HB Claims" value={analytics ? String(analytics.totalPendingHBClaims) : "—"} accent="#E8A84C" />
+        <StatCard label="Suspended HB" value={analytics ? String(analytics.totalSuspendedHB) : "—"} accent="#E05252" />
+        <StatCard label="Expected Revenue" value={analytics ? formatMoney(analytics.expectedRevenue) : "—"} />
+        <StatCard label="Pending Revenue" value={analytics ? formatMoney(analytics.pendingRevenue) : "—"} accent="#E8A84C" />
       </div>
 
       <div style={{ display: "flex", gap: "16px", marginTop: "20px", flexWrap: "wrap", alignItems: "flex-start" }}>
@@ -148,6 +183,30 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* MIDDLE — Alerts Feed */}
+        <div style={{ ...card, flex: "1 1 300px" }}>
+          <h2 style={{ color: "var(--navy)", fontSize: "15px", fontWeight: 700, marginBottom: "12px" }}>Alerts & Action Items</h2>
+          {analyticsError ? (
+            <p style={{ color: "#E05252", fontSize: "13px" }}>⚠️ Error: {analyticsError}</p>
+          ) : !analytics ? (
+            <p style={{ color: "#7A8499", fontSize: "13px" }}>Loading…</p>
+          ) : analytics.alerts?.length === 0 ? (
+            <p style={{ color: "#7A8499", fontSize: "13px" }}>No urgent alerts.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {analytics.alerts.map((alert: any) => (
+                <Link key={alert.id} href={`/tenants/${alert.tenantId}?tab=housing-benefit`} style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", padding: "10px", borderRadius: "8px", border: "1px solid #EDE8E1", background: alert.severity === "high" ? "#fef2f2" : alert.severity === "medium" ? "#fffbeb" : "#f3f4f6", textDecoration: "none" }}>
+                  <span style={{ color: alert.severity === "high" ? "#991b1b" : alert.severity === "medium" ? "#b45309" : "#374151", fontWeight: 700 }}>
+                    {alert.tenantName}
+                  </span>
+                  <span style={{ color: alert.severity === "high" ? "#b91c1c" : alert.severity === "medium" ? "#d97706" : "#4b5563" }}>
+                    {alert.message}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
         {/* RIGHT — Quick Actions + Recent Tenants */}
         <div style={{ flex: "1 1 280px", display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ ...card, background: "var(--navy)", border: "none" }}>

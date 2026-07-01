@@ -49,6 +49,9 @@ export const CanonicalTenantSchema = z.object({
   benefit_frequency: BenefitFrequencySchema,
   benefit_amount:  MoneyGbpSchema,
   housing_benefit_status: z.enum(["active", "in_progress", "suspended"]).default("in_progress"),
+  hb_reference_number: z.string().optional(),
+  hb_claim_date:   UkDateSchema.optional(),
+  hb_document_url: z.string().url().optional(),
 
   // Next of kin
   nok_name:        z.string().min(2).max(100),

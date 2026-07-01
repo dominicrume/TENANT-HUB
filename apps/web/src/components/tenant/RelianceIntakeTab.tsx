@@ -147,6 +147,7 @@ export function RelianceIntakeTab({ tenantId, tenant }: { tenantId: string; tena
         tenant_id: tenantId,
         channel: "sms",
         message_type: "notification",
+        to_phone: data.missing_person.next_of_kin_contact,
         content: `Hello, you have been listed as the Next of Kin / Emergency Contact for ${data.missing_person.full_name || tenant?.full_name} at Reliance Social Housing. You will be contacted in the event of an emergency or if they are reported missing. Reply STOP to opt out.`
       })
     });

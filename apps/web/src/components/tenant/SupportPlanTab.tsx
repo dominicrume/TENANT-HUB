@@ -191,7 +191,7 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
                                 step.completed = e.target.checked;
                                 if (e.target.checked && !step.completed_date) {
                                   step.completed_date = new Date().toISOString().slice(0, 10);
-                                  step.signed_by = "Staff"; // Mock signed by
+                                  step.signed_by = "Support Worker";
                                 }
                                 return {...o, steps: newSteps};
                               })}

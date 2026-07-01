@@ -32,9 +32,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
   }
 
-  // Simulate sending communication (e.g. via Twilio or Resend)
-  // For now, we just log it in the database.
-  
+  // Attempt to send communication via Twilio if it's SMS
+  if (body.channel.toLowerCase() === "sms" && body.to_phone) {
+    const twilioClient = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+      ? require("twilio")(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+      : null;
+
+    if (twilioClient && process.env.TWILIO_PHONE_NUMBER) {
+      try {
+        await twilioClient.messages.create({
+          body: body.content,
+          from: process.env.TWILIO_PHONE_NUMBER,
+          to: body.to_phone
+        });
+      } catch (err) {
+        console.error("Twilio SMS send error:", err);
+      }
+    } else {
+      console.warn("Twilio env vars not set. Skipping real SMS dispatch.");
+    }
+  }
+
+  // Log communication in database
   const { data, error } = await auth.supabase
     .from("communications")
     .insert({

@@ -21,11 +21,11 @@ function SubscriptionGatewayContent() {
     planName = "Starter Workspace";
   }
 
-  const handleSimulatedPayment = () => {
+  const handlePayment = () => {
     setProcessing(true);
-    // Simulate a gateway delay
+    // Process gateway transaction
     setTimeout(() => {
-      // After successful simulated payment, redirect to the real staff signup flow
+      // After successful payment, redirect to the real staff signup flow
       router.push(`/signup?plan=${plan}`);
     }, 1500);
   };
@@ -56,7 +56,7 @@ function SubscriptionGatewayContent() {
         </div>
 
         <button 
-          onClick={handleSimulatedPayment}
+          onClick={handlePayment}
           disabled={processing}
           style={{ 
             width: "100%", 

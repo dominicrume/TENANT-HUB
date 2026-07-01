@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { formatShortDate } from "../../lib/format";
+import { getSupabaseBrowser } from "../../lib/supabase-browser";
 
 export function DocumentsTab({ tenantId }: { tenantId: string }) {
   const [docs, setDocs] = useState<any[]>([]);
@@ -18,7 +19,6 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // For Sprint 3, we simulate the upload to Supabase storage to keep the walkthrough seamless
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -29,15 +29,32 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
       return;
     }
     
+    // Upload to Supabase Storage
+    const supabase = getSupabaseBrowser();
+    const ext = file.name.split('.').pop();
+    const fileName = `tenant-${tenantId}-${Date.now()}.${ext}`;
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("tenant-documents")
+      .upload(fileName, file);
+
+    if (uploadError) {
+      alert("Document upload failed: " + uploadError.message);
+      e.target.value = '';
+      return;
+    }
+
+    // Save record to DB
     await fetch("/api/documents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tenant_id: tenantId,
         name: name,
-        file_url: `dummy://tenant-documents/${tenantId}/${Date.now()}_${file.name}`
+        file_url: uploadData.path
       })
     });
+    
     e.target.value = '';
     void load();
   }

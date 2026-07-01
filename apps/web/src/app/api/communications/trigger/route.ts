@@ -31,9 +31,30 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
-    // TODO: In a production environment, this is where we would call the Twilio or Resend API.
-    // For now, we are just logging it to the database as "sent" to simulate the automation.
-    console.log(`[SIMULATED ${type.toUpperCase()}] To: ${recipient} | Body: ${messageBody}`);
+    // If SMS, actually send it via Twilio
+    if (type.toLowerCase() === "sms" && recipient) {
+      const twilioClient = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+        ? require("twilio")(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+        : null;
+
+      if (twilioClient && process.env.TWILIO_PHONE_NUMBER) {
+        try {
+          await twilioClient.messages.create({
+            body: messageBody,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: recipient
+          });
+          console.log(`[REAL SMS SENT] To: ${recipient}`);
+        } catch (err) {
+          console.error("Twilio SMS trigger error:", err);
+        }
+      } else {
+        console.warn(`[SIMULATED ${type.toUpperCase()}] To: ${recipient} | Body: ${messageBody} (Twilio env missing)`);
+      }
+    } else {
+      // Fallback or email simulation
+      console.log(`[SIMULATED ${type.toUpperCase()}] To: ${recipient} | Body: ${messageBody}`);
+    }
 
     return NextResponse.json({ success: true, data });
   } catch (err: any) {

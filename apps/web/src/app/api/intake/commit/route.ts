@@ -57,6 +57,20 @@ export async function POST(req: Request) {
     );
   }
 
+  if (parsed.data.room_number) {
+    const { count } = await auth.supabase
+      .from("tenants")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", auth.actor.org_id)
+      .eq("room_number", parsed.data.room_number)
+      .eq("is_archived", false)
+      .eq("is_active", true);
+      
+    if (count && count > 0) {
+      return NextResponse.json({ error: `Room ${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
+    }
+  }
+
   // Emergency fallback in case Next.js fetch cache omitted org_id from the profile
   if (!auth.actor.org_id) {
     const { data: freshProfile } = await auth.supabase

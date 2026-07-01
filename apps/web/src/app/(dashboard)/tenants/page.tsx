@@ -7,12 +7,14 @@ import { useTenants } from "../../../hooks/useTenants";
 export default function TenantsIndexPage() {
   const { tenants, loading, error } = useTenants();
   const [filter, setFilter] = useState<"all" | "active" | "in_progress" | "suspended">("all");
+  const [brandFilter, setBrandFilter] = useState<string>("all");
 
   if (loading) return <div style={{ padding: "32px", fontFamily: "'Sora', sans-serif" }}>Loading tenants...</div>;
   if (error) return <div style={{ padding: "32px", color: "red", fontFamily: "'Sora', sans-serif" }}>Error: {error}</div>;
 
   const filteredTenants = tenants
     .filter(t => filter === "all" || t.housing_benefit_status === filter)
+    .filter(t => brandFilter === "all" || t.brand === brandFilter)
     .sort((a, b) => {
       // Sort Red -> Orange -> Green
       const order = { suspended: 0, in_progress: 1, active: 2 };
@@ -52,6 +54,22 @@ export default function TenantsIndexPage() {
             {f === "all" ? "All Tenants" : f === "suspended" ? "Red (At Financial Risk)" : f === "in_progress" ? "Orange (In Progress)" : "Green (Active)"}
           </button>
         ))}
+        <select
+          value={brandFilter}
+          onChange={(e) => setBrandFilter(e.target.value)}
+          style={{
+            padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, border: "1px solid #EDE8E1", cursor: "pointer",
+            background: "#fff",
+            color: "var(--navy)",
+            marginLeft: "auto"
+          }}
+        >
+          <option value="all">All HMOs / Brands</option>
+          <option value="ash_shahada">Ash Shahada Housing Association</option>
+          <option value="mattys_place">Matty&apos;s Place</option>
+          <option value="reliance">Reliance Housing</option>
+          <option value="tenant_hub">Tenant Hub</option>
+        </select>
       </div>
       
       {filteredTenants.length === 0 ? (

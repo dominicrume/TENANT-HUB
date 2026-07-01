@@ -18,6 +18,7 @@ import {
 } from "@tenant-hub/validation";
 import { useTenants } from "../../../../hooks/useTenants";
 import { LetterheadBlock } from "../../../../components/LetterheadBlock";
+import { getSupabaseBrowser } from "../../../../lib/supabase-browser";
 import { AuditStampBar } from "../../../../components/AuditStampBar";
 import { FormSection, TextField, SelectField } from "../../../../components/form/fields";
 import { SessionsTab } from "../../../../components/tenant/SessionsTab";
@@ -32,6 +33,7 @@ import { FormsPanel } from "../../../../components/layout/FormsPanel";
 
 const CORE_TABS = [
   { key: "personal", label: "Personal Details" },
+  { key: "housing-benefit", label: "Housing Benefit" },
   { key: "reliance-intake", label: "Reliance Intake" },
   { key: "support-plan", label: "Support Plan (Reliance)" },
   { key: "sessions", label: "Sessions" },
@@ -48,6 +50,7 @@ const EDITABLE_STRING_FIELDS = [
   "address", "postcode", "room_number", "moved_in", "mobile", "email", "languages",
   "nok_name", "nok_relationship", "nok_phone", "nok_address",
   "doctor", "probation_officer",
+  "hb_reference_number", "hb_claim_date", "hb_document_url"
 ] as const;
 
 function toForm(t: CanonicalTenant): FormState {
@@ -56,6 +59,7 @@ function toForm(t: CanonicalTenant): FormState {
   f["title"] = t.title ?? "";
   f["benefit_type"] = t.benefit_type ?? "";
   f["benefit_frequency"] = t.benefit_frequency ?? "";
+  f["brand"] = t.brand ?? "";
   f["benefit_amount"] = t.benefit_amount != null ? String(t.benefit_amount) : "";
   f["housing_benefit_status"] = t.housing_benefit_status ?? "in_progress";
   return f;
@@ -126,7 +130,10 @@ export default function TenantDetailPage() {
         out[k] = null;
         continue;
       }
-      out[k] = k === "benefit_amount" ? Number(v) : v;
+      // Transform numerical fields and enum fields correctly
+      if (k === "benefit_amount") out[k] = Number(v);
+      else if (k === "brand") out[k] = v;
+      else out[k] = v;
     }
     return out;
   }, [form]);
@@ -171,25 +178,47 @@ export default function TenantDetailPage() {
       <div className="print-area" style={{ flex: 1, minWidth: 0, padding: "1.75rem", fontFamily: "'Sora', sans-serif", maxWidth: "920px" }}>
         <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
         <div style={{ flex: 1, display: "flex", gap: "16px", alignItems: "center" }}>
+          <input 
+            type="file" 
+            id="profile-photo-upload"
+            style={{ display: 'none' }} 
+            accept="image/*"
+            onChange={async (e: any) => {
+              const file = e.target.files[0];
+              if (file) {
+                const supabase = getSupabaseBrowser();
+                const ext = file.name.split('.').pop();
+                const fileName = `tenant-${id}-${Date.now()}.${ext}`;
+                
+                const { data, error } = await supabase.storage
+                  .from("maintenance-photos")
+                  .upload(fileName, file);
+                  
+                if (error) {
+                  alert("Failed to upload image: " + error.message);
+                  return;
+                }
+                
+                if (data) {
+                  const publicUrl = supabase.storage.from("maintenance-photos").getPublicUrl(data.path).data.publicUrl;
+                  setTenant(prev => prev ? { ...prev, photo_url: publicUrl } : null);
+                  await fetch(`/api/tenants/${id}`, { 
+                    method: "PATCH", 
+                    headers: { "Content-Type": "application/json" }, 
+                    body: JSON.stringify({ photo_url: publicUrl }) 
+                  });
+                }
+              }
+              e.target.value = '';
+            }}
+          />
           <div 
             style={{ 
               width: "72px", height: "72px", borderRadius: "50%", background: "#E2E8F0", 
               display: "flex", alignItems: "center", justifyContent: "center", 
               overflow: "hidden", cursor: "pointer", border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", flexShrink: 0
             }}
-            onClick={() => {
-              const fileInput = document.createElement('input');
-              fileInput.type = 'file';
-              fileInput.accept = 'image/*';
-              fileInput.onchange = async (e: any) => {
-                const file = e.target.files[0];
-                if (file) {
-                  alert("Image uploaded successfully! (Simulated for Sprint 3)");
-                  // In a real app, you would upload to Supabase and save URL to tenant.photo_url
-                }
-              };
-              fileInput.click();
-            }}
+            onClick={() => document.getElementById('profile-photo-upload')?.click()}
             title="Upload Tenant Photo"
           >
             {tenant?.photo_url ? (
@@ -207,10 +236,14 @@ export default function TenantDetailPage() {
           <select 
             value={tenant?.housing_benefit_status || "in_progress"} 
             onChange={async (e) => {
-              const val = e.target.value;
+              const val = e.target.value as "active" | "in_progress" | "suspended";
               set("housing_benefit_status", val);
-              await fetch(`/api/tenants/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ housing_benefit_status: val }) });
-              void load();
+              // Optimistic UI update
+              if (tenant) {
+                setTenant({ ...tenant, housing_benefit_status: val });
+              }
+              // Silently patch in the background without awaiting load()
+              fetch(`/api/tenants/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ housing_benefit_status: val }) });
             }}
             style={{ 
               padding: "10px", borderRadius: "8px", border: "1px solid #EDE8E1", fontSize: "12px", fontWeight: 700,
@@ -235,11 +268,22 @@ export default function TenantDetailPage() {
           >
             Mark as Ready to Move-In
           </button>
+          <button 
+            onClick={async () => {
+              if (window.confirm(tenant?.is_archived ? "Unarchive this tenant?" : "Archive this tenant? They will be marked as Gray.")) {
+                await fetch(`/api/tenants/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_archived: !tenant?.is_archived }) });
+                void load();
+              }
+            }}
+            style={{ padding: "10px", background: tenant?.is_archived ? "#e5e7eb" : "#f3f4f6", color: "#374151", borderRadius: "8px", border: "1px solid #d1d5db", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}
+          >
+            {tenant?.is_archived ? "Unarchive Tenant" : "Archive Tenant (Gray)"}
+          </button>
         </div>
       </div>
 
       {/* TABS */}
-      <div className="tab-row" style={{ display: "flex", gap: "4px", margin: "18px 0 14px", borderBottom: "1px solid #EDE8E1" }}>
+      <div className="tab-row" style={{ display: "flex", flexWrap: "wrap", gap: "4px", margin: "18px 0 14px", borderBottom: "1px solid #EDE8E1" }}>
         {TABS.map((t) => {
           const active = tab === t.key;
           return (
@@ -287,6 +331,25 @@ export default function TenantDetailPage() {
           </FormSection>
 
           <FormSection title="2 · Accommodation">
+            <label style={{ display: "block" }}>
+              <span style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--navy)", marginBottom: "4px" }}>
+                HMO Assignment (Brand) <span style={{ color: "#E05252" }}>*</span>
+              </span>
+              <select 
+                value={form["brand"] ?? ""} 
+                onChange={(e) => set("brand", e.target.value)} 
+                required
+                style={{ width: "100%", minHeight: "44px", padding: "9px 11px", borderRadius: "8px", border: "1px solid #EDE8E1", fontFamily: "'Sora', sans-serif", fontSize: "14px", background: "#fff", boxSizing: "border-box" }}
+              >
+                <option value="">—</option>
+                <option value="ash_shahada">Ash Shahada Housing Association</option>
+                <option value="mattys_place">Matty&apos;s Place</option>
+                <option value="reliance">Reliance Housing</option>
+                <option value="tenant_hub">Tenant Hub</option>
+              </select>
+            </label>
+            {validationIssues["brand"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["brand"]}</div>}
+            
             <TextField label="Address" value={form["address"] ?? ""} onChange={(v) => set("address", v)} required />
             {validationIssues["address"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["address"]}</div>}
             
@@ -313,7 +376,6 @@ export default function TenantDetailPage() {
             <SelectField label="Benefit Type" value={form["benefit_type"] ?? ""} onChange={(v) => set("benefit_type", v)} options={BENEFIT_TYPES as unknown as string[]} required />
             <SelectField label="Frequency" value={form["benefit_frequency"] ?? ""} onChange={(v) => set("benefit_frequency", v)} options={BENEFIT_FREQUENCIES as unknown as string[]} required />
             <TextField label="Amount (£)" type="number" value={form["benefit_amount"] ?? ""} onChange={(v) => set("benefit_amount", v)} mono required />
-            <SelectField label="Housing Benefit Status" value={form["housing_benefit_status"] ?? ""} onChange={(v) => set("housing_benefit_status", v)} options={["active", "in_progress", "suspended"]} required />
           </FormSection>
 
           <FormSection title="4 · Next of Kin">
@@ -411,6 +473,96 @@ export default function TenantDetailPage() {
               }}
             >
               📑 Print Full Dossier
+            </button>
+            {saveMsg && (
+              <span style={{ fontSize: "13px", color: saveMsg.startsWith("✓") ? "#1E7F4F" : "#E05252" }}>
+                {saveMsg}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "housing-benefit" && (
+        <div>
+          {form["hb_claim_date"] && new Date(form["hb_claim_date"]) < new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) && form["housing_benefit_status"] === "in_progress" && (
+            <div style={{ background: "#fffbeb", border: "1px solid #f59e0b", color: "#b45309", padding: "12px", borderRadius: "8px", marginBottom: "16px", fontWeight: 600 }}>
+              ⚠️ Claim pending for &gt; 14 days. Please follow up!
+            </div>
+          )}
+          <FormSection title="Housing Benefit Claim Information">
+            <TextField label="HB Reference Number" value={form["hb_reference_number"] ?? ""} onChange={(v) => set("hb_reference_number", v)} />
+            <TextField label="Claim Date" type="date" value={form["hb_claim_date"] ?? ""} onChange={(v) => set("hb_claim_date", v)} />
+            <SelectField label="Status" value={form["housing_benefit_status"] ?? "in_progress"} onChange={(v) => set("housing_benefit_status", v)} options={["active", "in_progress", "suspended"]} />
+            <div style={{ marginTop: "16px" }}>
+              <label style={{ display: "block", fontSize: "12px", color: "#7A8499", marginBottom: "6px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Upload Evidence Document</label>
+              <input type="file" accept="application/pdf,image/*" onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const supabase = getSupabaseBrowser();
+                  const ext = file.name.split('.').pop();
+                  const fileName = `hb-${id}-${Date.now()}.${ext}`;
+                  
+                  const { data, error } = await supabase.storage
+                    .from("tenant-documents")
+                    .upload(fileName, file);
+                    
+                  if (error) {
+                    alert("Failed to upload document: " + error.message);
+                    return;
+                  }
+                  
+                  if (data) {
+                    const publicUrl = supabase.storage.from("tenant-documents").getPublicUrl(data.path).data.publicUrl;
+                    set("hb_document_url", publicUrl);
+                    
+                    // Also save it to the tenant's document vault!
+                    await fetch("/api/documents", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        tenant_id: id,
+                        name: "Housing Benefit Evidence: " + file.name,
+                        file_url: data.path
+                      })
+                    });
+                    
+                    alert("Document uploaded safely to the vault!");
+                  }
+                }
+              }} style={{ display: "block", marginBottom: "8px", padding: "8px", border: "1px solid #d1d5db", borderRadius: "6px", width: "100%", background: "#f9fafb", cursor: "pointer" }} />
+              {form["hb_document_url"] && (
+                <div style={{ marginTop: "8px", padding: "12px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "20px" }}>✅</span>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: "13px", color: "#166534", fontWeight: 600 }}>Document Safely Uploaded</span>
+                    <a href={form["hb_document_url"]} target="_blank" rel="noreferrer" style={{ fontSize: "12px", color: "var(--navy)", textDecoration: "underline" }}>
+                      View Evidence Document
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+          </FormSection>
+          <div className="action-bar no-print" style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "24px" }}>
+            <button
+              onClick={onSave}
+              disabled={saving}
+              style={{
+                minHeight: "56px",
+                padding: "0 26px",
+                borderRadius: "8px",
+                border: "none",
+                background: "var(--navy)",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "14px",
+                cursor: saving ? "not-allowed" : "pointer",
+                fontFamily: "'Sora', sans-serif",
+                opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? "Saving..." : "Save Changes"}
             </button>
             {saveMsg && (
               <span style={{ fontSize: "13px", color: saveMsg.startsWith("✓") ? "#1E7F4F" : "#E05252" }}>

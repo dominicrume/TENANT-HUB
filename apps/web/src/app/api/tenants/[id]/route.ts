@@ -47,6 +47,21 @@ export async function PATCH(req: Request, { params }: Params) {
     );
   }
 
+  if (parsed.data.room_number) {
+    const { count } = await auth.supabase
+      .from("tenants")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", auth.actor.org_id)
+      .eq("room_number", parsed.data.room_number)
+      .neq("id", params.id)
+      .eq("is_archived", false)
+      .eq("is_active", true);
+      
+    if (count && count > 0) {
+      return NextResponse.json({ error: `Room ${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
+    }
+  }
+
   try {
     const prev = await latestAuditHash(auth.supabase, params.id);
     
@@ -57,15 +72,22 @@ export async function PATCH(req: Request, { params }: Params) {
       .eq("id", params.id)
       .single();
 
+    // Remove DB columns that don't exist yet because the migration wasn't pushed
+    const recordToSave = { ...(parsed.data as Record<string, unknown>) };
+    delete recordToSave.hb_claim_date;
+    delete recordToSave.hb_reference_number;
+    delete recordToSave.hb_document_url;
+    delete recordToSave.housing_benefit_status;
+
     const { data } = await writeWithAudit({
       table: "tenants",
-      record: parsed.data as Record<string, unknown>,
+      record: recordToSave,
       action: "UPDATE",
       prev_hash: prev,
       ...auth.actor,
     });
 
-    // Mock Next of Kin Alert Trigger
+    // Next of Kin Alert Trigger
     if (currentTenant && ('nok_name' in parsed.data || 'nok_phone' in parsed.data)) {
       const newName = 'nok_name' in parsed.data ? parsed.data.nok_name : currentTenant.nok_name;
       const newPhone = 'nok_phone' in parsed.data ? parsed.data.nok_phone : currentTenant.nok_phone;
@@ -73,12 +95,34 @@ export async function PATCH(req: Request, { params }: Params) {
       const isChanged = (newName !== currentTenant.nok_name) || (newPhone !== currentTenant.nok_phone);
       
       if (isChanged && (newName || newPhone)) {
+        const message = `Automated Next of Kin Alert: NOK details updated to ${newName || "Unknown"} (${newPhone || "Unknown"}).`;
+        
+        // Actually send via Twilio if available
+        if (newPhone) {
+          const twilioClient = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+            ? require("twilio")(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+            : null;
+
+          if (twilioClient && process.env.TWILIO_PHONE_NUMBER) {
+            try {
+              await twilioClient.messages.create({
+                body: message,
+                from: process.env.TWILIO_PHONE_NUMBER,
+                to: newPhone
+              });
+              console.log(`Successfully sent NOK SMS to ${newPhone}`);
+            } catch (err) {
+              console.error("Twilio SMS send error for NOK alert:", err);
+            }
+          }
+        }
+
         await auth.supabase.from("communications").insert({
           org_id: auth.actor.org_id,
           tenant_id: params.id,
           channel: "SMS",
           message_type: "System Alert",
-          content: `Automated Next of Kin Alert: NOK details updated to ${newName || "Unknown"} (${newPhone || "Unknown"}).`,
+          content: message,
           sent_by: "System"
         });
       }

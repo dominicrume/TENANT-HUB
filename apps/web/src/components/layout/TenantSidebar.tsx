@@ -149,20 +149,19 @@ export function TenantSidebar() {
                     {t.room_number} · {t.benefit_type}
                   </span>
                 </span>
-                {t.is_active && (
-                  <span
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      background:
-                        t.housing_benefit_status === "active" ? "#34C87A" : // Green
-                        t.housing_benefit_status === "suspended" ? "#E05252" : // Red
-                        "var(--amber)", // Orange (in progress)
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
+                <span
+                  style={{
+                    width: "8px",
+                    height: "8px",
+                    borderRadius: "50%",
+                    background:
+                      t.is_archived ? "#9CA3AF" : // Gray
+                      t.housing_benefit_status === "active" ? "#34C87A" : // Green
+                      t.housing_benefit_status === "suspended" ? "#E05252" : // Red
+                      "var(--amber)", // Orange (in progress)
+                    flexShrink: 0,
+                  }}
+                />
               </Link>
             );
           })

@@ -55,6 +55,31 @@ export default function ReviewPage() {
       return;
     }
 
+    // Check for duplicates
+    try {
+      const dupRes = await fetch('/api/intake/check-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nino: data.nino,
+          mobile: data.mobile,
+        }),
+      });
+
+      if (dupRes.ok) {
+        const { duplicates } = await dupRes.json();
+        if (duplicates && Object.keys(duplicates).length > 0) {
+          setValidationErrors(duplicates);
+          setBusy(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to check duplicates", err);
+      // proceed anyway if the check fails?
+      // better to let it fail or log it
+    }
+
     const hash = await hashRecord(canonicalSubset(data));
     const res = await fetch(`/api/drafts/${draftId}`, {
       method: "PATCH",

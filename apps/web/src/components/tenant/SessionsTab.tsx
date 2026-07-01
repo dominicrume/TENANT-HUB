@@ -42,6 +42,7 @@ export function SessionsTab({ tenantId }: { tenantId: string }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
+  const [viewMode, setViewMode] = useState<"history" | "quarterly">("history");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const load = useCallback(async () => {
@@ -184,12 +185,28 @@ export function SessionsTab({ tenantId }: { tenantId: string }) {
         </div>
       </div>
 
-      {/* HISTORY */}
+      {/* HISTORY & QUARTERLY TOGGLE */}
       <div>
-        <h3 style={{ color: "var(--navy)", fontSize: "14px", fontWeight: 700, marginBottom: "10px" }}>History</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <h3 style={{ color: "var(--navy)", fontSize: "14px", fontWeight: 700, margin: 0 }}>History</h3>
+          <div style={{ display: "flex", background: "#f3f4f6", borderRadius: "8px", padding: "4px" }}>
+            <button 
+              onClick={() => setViewMode("history")}
+              style={{ padding: "6px 12px", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer", background: viewMode === "history" ? "#fff" : "transparent", color: viewMode === "history" ? "var(--navy)" : "#6b7280", boxShadow: viewMode === "history" ? "0 1px 2px rgba(0,0,0,0.05)" : "none" }}
+            >
+              Chronological
+            </button>
+            <button 
+              onClick={() => setViewMode("quarterly")}
+              style={{ padding: "6px 12px", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer", background: viewMode === "quarterly" ? "#fff" : "transparent", color: viewMode === "quarterly" ? "var(--navy)" : "#6b7280", boxShadow: viewMode === "quarterly" ? "0 1px 2px rgba(0,0,0,0.05)" : "none" }}
+            >
+              Quarterly Summary
+            </button>
+          </div>
+        </div>
         {sessions.length === 0 ? (
           <p style={{ color: "#7A8499", fontSize: "13px" }}>No sessions yet. Log the first one.</p>
-        ) : (
+        ) : viewMode === "history" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {sessions.map((s) => (
               <div key={s.id} style={{ ...card, borderLeft: `4px solid ${TYPE_BORDER[s.session_type] ?? "#7A8499"}` }}>
@@ -204,6 +221,44 @@ export function SessionsTab({ tenantId }: { tenantId: string }) {
                   )}
                 </div>
                 <div style={{ fontSize: "13px", color: "#334", whiteSpace: "pre-wrap" }}>{s.notes}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {Object.entries(sessions.reduce((acc, s) => {
+              const d = new Date(s.session_date);
+              const q = Math.floor(d.getMonth() / 3) + 1;
+              const y = d.getFullYear();
+              const key = `Q${q} ${y}`;
+              if (!acc[key]) acc[key] = { sessions: 0, daily: 0, weekly: 0, monthly: 0, notes: [] };
+              acc[key].sessions++;
+              acc[key][s.session_type]++;
+              if (s.notes) acc[key].notes.push(`- [${formatShortDate(s.session_date)}] ${s.notes}`);
+              return acc;
+            }, {} as Record<string, any>)).map(([quarter, stats]: [string, any]) => (
+              <div key={quarter} style={{ ...card, borderTop: "4px solid var(--navy)" }}>
+                <h4 style={{ margin: "0 0 12px 0", color: "var(--navy)", fontSize: "15px", fontWeight: 700 }}>{quarter} Summary</h4>
+                <div style={{ display: "flex", gap: "16px", marginBottom: "16px" }}>
+                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "8px", flex: 1 }}>
+                    <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", fontWeight: 600 }}>Total Sessions</div>
+                    <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>{stats.sessions}</div>
+                  </div>
+                  <div style={{ background: "#fffbeb", padding: "10px", borderRadius: "8px", flex: 1 }}>
+                    <div style={{ fontSize: "11px", color: "#b45309", textTransform: "uppercase", fontWeight: 600 }}>Daily Logs</div>
+                    <div style={{ fontSize: "20px", fontWeight: 700, color: "#92400e" }}>{stats.daily}</div>
+                  </div>
+                  <div style={{ background: "#f0fdfa", padding: "10px", borderRadius: "8px", flex: 1 }}>
+                    <div style={{ fontSize: "11px", color: "#0f766e", textTransform: "uppercase", fontWeight: 600 }}>Weekly Logs</div>
+                    <div style={{ fontSize: "20px", fontWeight: 700, color: "#115e59" }}>{stats.weekly}</div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--navy)", marginBottom: "8px" }}>Aggregated Notes:</div>
+                  <div style={{ fontSize: "13px", color: "#475569", background: "#f1f5f9", padding: "12px", borderRadius: "8px", maxHeight: "200px", overflowY: "auto", whiteSpace: "pre-wrap" }}>
+                    {stats.notes.join("\n\n")}
+                  </div>
+                </div>
               </div>
             ))}
           </div>

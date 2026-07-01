@@ -49,24 +49,32 @@ export default function IntakeNewPage() {
       </h1>
       {error && <div style={{ color: "#E05252", fontSize: "13px", marginBottom: "12px" }}>{error}</div>}
 
-      <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-        <button style={CARD} onClick={() => start("manual")} disabled={busy}>
-          <span style={{ fontSize: "26px" }}>⌨️</span>
-          <strong style={{ color: "var(--navy)" }}>Manual Entry</strong>
-          <span style={{ fontSize: "12px", color: "#7A8499" }}>Type details directly. Fastest for staff who know the tenant.</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        {/* VOICE PRIORITY */}
+        <button style={{ ...CARD, background: "var(--navy)", color: "#fff", minHeight: "140px", border: "2px solid var(--amber)", transform: "scale(1.02)", boxShadow: "0 10px 25px rgba(15, 28, 46, 0.15)" }} onClick={() => start("voice")} disabled={busy}>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <span style={{ fontSize: "38px", background: "rgba(255, 255, 255, 0.1)", borderRadius: "50%", width: "70px", height: "70px", display: "flex", alignItems: "center", justifyContent: "center" }}>🎤</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <strong style={{ fontSize: "20px", color: "var(--amber)" }}>Voice Input (Recommended)</strong>
+              <span style={{ fontSize: "14px", color: "#C7CFDD" }}>Speak the details aloud. Our AI will automatically transcribe your speech and extract all tenant information accurately.</span>
+            </div>
+          </div>
         </button>
 
-        <button style={CARD} onClick={() => start("ocr")} disabled={busy}>
-          <span style={{ fontSize: "26px" }}>📄</span>
-          <strong style={{ color: "var(--navy)" }}>Upload &amp; OCR</strong>
-          <span style={{ fontSize: "12px", color: "#7A8499" }}>Upload a physical Ash Shahada form. Fields extracted automatically.</span>
-        </button>
+        {/* SECONDARY OPTIONS */}
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <button style={CARD} onClick={() => start("manual")} disabled={busy}>
+            <span style={{ fontSize: "26px" }}>⌨️</span>
+            <strong style={{ color: "var(--navy)" }}>Manual Entry</strong>
+            <span style={{ fontSize: "12px", color: "#7A8499" }}>Type details directly. Fastest for staff who know the tenant well.</span>
+          </button>
 
-        <button style={CARD} onClick={() => start("voice")} disabled={busy}>
-          <span style={{ fontSize: "26px" }}>🎤</span>
-          <strong style={{ color: "var(--navy)" }}>Voice Input</strong>
-          <span style={{ fontSize: "12px", color: "#7A8499" }}>Speak the details aloud. AI will transcribe and extract.</span>
-        </button>
+          <button style={CARD} onClick={() => start("ocr")} disabled={busy}>
+            <span style={{ fontSize: "26px" }}>📄</span>
+            <strong style={{ color: "var(--navy)" }}>Upload &amp; OCR</strong>
+            <span style={{ fontSize: "12px", color: "#7A8499" }}>Upload a physical form. Fields are extracted automatically.</span>
+          </button>
+        </div>
       </div>
     </div>
   );
