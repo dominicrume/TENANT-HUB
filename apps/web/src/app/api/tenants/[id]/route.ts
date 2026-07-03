@@ -72,12 +72,11 @@ export async function PATCH(req: Request, { params }: Params) {
       .eq("id", params.id)
       .single();
 
-    // Remove DB columns that don't exist yet because the migration wasn't pushed
+    // Remove DB columns that don't exist yet (migration 20260623 not applied to production)
     const recordToSave = { ...(parsed.data as Record<string, unknown>) };
     delete recordToSave.hb_claim_date;
     delete recordToSave.hb_reference_number;
     delete recordToSave.hb_document_url;
-    delete recordToSave.housing_benefit_status;
 
     const { data } = await writeWithAudit({
       table: "tenants",

@@ -18,8 +18,6 @@ export async function GET(req: Request) {
   let pendingRevenue = 0;
   let alerts: Array<{ id: string, tenantId: string, tenantName: string, message: string, severity: 'high' | 'medium' | 'low' }> = [];
 
-  const now = new Date();
-
   tenants.forEach((t: any) => {
     if (t.is_archived) return; // Ignore archived tenants for active metrics
 
@@ -29,27 +27,15 @@ export async function GET(req: Request) {
       totalPendingHBClaims++;
       pendingRevenue += (t.benefit_amount || 0);
 
-      if (t.hb_claim_date) {
-        const claimDate = new Date(t.hb_claim_date);
-        const daysDiff = Math.floor((now.getTime() - claimDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysDiff > 14) {
-          alerts.push({
-            id: `hb-delay-${t.id}`,
-            tenantId: t.id,
-            tenantName: t.full_name,
-            message: `Housing Benefit claim pending for ${daysDiff} days.`,
-            severity: 'medium'
-          });
-        }
-      } else {
-        alerts.push({
-            id: `hb-missing-date-${t.id}`,
-            tenantId: t.id,
-            tenantName: t.full_name,
-            message: `Housing Benefit claim is in progress but no claim date provided.`,
-            severity: 'low'
-        });
-      }
+      // Note: hb_claim_date column doesn't exist in production DB yet.
+      // Once the migration is applied, add it to the select() and re-enable date-based alerts.
+      alerts.push({
+        id: `hb-pending-${t.id}`,
+        tenantId: t.id,
+        tenantName: t.full_name,
+        message: `Housing Benefit claim is in progress.`,
+        severity: 'low'
+      });
     } else if (t.housing_benefit_status === 'suspended') {
       totalSuspendedHB++;
       alerts.push({
