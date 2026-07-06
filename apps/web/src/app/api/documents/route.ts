@@ -42,3 +42,32 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }
+
+export async function DELETE(req: Request) {
+  const auth = await getApiAuth();
+  if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+
+  const url = new URL(req.url);
+  const id = url.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing document id" }, { status: 400 });
+
+  // 1. Fetch file_url to clean up storage
+  const { data: doc } = await auth.supabase
+    .from("tenant_documents")
+    .select("file_url")
+    .eq("id", id)
+    .single();
+
+  if (doc?.file_url) {
+    await auth.supabase.storage.from("tenant-documents").remove([doc.file_url]);
+  }
+
+  // 2. Delete database record
+  const { error } = await auth.supabase
+    .from("tenant_documents")
+    .delete()
+    .eq("id", id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
