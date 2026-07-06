@@ -42,19 +42,20 @@ function SignupPage() {
       return;
     }
 
-    const { error: err } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { 
-        data: { full_name: fullName, role, brand },
-        emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined
-      },
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, fullName, role, brand }),
     });
-    if (err) {
-      setError(err.message);
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      setError(data?.error || "Signup failed");
       setLoading(false);
       return;
     }
+
     router.push("/login");
   }
 

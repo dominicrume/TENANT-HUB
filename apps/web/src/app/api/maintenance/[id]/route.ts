@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { sendMaintenanceResolved } from "../../../../lib/resend";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const auth = await getApiAuth();
@@ -28,5 +29,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (updates.status === "Resolved" && data && data.tenant_id) {
+    try {
+      const { data: tenant } = await auth.supabase
+        .from("tenants")
+        .select("full_name, email")
+        .eq("id", data.tenant_id)
+        .single();
+
+      if (tenant && tenant.email) {
+        await sendMaintenanceResolved(tenant.email, tenant.full_name, data.issue_type || "Reported Issue");
+      }
+    } catch (emailErr: any) {
+      console.error("Failed to send maintenance resolution email:", emailErr?.message);
+    }
+  }
+
   return NextResponse.json(data);
 }

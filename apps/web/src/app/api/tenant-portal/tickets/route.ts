@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { sendMaintenanceAck } from "../../../../lib/resend";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ async function getTenantContext(auth: NonNullable<Awaited<ReturnType<typeof getA
 
   const { data: tenant } = await auth.supabase
     .from("tenants")
-    .select("id, room_number, full_name, org_id")
+    .select("id, room_number, full_name, org_id, email")
     .eq("id", tenantId)
     .single();
 
@@ -102,5 +103,14 @@ export async function POST(req: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (tenant.email) {
+    try {
+      await sendMaintenanceAck(tenant.email, tenant.full_name, body.issue_type, data.id);
+    } catch (emailErr: any) {
+      console.error("Failed to send maintenance ticket ack email:", emailErr?.message);
+    }
+  }
+
   return NextResponse.json(data, { status: 201 });
 }
