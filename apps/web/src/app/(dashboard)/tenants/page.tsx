@@ -65,10 +65,8 @@ export default function TenantsIndexPage() {
           }}
         >
           <option value="all">All HMOs / Brands</option>
-          <option value="ash_shahada">Ash Shahada Housing Association</option>
           <option value="mattys_place">Matty&apos;s Place</option>
           <option value="reliance">Reliance Housing</option>
-          <option value="tenant_hub">Tenant Hub</option>
         </select>
       </div>
       

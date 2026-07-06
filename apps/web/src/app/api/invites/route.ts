@@ -25,7 +25,7 @@ export const POST = withRouteHandler(
     }
 
     const namePrefix = email.split("@")[0] || "Team Member";
-    await inviteUser(email, role, profile.org_id, namePrefix, auth.actor.brand || "tenant_hub");
+    await inviteUser(email, role, profile.org_id, namePrefix, auth.actor.brand || "mattys_place");
 
     return NextResponse.json({ success: true, message: "Invitation sent" }, { status: 200 });
   }

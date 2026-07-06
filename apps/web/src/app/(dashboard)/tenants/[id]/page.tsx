@@ -341,11 +341,8 @@ export default function TenantDetailPage() {
                 required
                 style={{ width: "100%", minHeight: "44px", padding: "9px 11px", borderRadius: "8px", border: "1px solid #EDE8E1", fontFamily: "'Sora', sans-serif", fontSize: "14px", background: "#fff", boxSizing: "border-box" }}
               >
-                <option value="">—</option>
-                <option value="ash_shahada">Ash Shahada Housing Association</option>
                 <option value="mattys_place">Matty&apos;s Place</option>
                 <option value="reliance">Reliance Housing</option>
-                <option value="tenant_hub">Tenant Hub</option>
               </select>
             </label>
             {validationIssues["brand"] && <div style={{color:"#E05252", fontSize:"12px"}}>{validationIssues["brand"]}</div>}

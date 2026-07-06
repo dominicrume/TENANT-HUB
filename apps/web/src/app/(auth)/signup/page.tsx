@@ -13,7 +13,8 @@ const ROLES = [
 ] as const;
 
 const BRANDS = [
-  { value: "tenant_hub", label: "Tenant Hub Workspace" },
+  { value: "mattys_place", label: "Matty's Place Workspace" },
+  { value: "reliance", label: "Reliance Housing Workspace" },
 ] as const;
 
 function SignupPage() {
@@ -25,7 +26,7 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<(typeof ROLES)[number]["value"]>("manager"); // default to manager for signups
-  const [brand, setBrand] = useState<(typeof BRANDS)[number]["value"]>("tenant_hub");
+  const [brand, setBrand] = useState<(typeof BRANDS)[number]["value"]>("mattys_place");
   const [plan, setPlan] = useState(initialPlan);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
