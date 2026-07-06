@@ -31,11 +31,12 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
     if (!file) return;
 
     setUploading(true);
-    const supabase = getSupabaseBrowser();
-    const ext = file.name.split('.').pop();
-    const fileName = `tenant-${tenantId}-${Date.now()}.${ext}`;
 
     try {
+      const supabase = getSupabaseBrowser();
+      const ext = file.name.split('.').pop();
+      const fileName = `tenant-${tenantId}-${Date.now()}.${ext}`;
+
       // 1. Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("tenant-documents")
@@ -43,8 +44,6 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
 
       if (uploadError) {
         alert("Document upload failed: " + uploadError.message);
-        e.target.value = '';
-        setUploading(false);
         return;
       }
 
