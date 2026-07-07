@@ -73,8 +73,8 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
 
   async function handleDownload(id: string, fileUrl: string) {
     setActioningId(id);
-    const supabase = getSupabaseBrowser();
     try {
+      const supabase = getSupabaseBrowser();
       const { data, error } = await supabase.storage
         .from("tenant-documents")
         .createSignedUrl(fileUrl, 300); // URL valid for 5 minutes

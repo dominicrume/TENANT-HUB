@@ -11,7 +11,6 @@ export async function GET(req: Request) {
     name: "Reliance Pack: Support Plan",
     key: "reliance-support-plan",
     schema: [],
-    created_by: auth.actor.user_id,
   }, { onConflict: "id" });
 
   if (error) {
