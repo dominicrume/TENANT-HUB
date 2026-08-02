@@ -58,15 +58,24 @@ export default function UpdatePasswordPage() {
       return;
     }
 
-    const { error: err } = await supabase.auth.updateUser({ password });
+    const { data: { user }, error: err } = await supabase.auth.updateUser({ password });
     
     setLoading(false);
-    if (err) {
-      setError(err.message);
+    if (err || !user) {
+      setError(err?.message || "Password update failed");
       return;
     }
     
-    router.push("/dashboard");
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    const role = profile?.role || "tenant";
+    
+    if (role === "tenant") {
+      router.push("/my-home");
+    } else if (role === "contractor") {
+      router.push("/jobs");
+    } else {
+      router.push("/dashboard");
+    }
     router.refresh();
   }
 
