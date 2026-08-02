@@ -11,7 +11,10 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   try {
     // 1. Verify CRON Security Token
-    const cronSecret = process.env.CRON_SECRET || "fallback-local-cron-key";
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+      return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 500 });
+    }
     const authHeader = req.headers.get("authorization");
     const cronKeyHeader = req.headers.get("x-cron-key");
 
