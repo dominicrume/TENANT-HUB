@@ -39,7 +39,7 @@ export default function TenantsIndexPage() {
         </Link>
       </div>
 
-      <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+      <div className="flex flex-wrap gap-2 mb-5 items-center">
         {(["all", "suspended", "in_progress", "active"] as const).map(f => (
           <button
             key={f}
@@ -57,11 +57,11 @@ export default function TenantsIndexPage() {
         <select
           value={brandFilter}
           onChange={(e) => setBrandFilter(e.target.value)}
+          className="ml-auto"
           style={{
             padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, border: "1px solid #EDE8E1", cursor: "pointer",
             background: "#fff",
             color: "var(--navy)",
-            marginLeft: "auto"
           }}
         >
           <option value="all">All HMOs / Brands</option>
@@ -74,7 +74,7 @@ export default function TenantsIndexPage() {
         <p style={{ color: "#7A8499" }}>No tenants match this filter.</p>
       ) : (
         <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #EDE8E1", overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <table className="hidden md:table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#F8F4EF", color: "#7A8499", textAlign: "left" }}>
                 <th style={{ padding: "12px 16px", fontWeight: 600 }}>Name</th>
@@ -118,6 +118,30 @@ export default function TenantsIndexPage() {
               })}
             </tbody>
           </table>
+          <div className="md:hidden flex flex-col divide-y divide-gray-100">
+             {filteredTenants.map(t => {
+                const hbColor = getHbColor(t.housing_benefit_status);
+                return (
+                  <div key={t.id} className="flex flex-col p-4 gap-3">
+                     <div className="flex justify-between items-start">
+                        <Link href={`/tenants/${t.id}`} style={{ color: "var(--navy)", fontWeight: 600, textDecoration: "none", fontSize: "15px" }}>
+                          {t.full_name}
+                        </Link>
+                        <span style={{ 
+                          padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
+                          background: hbColor.bg, color: hbColor.text
+                        }}>
+                          {hbColor.label}
+                        </span>
+                     </div>
+                     <div className="flex justify-between items-center text-sm text-gray-500">
+                        <span>Room: {t.room_number || "—"}</span>
+                        <span style={{ fontFamily: "monospace", fontSize: "12px" }}>NINO: {t.nino || "—"}</span>
+                     </div>
+                  </div>
+                );
+             })}
+          </div>
         </div>
       )}
     </div>

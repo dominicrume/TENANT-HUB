@@ -9,6 +9,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   TITLES,
@@ -216,13 +217,14 @@ export default function TenantDetailPage() {
             style={{ 
               width: "72px", height: "72px", borderRadius: "50%", background: "#E2E8F0", 
               display: "flex", alignItems: "center", justifyContent: "center", 
-              overflow: "hidden", cursor: "pointer", border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", flexShrink: 0
+              overflow: "hidden", cursor: "pointer", border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", flexShrink: 0,
+              position: "relative"
             }}
             onClick={() => document.getElementById('profile-photo-upload')?.click()}
             title="Upload Tenant Photo"
           >
             {tenant?.photo_url ? (
-               <img src={tenant.photo_url} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+               <Image src={tenant.photo_url} alt="Profile" fill sizes="72px" style={{ objectFit: "cover" }} />
             ) : (
                <span style={{ fontSize: "24px" }}>📷</span>
             )}

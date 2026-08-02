@@ -89,7 +89,7 @@ export default function LedgerIndexPage() {
         <p style={{ color: "#7A8499" }}>No service charges recorded.</p>
       ) : (
         <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #EDE8E1", overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <table className="hidden md:table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#F8F4EF", color: "#7A8499", textAlign: "left" }}>
                 <th style={{ padding: "12px 16px", fontWeight: 600 }}>Due Date</th>
@@ -132,6 +132,31 @@ export default function LedgerIndexPage() {
               })}
             </tbody>
           </table>
+          <div className="md:hidden flex flex-col divide-y divide-gray-100">
+             {charges.map(c => {
+                const tenantName = tenants.find(t => t.id === c.tenant_id)?.full_name ?? "Unknown";
+                return (
+                  <div key={c.id} className="flex flex-col p-4 gap-3">
+                     <div className="flex justify-between items-start">
+                        <Link href={`/tenants/${c.tenant_id}?tab=ledger`} style={{ color: "var(--navy)", fontWeight: 600, textDecoration: "none", fontSize: "15px" }}>
+                          {tenantName}
+                        </Link>
+                        <span style={{ 
+                          padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
+                          background: c.is_paid ? "rgba(52,200,122,0.15)" : "rgba(224,82,82,0.15)",
+                          color: c.is_paid ? "#2CA162" : "#E05252"
+                        }}>
+                          {c.is_paid ? "PAID" : "UNPAID"}
+                        </span>
+                     </div>
+                     <div className="flex justify-between items-center text-sm text-gray-500">
+                        <span>{c.due_date} ({c.week_label})</span>
+                        <span style={{ fontWeight: 600, color: "var(--navy)" }}>£{c.amount}</span>
+                     </div>
+                  </div>
+                );
+             })}
+          </div>
         </div>
       )}
 
