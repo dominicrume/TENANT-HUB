@@ -7,3 +7,4 @@ export * from "./rent-payment.schema";
 export * from "./form53.schema";
 export * from "./support-plan.schema";
 export * from "./reliance-pack.schema";
+export * from "./settings.schema";

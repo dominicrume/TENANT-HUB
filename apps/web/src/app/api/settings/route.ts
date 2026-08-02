@@ -3,6 +3,8 @@ import { writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import type { AuditEntry } from "@tenant-hub/audit";
 
+import { SettingsUpdateSchema } from "@tenant-hub/validation";
+
 export async function GET(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
@@ -23,11 +25,18 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  if (auth.actor.user_role !== "manager") {
+    return NextResponse.json({ error: "Forbidden: Only managers can update settings" }, { status: 403 });
+  }
 
   const body = await req.json();
-  const { id, service_charge_default } = body;
+  const parsed = SettingsUpdateSchema.safeParse(body);
   
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid payload", details: parsed.error.format() }, { status: 400 });
+  }
+
+  const { id, service_charge_default } = parsed.data;
 
   try {
     const { data } = await writeWithAudit({

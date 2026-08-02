@@ -44,7 +44,7 @@ export default function ExtractPage() {
     const res = await fetch("/api/intake/ocr", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: rawText, image: imageUrl }),
+      body: JSON.stringify({ text: rawText, image: imageUrl, draftId }),
     });
     const body = await res.json();
     setData((prev) => ({ ...prev, ...(body.extracted ?? {}) }));

@@ -12,6 +12,18 @@ const nextConfig = {
     "@tenant-hub/blockchain",
     "@tenant-hub/env",
   ],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+      {
+        protocol: 'data',
+        hostname: '**',
+      }
+    ],
+  },
   experimental: {
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
   },

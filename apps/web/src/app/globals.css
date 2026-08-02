@@ -30,7 +30,7 @@ html, body {
 }
 
 @media print {
-  /* Hide all dashboard chrome — only the active form/letterhead prints. */
+  /* Hide all dashboard chrome */
   .no-print,
   nav,
   header,
@@ -41,14 +41,37 @@ html, body {
   .print-only { display: block !important; }
   body { background: white; }
 
-  /* Drop the cream canvas + cards to plain paper. */
+  /* Ensure the main container doesn't trap pagination */
   main { overflow: visible !important; }
+  
+  /* Critical for Modals: hide everything except .print-area */
+  body.printing-modal * { visibility: hidden; }
+  body.printing-modal .print-area, 
+  body.printing-modal .print-area * { visibility: visible; }
+  
+  body.printing-modal .print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
   .print-area { box-shadow: none !important; border: none !important; }
 
   .print-page-break { page-break-after: always; }
 
   h1, h2, h3 { font-family: 'Sora', sans-serif; }
   .mono, [data-mono] { font-family: 'JetBrains Mono', monospace; }
+
+  /* Force background colors to print for logos/stamps */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
   @page { margin: 16mm; }
 }

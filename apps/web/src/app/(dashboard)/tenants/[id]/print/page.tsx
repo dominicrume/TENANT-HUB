@@ -9,16 +9,22 @@ export default function PrintDossierPage() {
   const { id } = useParams<{ id: string }>();
   const [tenant, setTenant] = useState<CanonicalTenant | null>(null);
   const [forms, setForms] = useState<any[]>([]);
+  const [latestAudit, setLatestAudit] = useState<{ blockchain_hash?: string, created_at?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const [tRes, fRes] = await Promise.all([
+    const [tRes, fRes, aRes] = await Promise.all([
       fetch(`/api/tenants/${id}`),
-      fetch(`/api/tenants/${id}/forms`)
+      fetch(`/api/tenants/${id}/forms`),
+      fetch(`/api/audit-logs?tenant=${id}&limit=1`)
     ]);
 
     if (tRes.ok) setTenant(await tRes.json());
     if (fRes.ok) setForms(await fRes.json());
+    if (aRes.ok) {
+      const a = await aRes.json();
+      if (Array.isArray(a) && a[0]) setLatestAudit(a[0]);
+    }
     
     setLoading(false);
     
@@ -73,6 +79,12 @@ export default function PrintDossierPage() {
           </div>
         </div>
       ))}
+
+      <div style={{ marginTop: "40px", paddingTop: "20px", borderTop: "2px solid #EEE", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace", color: "#7A8499", pageBreakInside: "avoid" }}>
+        <div style={{ fontWeight: 700, color: "var(--navy)", marginBottom: "4px" }}>CRYPTOGRAPHIC BIRTH CERTIFICATE</div>
+        <div>Tenant Blockchain Anchor: {latestAudit?.blockchain_hash || "PENDING BLOCKCHAIN SYNC"}</div>
+        <div>Last Updated: {latestAudit?.created_at ? new Date(latestAudit.created_at).toLocaleString() : "—"}</div>
+      </div>
 
       <div className="no-print" style={{ textAlign: "center", marginTop: "40px" }}>
         <button 

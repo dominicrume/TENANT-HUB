@@ -8,6 +8,7 @@
 import { useState } from "react";
 import type { CanonicalTenant } from "@tenant-hub/validation";
 import { useBrand } from "../contexts/BrandContext";
+import { useAuth } from "../contexts/AuthContext";
 import { LetterheadBlock } from "./LetterheadBlock";
 import { formatUkDate } from "../lib/format";
 
@@ -21,6 +22,7 @@ export function EvictionNoticeModal({
   onClose: () => void;
 }) {
   const { label } = useBrand();
+  const { profile } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
   const [noticeDays, setNoticeDays] = useState("28");
   const [reason, setReason] = useState("");
@@ -37,11 +39,19 @@ export function EvictionNoticeModal({
       body: JSON.stringify({ tenantId: tenant.id, reason, noticeDays, effective }),
     });
     setBusy(false);
+    
+    // Add print isolation class
+    document.body.classList.add("printing-modal");
     window.print();
+    document.body.classList.remove("printing-modal");
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(15,28,46,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,28,46,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }} className="no-print">
+      {/* 
+        This wrapper is marked .no-print because we only want the .print-area to print.
+        The print CSS will override visibility for .print-area.
+      */}
       <div style={{ background: "#fff", borderRadius: "14px", padding: "1.5rem", width: "100%", maxWidth: step === 1 ? "440px" : "640px", maxHeight: "90vh", overflowY: "auto" }}>
         {step === 1 ? (
           <>
@@ -50,7 +60,7 @@ export function EvictionNoticeModal({
               This will generate an official notice for <strong>{tenant.full_name}</strong> at{" "}
               <strong>{tenant.room_number}</strong>. This action is recorded in the audit trail.
             </p>
-            <div style={{ display: "flex", gap: "10px", marginTop: "18px", justifyContent: "flex-end" }} className="no-print">
+            <div style={{ display: "flex", gap: "10px", marginTop: "18px", justifyContent: "flex-end" }}>
               <button onClick={onClose} style={{ minHeight: "44px", padding: "0 16px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", color: "#7A8499", cursor: "pointer" }}>Cancel</button>
               <button onClick={() => setStep(2)} style={{ minHeight: "44px", padding: "0 16px", borderRadius: "8px", border: "none", background: "#E05252", color: "#fff", fontWeight: 700, cursor: "pointer" }}>Generate Notice</button>
             </div>
@@ -75,10 +85,10 @@ export function EvictionNoticeModal({
               <label style={{ display: "block", fontSize: "12px", marginTop: "6px" }} className="no-print">Reason (required)
                 <textarea value={reason} onChange={(e) => setReason(e.target.value)} required style={{ display: "block", width: "100%", minHeight: "80px", padding: "8px", borderRadius: "8px", border: "1px solid #EDE8E1", marginTop: "4px", boxSizing: "border-box" }} />
               </label>
-              <p>Reason: {reason || "—"}</p>
+              <p className="print-only" style={{ display: "none" }}>Reason: {reason || "—"}</p>
               <p style={{ marginTop: "16px" }}>You are required to give up possession after the notice period stated above.</p>
-              <p style={{ marginTop: "24px", fontWeight: 600, color: "var(--navy)" }}>
-                On behalf of {label} — AHSAN REHMAN
+              <p style={{ marginTop: "24px", fontWeight: 600, color: "var(--navy)", textTransform: "uppercase" }}>
+                On behalf of {label} — {profile?.full_name || "AUTHORIZED MANAGER"}
               </p>
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "18px", justifyContent: "flex-end" }} className="no-print">

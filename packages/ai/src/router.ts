@@ -4,7 +4,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { LanguageModelV1 } from "ai";
 
-export type AIBrainProvider = "openai" | "azure" | "claude" | "gemini" | "xai";
+export type AIBrainProvider = "openai" | "azure" | "claude" | "gemini" | "xai" | "runcrate";
 
 /**
  * Returns the correct Vercel AI SDK language model instance based on the selected provider.
@@ -45,6 +45,13 @@ export function getBrainModel(provider: AIBrainProvider): any {
         apiKey: process.env.XAI_API_KEY,
       });
       return xai("grok-beta"); // or "grok-2" depending on their current endpoints
+    }
+    case "runcrate": {
+      const runcrate = createOpenAI({
+        baseURL: "https://api.runcrate.ai/v1",
+        apiKey: process.env.RUNCRATE_API_KEY,
+      });
+      return runcrate("deepseek-ai/DeepSeek-V3");
     }
     default:
       throw new Error(`Unsupported AI Brain Provider: ${provider}`);

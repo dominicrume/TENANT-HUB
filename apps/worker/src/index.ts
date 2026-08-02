@@ -49,6 +49,16 @@ async function drainQueue() {
   }
 }
 
+let isDraining = false;
+
+async function runWorker() {
+  if (!isDraining) {
+    isDraining = true;
+    await drainQueue();
+    isDraining = false;
+  }
+  setTimeout(() => { void runWorker(); }, POLL_MS);
+}
+
 console.log("[worker] Stamp worker started. Polling every", POLL_MS / 1000, "s");
-setInterval(() => { void drainQueue(); }, POLL_MS);
-void drainQueue();
+void runWorker();

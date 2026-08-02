@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { complete, activeProvider } from "@tenant-hub/ai";
+import { writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
 
 /**
@@ -43,6 +44,19 @@ Omit keys you cannot find. No commentary.`;
     const json = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
     const extracted = JSON.parse(json) as Record<string, unknown>;
     const confidence = Object.fromEntries(Object.keys(extracted).map((k) => [k, "high"]));
+    
+    const draftId: string | undefined = body?.draftId;
+    if (draftId) {
+      await writeWithAudit({
+        table: "drafts",
+        action: "VERIFY",
+        entry_method: "ocr",
+        record: { id: draftId, machine_state: { input_mode: "ocr", extracted } },
+        tenant_id: auth.actor.tenant_id,
+        user_id: auth.actor.user_id,
+      });
+    }
+
     return NextResponse.json({ extracted, confidence });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Extraction failed";

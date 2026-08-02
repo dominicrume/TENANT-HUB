@@ -73,7 +73,7 @@ export default function TenantsIndexPage() {
       {filteredTenants.length === 0 ? (
         <p style={{ color: "#7A8499" }}>No tenants match this filter.</p>
       ) : (
-        <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #EDE8E1", overflow: "hidden" }}>
+        <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #EDE8E1", overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#F8F4EF", color: "#7A8499", textAlign: "left" }}>

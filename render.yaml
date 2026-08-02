@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: tenant-hub-web
+    env: node
+    buildCommand: pnpm install && pnpm --filter @tenant-hub/web build
+    startCommand: pnpm --filter @tenant-hub/web start
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: worker
+    name: tenant-hub-worker
+    env: node
+    buildCommand: pnpm install && pnpm --filter @tenant-hub/worker build
+    startCommand: pnpm --filter @tenant-hub/worker start
+    envVars:
+      - key: NODE_ENV
+        value: production

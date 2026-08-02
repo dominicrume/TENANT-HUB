@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Image from "next/image";
 import { formatShortDate } from "../../../lib/format";
 import { getSupabaseBrowser } from "../../../lib/supabase-browser";
 
@@ -114,11 +115,12 @@ export default function MaintenancePage() {
                   </p>
                   
                   {ticket.photo_url && (
-                    <div style={{ marginBottom: "10px" }}>
-                      <img 
+                    <div style={{ marginBottom: "10px", position: "relative", height: "120px", width: "100%" }}>
+                      <Image 
                         src={supabase.storage.from("maintenance-photos").getPublicUrl(ticket.photo_url).data.publicUrl} 
                         alt="Issue" 
-                        style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "6px" }}
+                        fill
+                        style={{ objectFit: "cover", borderRadius: "6px" }}
                       />
                     </div>
                   )}

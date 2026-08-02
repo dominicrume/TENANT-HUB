@@ -35,8 +35,11 @@ export function AuditStampBar(props: {
       <span style={{ opacity: 0.5 }}>·</span>
       <span>Method: {props.method ?? "manual"}</span>
       <span style={{ opacity: 0.5 }}>·</span>
-      <span>
-        Hash: <span style={{ color: "var(--amber)" }}>{truncateHash(props.hash)}</span>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+        <span style={{ color: "var(--amber)", fontWeight: 700 }}>CRYPTOGRAPHIC BIRTH CERTIFICATE:</span>
+        <span style={{ color: "var(--amber)", background: "rgba(232,168,76,0.1)", padding: "2px 6px", borderRadius: "4px" }}>
+          {props.hash ? props.hash : "PENDING BLOCKCHAIN SYNC"}
+        </span>
       </span>
     </div>
   );
