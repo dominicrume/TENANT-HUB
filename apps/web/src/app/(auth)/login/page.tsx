@@ -21,14 +21,23 @@ export default function LoginPage() {
     const supabase = getSupabaseBrowser();
     // In a real app we'd pass rememberMe to a custom fetch or rely on SSR cookie config,
     // but here we just sign in. The middleware fix we applied keeps the session from dropping.
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) {
-      setError(err.message);
+    const { data: { session }, error: err } = await supabase.auth.signInWithPassword({ email, password });
+    if (err || !session) {
+      setError(err?.message || "Login failed");
       setLoading(false);
       return;
     }
-    // Full reload so middleware re-runs with the fresh session cookie.
-    router.push("/dashboard");
+
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", session.user.id).single();
+    const role = profile?.role || "tenant";
+    
+    if (role === "tenant") {
+      router.push("/my-home");
+    } else if (role === "contractor") {
+      router.push("/jobs");
+    } else {
+      router.push("/dashboard");
+    }
     router.refresh();
   }
 
