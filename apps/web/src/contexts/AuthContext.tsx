@@ -107,10 +107,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     try {
-      // 1. Fire and forget server signout
-      fetch("/auth/signout", { method: "POST" }).catch(() => {});
+      // 1. Await server signout to nuke cookies properly
+      await fetch("/auth/signout", { method: "POST" });
       // 2. Clear client state instantly
-      getSupabaseBrowser().auth.signOut({ scope: "local" }).catch(() => {});
+      await getSupabaseBrowser().auth.signOut({ scope: "local" });
       // 3. Clear cookies
       document.cookie.split(";").forEach((c) => {
         document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
