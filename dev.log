@@ -1,0 +1,166 @@
+
+> dev
+> turbo run dev
+
+• Packages in scope: @tenant-hub/ai, @tenant-hub/audit, @tenant-hub/auth, @tenant-hub/blockchain, @tenant-hub/db, @tenant-hub/domain, @tenant-hub/env, @tenant-hub/eslint-config, @tenant-hub/intake-core, @tenant-hub/ui, @tenant-hub/validation, @tenant-hub/web, @tenant-hub/worker
+• Running dev in 13 packages
+• Remote caching disabled
+@tenant-hub/web:dev: cache bypass, force executing d45433a63bff61ea
+@tenant-hub/worker:dev: cache bypass, force executing 8b09466c1dc330d0
+@tenant-hub/web:dev: 
+@tenant-hub/web:dev: > @tenant-hub/web@0.0.1 dev /Users/dominicorumeuririe/Documents/TENANT-HUB/apps/web
+@tenant-hub/web:dev: > next dev
+@tenant-hub/web:dev: 
+@tenant-hub/worker:dev: 
+@tenant-hub/worker:dev: > @tenant-hub/worker@0.0.1 dev /Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker
+@tenant-hub/worker:dev: > tsx watch --env-file=../../.env.local src/index.ts
+@tenant-hub/worker:dev: 
+@tenant-hub/worker:dev: ❌ Environment validation failed:
+@tenant-hub/worker:dev:   • SERVER: SUPABASE_URL — Invalid url
+@tenant-hub/worker:dev:   • SERVER: SUPABASE_SERVICE_ROLE_KEY — String must contain at least 1 character(s)
+@tenant-hub/worker:dev:   • SERVER: POLYGON_RPC_URL — Invalid url
+@tenant-hub/worker:dev:   • CLIENT: NEXT_PUBLIC_SUPABASE_URL — Invalid url
+@tenant-hub/worker:dev:   • CLIENT: NEXT_PUBLIC_SUPABASE_ANON_KEY — String must contain at least 1 character(s)
+@tenant-hub/worker:dev: /Users/dominicorumeuririe/Documents/TENANT-HUB/node_modules/.pnpm/@supabase+supabase-js@2.43.4/node_modules/@supabase/supabase-js/src/SupabaseClient.ts:74
+@tenant-hub/worker:dev:     if (!supabaseUrl) throw new Error('supabaseUrl is required.')
+@tenant-hub/worker:dev:                             ^
+@tenant-hub/worker:dev: 
+@tenant-hub/worker:dev: 
+@tenant-hub/worker:dev: Error: supabaseUrl is required.
+@tenant-hub/worker:dev:     at new SupabaseClient (/Users/dominicorumeuririe/Documents/TENANT-HUB/node_modules/.pnpm/@supabase+supabase-js@2.43.4/node_modules/@supabase/supabase-js/src/SupabaseClient.ts:74:29)
+@tenant-hub/worker:dev:     at createClient (/Users/dominicorumeuririe/Documents/TENANT-HUB/node_modules/.pnpm/@supabase+supabase-js@2.43.4/node_modules/@supabase/supabase-js/src/index.ts:40:10)
+@tenant-hub/worker:dev:     at <anonymous> (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/client.js:17:26)
+@tenant-hub/worker:dev:     at Object.<anonymous> (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/client.js:19:133)
+@tenant-hub/worker:dev:     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+@tenant-hub/worker:dev:     at Object.v (/Users/dominicorumeuririe/Documents/TENANT-HUB/node_modules/.pnpm/tsx@4.11.0/node_modules/tsx/dist/global-require-patch-B-BDRowI.cjs:1:900)
+@tenant-hub/worker:dev:     at Module.load (node:internal/modules/cjs/loader:1266:32)
+@tenant-hub/worker:dev:     at Module._load (node:internal/modules/cjs/loader:1091:12)
+@tenant-hub/worker:dev:     at Module.require (node:internal/modules/cjs/loader:1289:19)
+@tenant-hub/worker:dev:     at require (node:internal/modules/helpers:182:18)
+@tenant-hub/worker:dev: 
+@tenant-hub/worker:dev: Node.js v20.20.2
+@tenant-hub/web:dev:  ⚠ Port 3000 is in use, trying 3001 instead.
+@tenant-hub/web:dev:  ⚠ Port 3001 is in use, trying 3002 instead.
+@tenant-hub/web:dev:  ⚠ Port 3002 is in use, trying 3003 instead.
+@tenant-hub/web:dev:   ▲ Next.js 14.2.3
+@tenant-hub/web:dev:   - Local:        http://localhost:3003
+@tenant-hub/web:dev: 
+@tenant-hub/web:dev:  ✓ Starting...
+@tenant-hub/web:dev:  ✓ Ready in 3.4s
+@tenant-hub/worker:dev: 5:20:32 AM [tsx] change in ./../../node_modules/.pnpm/zod@3.23.8/node_modules/zod/lib/index.js Rerunning...
+@tenant-hub/worker:dev: c[worker] Stamp worker started. Polling every 30 s
+@tenant-hub/worker:dev: [worker] Error checking stamp_queue: {
+@tenant-hub/worker:dev:   message: 'TypeError: fetch failed',
+@tenant-hub/worker:dev:   details: 'TypeError: fetch failed\n' +
+@tenant-hub/worker:dev:     '    at node:internal/deps/undici/undici:14976:13\n' +
+@tenant-hub/worker:dev:     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+@tenant-hub/worker:dev:     '    at async getPendingStamps (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/worker.ts:4:27)\n' +
+@tenant-hub/worker:dev:     '    at async drainQueue (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:15:21)\n' +
+@tenant-hub/worker:dev:     '    at async runWorker (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:59:5)',
+@tenant-hub/worker:dev:   hint: '',
+@tenant-hub/worker:dev:   code: ''
+@tenant-hub/worker:dev: }
+@tenant-hub/worker:dev: 5:20:34 AM [tsx] change in ./../../node_modules/.pnpm/zod@3.23.8/node_modules/zod/lib/types.js Restarting...
+@tenant-hub/worker:dev: c5:20:34 AM [tsx] change in ./../../node_modules/.pnpm/zod@3.23.8/node_modules/zod/lib/external.js Restarting...
+@tenant-hub/worker:dev: c[worker] Stamp worker started. Polling every 30 s
+@tenant-hub/worker:dev: [worker] Error checking stamp_queue: {
+@tenant-hub/worker:dev:   message: 'TypeError: fetch failed',
+@tenant-hub/worker:dev:   details: 'TypeError: fetch failed\n' +
+@tenant-hub/worker:dev:     '    at node:internal/deps/undici/undici:14976:13\n' +
+@tenant-hub/worker:dev:     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+@tenant-hub/worker:dev:     '    at async getPendingStamps (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/worker.ts:4:27)\n' +
+@tenant-hub/worker:dev:     '    at async drainQueue (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:15:21)\n' +
+@tenant-hub/worker:dev:     '    at async runWorker (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:59:5)',
+@tenant-hub/worker:dev:   hint: '',
+@tenant-hub/worker:dev:   code: ''
+@tenant-hub/worker:dev: }
+@tenant-hub/worker:dev: [worker] Error checking stamp_queue: {
+@tenant-hub/worker:dev:   message: 'TypeError: fetch failed',
+@tenant-hub/worker:dev:   details: 'TypeError: fetch failed\n' +
+@tenant-hub/worker:dev:     '    at node:internal/deps/undici/undici:14976:13\n' +
+@tenant-hub/worker:dev:     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+@tenant-hub/worker:dev:     '    at async getPendingStamps (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/worker.ts:4:27)\n' +
+@tenant-hub/worker:dev:     '    at async drainQueue (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:15:21)\n' +
+@tenant-hub/worker:dev:     '    at async runWorker (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:59:5)',
+@tenant-hub/worker:dev:   hint: '',
+@tenant-hub/worker:dev:   code: ''
+@tenant-hub/worker:dev: }
+@tenant-hub/worker:dev: [worker] Error checking stamp_queue: {
+@tenant-hub/worker:dev:   message: 'TypeError: fetch failed',
+@tenant-hub/worker:dev:   details: 'TypeError: fetch failed\n' +
+@tenant-hub/worker:dev:     '    at node:internal/deps/undici/undici:14976:13\n' +
+@tenant-hub/worker:dev:     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+@tenant-hub/worker:dev:     '    at async getPendingStamps (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/worker.ts:4:27)\n' +
+@tenant-hub/worker:dev:     '    at async drainQueue (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:15:21)\n' +
+@tenant-hub/worker:dev:     '    at async runWorker (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:59:5)',
+@tenant-hub/worker:dev:   hint: '',
+@tenant-hub/worker:dev:   code: ''
+@tenant-hub/worker:dev: }
+@tenant-hub/worker:dev: [worker] Error checking stamp_queue: {
+@tenant-hub/worker:dev:   message: 'TypeError: fetch failed',
+@tenant-hub/worker:dev:   details: 'TypeError: fetch failed\n' +
+@tenant-hub/worker:dev:     '    at node:internal/deps/undici/undici:14976:13\n' +
+@tenant-hub/worker:dev:     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+@tenant-hub/worker:dev:     '    at async getPendingStamps (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/worker.ts:4:27)\n' +
+@tenant-hub/worker:dev:     '    at async drainQueue (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:15:21)\n' +
+@tenant-hub/worker:dev:     '    at async runWorker (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:59:5)',
+@tenant-hub/worker:dev:   hint: '',
+@tenant-hub/worker:dev:   code: ''
+@tenant-hub/worker:dev: }
+@tenant-hub/worker:dev: [worker] Error checking stamp_queue: {
+@tenant-hub/worker:dev:   message: 'TypeError: fetch failed',
+@tenant-hub/worker:dev:   details: 'TypeError: fetch failed\n' +
+@tenant-hub/worker:dev:     '    at node:internal/deps/undici/undici:14976:13\n' +
+@tenant-hub/worker:dev:     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+@tenant-hub/worker:dev:     '    at async getPendingStamps (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/worker.ts:4:27)\n' +
+@tenant-hub/worker:dev:     '    at async drainQueue (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:15:21)\n' +
+@tenant-hub/worker:dev:     '    at async runWorker (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:59:5)',
+@tenant-hub/worker:dev:   hint: '',
+@tenant-hub/worker:dev:   code: ''
+@tenant-hub/worker:dev: }
+@tenant-hub/worker:dev: 5:23:02 AM [tsx] change in ./../../node_modules/.pnpm/webidl-conversions@3.0.1/node_modules/webidl-conversions/lib/index.js Restarting...
+@tenant-hub/worker:dev: c[worker] Stamp worker started. Polling every 30 s
+@tenant-hub/worker:dev: [worker] Error checking stamp_queue: {
+@tenant-hub/worker:dev:   message: 'TypeError: fetch failed',
+@tenant-hub/worker:dev:   details: 'TypeError: fetch failed\n' +
+@tenant-hub/worker:dev:     '    at node:internal/deps/undici/undici:14976:13\n' +
+@tenant-hub/worker:dev:     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+@tenant-hub/worker:dev:     '    at async getPendingStamps (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/worker.ts:4:27)\n' +
+@tenant-hub/worker:dev:     '    at async drainQueue (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:15:21)\n' +
+@tenant-hub/worker:dev:     '    at async runWorker (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:59:5)',
+@tenant-hub/worker:dev:   hint: '',
+@tenant-hub/worker:dev:   code: ''
+@tenant-hub/worker:dev: }
+@tenant-hub/worker:dev: [worker] Error checking stamp_queue: {
+@tenant-hub/worker:dev:   message: 'TypeError: fetch failed',
+@tenant-hub/worker:dev:   details: 'TypeError: fetch failed\n' +
+@tenant-hub/worker:dev:     '    at node:internal/deps/undici/undici:14976:13\n' +
+@tenant-hub/worker:dev:     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+@tenant-hub/worker:dev:     '    at async getPendingStamps (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/worker.ts:4:27)\n' +
+@tenant-hub/worker:dev:     '    at async drainQueue (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:15:21)\n' +
+@tenant-hub/worker:dev:     '    at async runWorker (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:59:5)',
+@tenant-hub/worker:dev:   hint: '',
+@tenant-hub/worker:dev:   code: ''
+@tenant-hub/worker:dev: }
+@tenant-hub/worker:dev: [worker] Error checking stamp_queue: {
+@tenant-hub/worker:dev:   message: 'TypeError: fetch failed',
+@tenant-hub/worker:dev:   details: 'TypeError: fetch failed\n' +
+@tenant-hub/worker:dev:     '    at node:internal/deps/undici/undici:14976:13\n' +
+@tenant-hub/worker:dev:     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+@tenant-hub/worker:dev:     '    at async getPendingStamps (/Users/dominicorumeuririe/Documents/TENANT-HUB/packages/db/src/worker.ts:4:27)\n' +
+@tenant-hub/worker:dev:     '    at async drainQueue (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:15:21)\n' +
+@tenant-hub/worker:dev:     '    at async runWorker (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker/src/index.ts:59:5)',
+@tenant-hub/worker:dev:   hint: '',
+@tenant-hub/worker:dev:   code: ''
+@tenant-hub/worker:dev: }
+@tenant-hub/web:dev: [?25h
+@tenant-hub/worker:dev:  ELIFECYCLE  Command failed with exit code 143.
+@tenant-hub/worker:dev: ERROR: command finished with error: command (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker) /usr/local/bin/pnpm run dev exited (143)
+@tenant-hub/worker#dev: command (/Users/dominicorumeuririe/Documents/TENANT-HUB/apps/worker) /usr/local/bin/pnpm run dev exited (143)
+
+ Tasks:    1 successful, 2 total
+Cached:    0 cached, 2 total
+  Time:    8m53.417s 
+Failed:    @tenant-hub/worker#dev
+
+ ERROR  run failed: command  exited (143)

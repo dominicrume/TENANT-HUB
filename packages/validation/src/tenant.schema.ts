@@ -22,7 +22,7 @@ export const BenefitTypeSchema = preprocessEnum([...BENEFIT_TYPES]);
 export const BenefitFrequencySchema = preprocessEnum([...BENEFIT_FREQUENCIES]);
 export const BrandSchema = preprocessEnum(["mattys_place", "reliance"]);
 export const EntryMethodSchema = z.enum(["manual", "ocr", "voice"]);
-export const UserRoleSchema = z.enum(["manager", "support_worker", "tenant"]);
+export const UserRoleSchema = z.enum(["admin", "manager", "support_worker", "tenant"]);
 
 export const CanonicalTenantSchema = z.object({
   id:              z.string().uuid(),

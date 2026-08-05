@@ -5,16 +5,16 @@ import { z } from "zod";
 
 const InviteSchema = z.object({
   email: z.string().email(),
-  role: z.enum(["manager", "support_worker"]),
+  role: z.enum(["admin", "manager", "support_worker"]),
 });
 
 export async function POST(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
-  // Only managers can invite new staff
-  if (auth.actor.user_role !== "manager") {
-    return NextResponse.json({ error: "Permission denied. Only managers can invite staff." }, { status: 403 });
+  // Only managers or admins can invite new staff
+  if (auth.actor.user_role !== "manager" && auth.actor.user_role !== "admin") {
+    return NextResponse.json({ error: "Permission denied. Only managers or admins can invite staff." }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({}));
@@ -25,6 +25,11 @@ export async function POST(req: Request) {
   }
 
   const { email, role } = parsed.data;
+
+  // Manager cannot invite admin
+  if (role === "admin" && auth.actor.user_role !== "admin") {
+    return NextResponse.json({ error: "Permission denied. Only admins can invite other admins." }, { status: 403 });
+  }
 
   try {
     // 1. Send the invite via Supabase Auth Admin

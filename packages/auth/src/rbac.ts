@@ -17,6 +17,15 @@ export type Action = "read" | "create" | "update" | "delete" | "export";
 type PermissionMatrix = Record<UserRole, Record<Resource, Action[]>>;
 
 export const PERMISSIONS: PermissionMatrix = {
+  admin: {
+    tenants:           ["read","create","update","delete","export"],
+    sessions:          ["read","create","update","delete"],
+    service_charges:   ["read","create","update","delete"],
+    audit_logs:        ["read","export"],
+    intake_checklists: ["read","create","update"],
+    drafts:            ["read","create","update","delete"],
+    stamp_queue:       ["read"],
+  },
   manager: {
     tenants:           ["read","create","update","delete","export"],
     sessions:          ["read","create","update","delete"],

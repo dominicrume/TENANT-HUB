@@ -8,6 +8,7 @@
  *  4. On failure: increment retry_count; after 3 retries → 'dead_letter'
  *  5. UI queries stamp_queue for status: pending | done | failed
  */
+import { ethers } from "ethers";
 
 export type StampStatus = "pending" | "processing" | "done" | "failed" | "dead_letter";
 
@@ -21,23 +22,68 @@ export interface OutboxEntry {
   error:       string | null;
   created_at:  string;
   updated_at:  string;
+  next_retry_at: string | null;
 }
+
+/** Timeout wrapper — prevents hung RPC connections from blocking the worker. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms,
+    );
+    promise
+      .then((val) => { clearTimeout(timer); resolve(val); })
+      .catch((err) => { clearTimeout(timer); reject(err); });
+  });
+}
+
+const STAMP_TIMEOUT_MS = 30_000;
 
 /**
  * Stamp a single audit hash onto Polygon (or mock in development).
  * Called exclusively by apps/worker — NEVER in an HTTP route handler.
+ *
+ * In production, sends a minimal transaction with the audit hash embedded
+ * in the transaction data field. The hash is permanently recorded on-chain.
  */
 export async function stampAuditHash(
   auditHash: string,
   rpcUrl: string,
   privateKey: string
 ): Promise<string> {
-  // Phase 1: return mock tx hash in development
+  // Development mock: return a deterministic mock tx hash
   if (!rpcUrl || !privateKey) {
     return `mock_tx_${auditHash.slice(0, 16)}_${Date.now()}`;
   }
 
-  // Phase 2: real Polygon stamp (ethers.js implementation)
-  // TODO: implement with ethers.js when Phase 2 is activated
-  throw new Error("Polygon stamping not yet configured. Set POLYGON_RPC_URL and STAMP_WALLET_PRIVATE_KEY.");
+  // Production: real Polygon stamp via ethers.js v6
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const wallet = new ethers.Wallet(privateKey, provider);
+
+  // Encode the audit hash as transaction calldata (0x-prefixed hex)
+  const data = auditHash.startsWith("0x") ? auditHash : `0x${auditHash}`;
+
+  const tx = await withTimeout(
+    wallet.sendTransaction({
+      to: wallet.address, // self-send — cheapest way to anchor data on-chain
+      value: 0,
+      data,
+    }),
+    STAMP_TIMEOUT_MS,
+    "Polygon RPC sendTransaction",
+  );
+
+  // Wait for 1 confirmation to ensure the tx is mined
+  const receipt = await withTimeout(
+    tx.wait(1),
+    STAMP_TIMEOUT_MS,
+    "Transaction confirmation",
+  );
+
+  if (!receipt) {
+    throw new Error("Transaction receipt is null — tx may have been dropped");
+  }
+
+  return receipt.hash;
 }
