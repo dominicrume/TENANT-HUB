@@ -36,9 +36,8 @@ function SignupPage() {
     setLoading(true);
     setError(null);
     const supabase = getSupabaseBrowser();
-    const isStrong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(password);
-    if (!isStrong) {
-      setError("Password must be at least 6 characters and include an uppercase letter, lowercase letter, number, and special character.");
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
       setLoading(false);
       return;
     }

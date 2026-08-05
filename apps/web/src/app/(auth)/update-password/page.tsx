@@ -79,10 +79,8 @@ export default function UpdatePasswordPage() {
       return;
     }
 
-    // Validate: 12 chars, 1 lowercase, 1 uppercase, 1 number, 1 special character (any non-alphanumeric)
-    const isStrong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(password);
-    if (!isStrong) {
-      setError("Password must be at least 6 characters and include an uppercase letter, lowercase letter, number, and special character.");
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
       setLoading(false);
       return;
     }
