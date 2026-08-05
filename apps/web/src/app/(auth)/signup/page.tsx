@@ -93,8 +93,8 @@ function SignupPage() {
             value={email} onChange={(e) => setEmail(e.target.value)} />
 
           <label style={s.label} htmlFor="password">Password</label>
-          <input id="password" type="password" required minLength={8} autoComplete="new-password"
-            style={s.input} value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} />
+          <input id="password" type="password" required minLength={6} autoComplete="new-password"
+            style={s.input} value={password} onChange={(e) => setPassword(e.target.value)} />
 
           <label style={s.label} htmlFor="role">Role</label>
           <select id="role" style={s.input} value={role}

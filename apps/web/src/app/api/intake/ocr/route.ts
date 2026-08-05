@@ -52,8 +52,9 @@ Omit keys you cannot find. No commentary.`;
         action: "VERIFY",
         entry_method: "ocr",
         record: { id: draftId, machine_state: { input_mode: "ocr", extracted } },
-        tenant_id: auth.actor.tenant_id,
         user_id: auth.actor.user_id,
+        user_name: auth.actor.user_name,
+        user_role: auth.actor.user_role,
       });
     }
 
