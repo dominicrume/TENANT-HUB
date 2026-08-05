@@ -12,3 +12,4 @@ coverage
 # MS Office lock files (e.g. ~$forms .docx)
 ~$*
 .vercel
+.env*

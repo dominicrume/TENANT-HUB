@@ -1,0 +1,43 @@
+> [debug] [2026-08-05T16:54:03.386Z] Found config in file "/Users/dominicorumeuririe/Documents/TENANT-HUB/vercel.json"
+Vercel CLI 58.5.1 (Node.js 20.20.2)
+> [debug] [2026-08-05T16:54:03.400Z] Agent/TTY/nonInteractive: isAgent=true agentName=antigravity stdin.isTTY=undefined --non-interactive=false explicitFalse=false => nonInteractive=true
+> [debug] [2026-08-05T16:54:03.400Z] user supplied a possible target for deployment or an extension
+> [debug] [2026-08-05T16:54:03.431Z] failed to find extension command with name "vercel---prod"
+> [debug] [2026-08-05T16:54:03.457Z] Setting target to production
+> [debug] [2026-08-05T16:54:03.461Z] Arrived at home directory
+> [debug] [2026-08-05T16:54:03.503Z] Found git root via "git rev-parse --show-toplevel" - detected "/Users/dominicorumeuririe/Documents/TENANT-HUB" as repo root
+> [debug] [2026-08-05T16:54:03.506Z] Spinner invoked (Loading teams…) with a 1000ms delay
+> [debug] [2026-08-05T16:54:03.507Z] Valid access token, skipping token refresh.
+> [debug] [2026-08-05T16:54:03.524Z] #1 → GET https://api.vercel.com/v2/user
+> [debug] [2026-08-05T16:54:03.524Z] #2 → GET https://api.vercel.com/v1/teams
+> [debug] [2026-08-05T16:54:04.046Z] #1 ← 200 OK: sfo1::4wxk8-1785948843997-5e033a462361 [522ms]
+> [debug] [2026-08-05T16:54:04.064Z] #2 ← 200 OK: sfo1::p8xjs-1785948843996-6bb141a8926a [540ms]
+
+  Directory       ~/Documents/TENANT-HUB
+
+> [debug] [2026-08-05T16:54:04.067Z] Spinner invoked (Searching for existing projects…) with a 1000ms delay
+> [debug] [2026-08-05T16:54:04.068Z] #3 → GET https://api.vercel.com/v9/projects/TENANT-HUB?teamId=team_zJqnWYYmv9eUwES8sdcEOkQG
+> [debug] [2026-08-05T16:54:04.068Z] #4 → GET https://api.vercel.com/v9/projects/tenant-hub?teamId=team_zJqnWYYmv9eUwES8sdcEOkQG
+> [debug] [2026-08-05T16:54:04.281Z] #4 ← 404 Not Found: sfo1::nrbsm-1785948844216-77c3de84d2a8 [213ms]
+> [debug] [2026-08-05T16:54:04.284Z] #3 ← 404 Not Found: sfo1::br49l-1785948844215-03ccc3a18814 [216ms]
+  Local settings detected in vercel.json:
+  Build Command: pnpm build
+  Framework: nextjs
+  Install Command: pnpm install --frozen-lockfile
+  Merging default Project Settings for Next.js. Previously listed overrides are prioritized.
+
+  Detected Next.js (Build Command: next build, Output Directory: Next.js default)
+> [debug] [2026-08-05T16:54:04.321Z] #5 → POST https://api.vercel.com/v1/projects?teamId=team_zJqnWYYmv9eUwES8sdcEOkQG
+> [debug] [2026-08-05T16:54:04.503Z] #5 ← 400 Bad Request: sfo1::nq6b6-1785948844470-51e390b58281 [182ms]
+> [debug] [2026-08-05T16:54:04.506Z] handling error: Error: Project names can be up to 100 characters long and must be lowercase. They can include letters, digits, and the following characters: '.', '_', '-'. However, they cannot contain the sequence '---'. (400)
+    at responseError (file:///Users/dominicorumeuririe/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-GKLT2ZGC.js:1521:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///Users/dominicorumeuririe/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-GKLT2ZGC.js:2032:23
+    at async createProject (file:///Users/dominicorumeuririe/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-LXRK7KPA.js:55379:19)
+    at async setupAndLink (file:///Users/dominicorumeuririe/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-LTEFJ3VD.js:1391:21)
+    at async ensureLink (file:///Users/dominicorumeuririe/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/chunks/chunk-MEOBIY2L.js:65:12)
+    at async handleDefaultDeploy (file:///Users/dominicorumeuririe/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/commands/deploy/index.js:1386:16)
+    at async _Span.trace (/Users/dominicorumeuririe/.npm/_npx/69f9afb961c37556/node_modules/@vercel/build-utils/dist/index.js:36295:14)
+    at async main (file:///Users/dominicorumeuririe/.npm/_npx/69f9afb961c37556/node_modules/vercel/dist/index.js:2310:18)
+Error: Project names can be up to 100 characters long and must be lowercase. They can include letters, digits, and the following characters: '.', '_', '-'. However, they cannot contain the sequence '---'. (400)
+Learn More: https://vercel.com/docs/projects/overview#project-name

@@ -24,7 +24,7 @@ export const PERMISSIONS: PermissionMatrix = {
     audit_logs:        ["read","export"],
     intake_checklists: ["read","create","update"],
     drafts:            ["read","create","update","delete"],
-    stamp_queue:       ["read"],
+    stamp_queue:       ["read","update"],
   },
   manager: {
     tenants:           ["read","create","update","delete","export"],
@@ -33,7 +33,7 @@ export const PERMISSIONS: PermissionMatrix = {
     audit_logs:        ["read","export"],
     intake_checklists: ["read","create","update"],
     drafts:            ["read","create","update","delete"],
-    stamp_queue:       ["read"],
+    stamp_queue:       ["read","update"],
   },
   support_worker: {
     tenants:           ["read","create","update"],

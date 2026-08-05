@@ -3,6 +3,7 @@ import { writeWithAudit } from "@tenant-hub/db";
 import { TenantCreateSchema } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
+import { generateSupportPlan } from "../../../lib/generate-plan";
 
 /**
  * GET /api/tenants — active, non-archived tenants for the current user.
@@ -65,17 +66,28 @@ export async function POST(req: Request) {
   }
 
   try {
+    const recordToInsert = {
+      ...parsed.data,
+      org_id: auth.actor.org_id,
+      created_by: auth.actor.user_id,
+    };
+    
     const { data } = await writeWithAudit({
       table: "tenants",
-      record: {
-        ...parsed.data,
-        org_id: auth.actor.org_id,
-        created_by: auth.actor.user_id,
-      } as Record<string, unknown>,
+      record: recordToInsert as Record<string, unknown>,
       action: "CREATE",
       entry_method: parsed.data.entry_method,
       ...auth.actor,
     });
+    
+    // Asynchronously generate Reliance Support Plan if the entry was OCR
+    if (parsed.data.entry_method === "ocr" && (data as any)?.[0]?.id) {
+      const tenantId = (data as any)[0].id;
+      // We don't await this so it happens in the background, but we wrap it in a catch to avoid unhandled rejections
+      generateSupportPlan(tenantId, recordToInsert, auth.actor, auth.supabase)
+        .catch(err => console.error(`[AI Pipeline] Failed to generate support plan for OCR tenant ${tenantId}:`, err));
+    }
+    
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
