@@ -3,7 +3,8 @@
  * identical everywhere (and we never hand-roll them per component).
  */
 
-export function formatUkDate(d: Date | string): string {
+export function formatUkDate(d: Date | string | null | undefined): string {
+  if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toLocaleDateString("en-GB", {
     weekday: "long",
@@ -13,12 +14,14 @@ export function formatUkDate(d: Date | string): string {
   });
 }
 
-export function formatShortDate(d: Date | string): string {
+export function formatShortDate(d: Date | string | null | undefined): string {
+  if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function formatDateTime(d: Date | string): string {
+export function formatDateTime(d: Date | string | null | undefined): string {
+  if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toLocaleString("en-GB", {
     day: "2-digit",
