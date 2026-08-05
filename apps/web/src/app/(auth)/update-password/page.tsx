@@ -80,9 +80,9 @@ export default function UpdatePasswordPage() {
     }
 
     // Validate: 12 chars, 1 lowercase, 1 uppercase, 1 number, 1 special character (any non-alphanumeric)
-    const isStrong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/.test(password);
+    const isStrong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(password);
     if (!isStrong) {
-      setError("Password must be at least 12 characters and include an uppercase letter, lowercase letter, number, and special character.");
+      setError("Password must be at least 6 characters and include an uppercase letter, lowercase letter, number, and special character.");
       setLoading(false);
       return;
     }
@@ -134,7 +134,7 @@ export default function UpdatePasswordPage() {
               id="password"
               type="password"
               required
-              minLength={12}
+              minLength={6}
               autoComplete="new-password"
               style={s.input}
               value={password}
@@ -146,7 +146,7 @@ export default function UpdatePasswordPage() {
               id="confirmPassword"
               type="password"
               required
-              minLength={12}
+              minLength={6}
               autoComplete="new-password"
               style={s.input}
               value={confirmPassword}

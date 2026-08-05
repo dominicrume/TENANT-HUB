@@ -36,9 +36,9 @@ function SignupPage() {
     setLoading(true);
     setError(null);
     const supabase = getSupabaseBrowser();
-    const isStrong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/.test(password);
+    const isStrong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(password);
     if (!isStrong) {
-      setError("Password must be at least 12 characters and include an uppercase letter, lowercase letter, number, and special character.");
+      setError("Password must be at least 6 characters and include an uppercase letter, lowercase letter, number, and special character.");
       setLoading(false);
       return;
     }
@@ -95,7 +95,7 @@ function SignupPage() {
 
           <label style={s.label} htmlFor="password">Password</label>
           <input id="password" type="password" required minLength={8} autoComplete="new-password"
-            style={s.input} value={password} onChange={(e) => setPassword(e.target.value)} />
+            style={s.input} value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} />
 
           <label style={s.label} htmlFor="role">Role</label>
           <select id="role" style={s.input} value={role}
