@@ -8,6 +8,7 @@ import * as s from "../_authStyles";
 export default function UpdatePasswordPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -27,22 +28,42 @@ export default function UpdatePasswordPage() {
       return;
     }
 
+    // The auth/callback route has already exchanged the code for a session
+    // and set the cookies. We just need to verify the session exists.
     const supabase = getSupabaseBrowser();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        // Wait briefly for the hash fragment to be processed by Supabase
-        setTimeout(async () => {
-          const { data: { session: delayedSession } } = await supabase.auth.getSession();
-          if (!delayedSession) {
-            setError("Recovery session expired or invalid. Please request a new link.");
-            setIsFatalError(true);
-          }
-          setCheckingSession(false);
-        }, 1000);
-      } else {
+    
+    // Listen for the PASSWORD_RECOVERY event (legacy implicit flow) AND
+    // check if we already have a valid session (PKCE flow via callback).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         setCheckingSession(false);
       }
     });
+
+    // Also do a direct session check — the callback route already exchanged
+    // the code, so we should have session cookies.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setCheckingSession(false);
+      } else {
+        // Give a brief window for the auth state change listener to fire
+        // (handles edge cases where cookies are being written asynchronously)
+        setTimeout(async () => {
+          const { data: { session: retrySession } } = await supabase.auth.getSession();
+          if (retrySession) {
+            setCheckingSession(false);
+          } else {
+            setError("Recovery session expired or invalid. Please request a new link.");
+            setIsFatalError(true);
+            setCheckingSession(false);
+          }
+        }, 2000);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function onSubmit(e: FormEvent) {
@@ -50,6 +71,14 @@ export default function UpdatePasswordPage() {
     setLoading(true);
     setError(null);
     const supabase = getSupabaseBrowser();
+
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
+
     // Validate: 12 chars, 1 lowercase, 1 uppercase, 1 number, 1 special character (any non-alphanumeric)
     const isStrong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/.test(password);
     if (!isStrong) {
@@ -91,26 +120,40 @@ export default function UpdatePasswordPage() {
             Verifying secure recovery link...
           </div>
         ) : isFatalError ? (
-          <div style={{ textAlign: "center", color: "#E05252", fontSize: "14px", padding: "20px 0", background: "rgba(224, 82, 82, 0.1)", borderRadius: "8px", border: "1px solid rgba(224, 82, 82, 0.2)" }}>
-            {error}
-            <br/><br/>
-            <button onClick={() => router.push("/login")} style={{...s.submit, marginTop: "10px"}}>Return to Login</button>
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <div style={{ color: "#E05252", fontSize: "14px", padding: "16px", background: "rgba(224, 82, 82, 0.1)", borderRadius: "8px", border: "1px solid rgba(224, 82, 82, 0.2)", marginBottom: "16px" }}>
+              {error}
+            </div>
+            <button onClick={() => router.push("/reset-password")} style={{...s.submit, marginBottom: "8px"}}>Request a New Link</button>
+            <button onClick={() => router.push("/login")} style={{...s.submit, backgroundColor: "transparent", color: "#0B1B3D", border: "1px solid #0B1B3D"}}>Return to Login</button>
           </div>
         ) : (
           <form onSubmit={onSubmit}>
             <label style={s.label} htmlFor="password">New Password</label>
-          <input
-            id="password"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            style={s.input}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+            <input
+              id="password"
+              type="password"
+              required
+              minLength={12}
+              autoComplete="new-password"
+              style={s.input}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
 
-          {error && <div style={s.errorBox}>{error}</div>}
+            <label style={s.label} htmlFor="confirmPassword">Confirm New Password</label>
+            <input
+              id="confirmPassword"
+              type="password"
+              required
+              minLength={12}
+              autoComplete="new-password"
+              style={s.input}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+
+            {error && <div style={s.errorBox}>{error}</div>}
 
             <button type="submit" style={s.submit} disabled={loading}>
               {loading ? "Updating…" : "Update password"}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "../../../../lib/supabase-server";
 import { sendWelcomeEmail } from "../../../../lib/resend";
+import { headers } from "next/headers";
 
 export async function POST(req: Request) {
   try {
@@ -10,6 +11,12 @@ export async function POST(req: Request) {
     }
 
     const { email, password, fullName, role, brand } = body;
+
+    // Derive the origin from the request headers (server-side safe)
+    const headersList = headers();
+    const host = headersList.get("host") || "app.mattysplace.org.uk";
+    const protocol = headersList.get("x-forwarded-proto") || "https";
+    const origin = `${protocol}://${host}`;
 
     const supabase = createSupabaseServer();
 
@@ -23,7 +30,7 @@ export async function POST(req: Request) {
           role,
           brand,
         },
-        emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
+        emailRedirectTo: `${origin}/auth/callback`,
       },
     });
 
