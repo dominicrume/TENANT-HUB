@@ -4,6 +4,17 @@ const path = require('path');
 
 const SCOREBOARD_PATH = path.join(__dirname, '..', 'SCOREBOARD.md');
 
+// This script reads SCOREBOARD.md. It verifies process discipline — that each
+// KYA check is scored and any MISSING carries a signed waiver. It compiles
+// nothing and runs no tests, so on its own it CANNOT say whether the tree is
+// shippable. Between 2 and 7 Aug 2026 it printed "Safe to ship" on every run
+// while turbo failed to parse turbo.json and lint/typecheck/test/build never
+// executed at all.
+//
+// Only `pnpm verify` — which runs lint, typecheck, test and build first — may
+// pass --ship and print a shipping verdict.
+const SHIP_VERDICT = process.argv.includes('--ship');
+
 try {
   const content = fs.readFileSync(SCOREBOARD_PATH, 'utf8');
   const lines = content.split('\n');
@@ -40,8 +51,12 @@ try {
   if (failed) {
     console.error('\n\x1b[31m[FAILED]\x1b[0m KYA gate blocked shipment. Fix the MISSING scores or sign a waiver.');
     process.exit(1);
+  } else if (SHIP_VERDICT) {
+    console.log('\n\x1b[32m[SUCCESS]\x1b[0m KYA scoreboard clean AND lint + typecheck + test + build all passed. Safe to ship.');
+    process.exit(0);
   } else {
-    console.log('\n\x1b[32m[SUCCESS]\x1b[0m All 13 KYA checks passed or waived. Safe to ship.');
+    console.log('\n\x1b[32m[SCOREBOARD OK]\x1b[0m All 13 KYA checks scored or waived.');
+    console.log('\x1b[33m[NOT A SHIP VERDICT]\x1b[0m No code was compiled or tested. Run `pnpm verify` before shipping.');
     process.exit(0);
   }
 } catch (e) {

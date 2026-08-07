@@ -7,6 +7,7 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "node scripts/kya-gate.js && turbo run test",
+    "verify": "turbo run lint typecheck test build && node scripts/kya-gate.js --ship",
     "gen": "node scripts/gen-package.mjs"
   },
   "devDependencies": {

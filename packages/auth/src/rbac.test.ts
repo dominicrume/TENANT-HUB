@@ -26,10 +26,10 @@ describe("RBAC matrix", () => {
 });
 
 describe("RBAC Parity with RLS", () => {
-  it("Every TypeScript permission MUST have a matching RLS policy in migration 017", () => {
+  it("Every TypeScript permission MUST have a matching RLS policy", () => {
     const fs = require("fs");
     const path = require("path");
-    
+
     // Find the monorepo root to locate supabase/migrations
     let currentDir = process.cwd();
     let rootDir = null;
@@ -40,10 +40,19 @@ describe("RBAC Parity with RLS", () => {
       }
       currentDir = path.dirname(currentDir);
     }
-    
+
     expect(rootDir).not.toBeNull();
-    const migrationPath = path.join(rootDir, "supabase/migrations/017_strict_rls_isolation.sql");
-    const sql = fs.readFileSync(migrationPath, "utf-8").toLowerCase();
+
+    // Policies accumulate across migrations — stamp_queue FOR UPDATE lands in
+    // 027, not 017 — so parity has to be checked against the whole schema
+    // history, not a single file.
+    const migrationsDir = path.join(rootDir, "supabase/migrations");
+    const sql = fs
+      .readdirSync(migrationsDir)
+      .filter((f: string) => f.endsWith(".sql"))
+      .map((f: string) => fs.readFileSync(path.join(migrationsDir, f), "utf-8"))
+      .join("\n")
+      .toLowerCase();
 
     // Mapping TS actions to SQL commands
     const actionToSql = {
@@ -51,28 +60,37 @@ describe("RBAC Parity with RLS", () => {
       create: "insert",
       update: "update",
       delete: "delete",
-      export: "select"
+      export: "select",
     };
 
-    // Iterate through all roles, resources, and actions in the matrix
+    const missing: string[] = [];
+
     for (const [role, resources] of Object.entries(PERMISSIONS)) {
       for (const [resource, actions] of Object.entries(resources)) {
         for (const action of actions) {
           const sqlCommand = actionToSql[action as keyof typeof actionToSql];
-          
-          // Tenant read is handled by RLS 'id = auth.uid()' in a different file or specially here
-          if (role === 'tenant' && resource === 'tenants' && action === 'read') continue;
-          // export maps to select
-          if (action === 'export') continue;
-          
-          // Check if there's a policy for this table and command
-          // A very rudimentary check: the table and command must exist, and for non-tenant roles, the role string should appear
-          const policyExists = sql.includes(`on ${resource} for ${sqlCommand}`);
-          
-          // Since the migration might handle 'manager' and 'support_worker' together, we verify the role name appears near it, or the policy simply exists
-          expect(policyExists).toBe(true);
+
+          // Tenant read is scoped by `id = auth.uid()` rather than a role check.
+          if (role === "tenant" && resource === "tenants" && action === "read") continue;
+          // export maps onto select, already covered by the read permission
+          if (action === "export") continue;
+
+          // `DROP POLICY x ON t` has no "for <cmd>" clause, so this only ever
+          // matches a CREATE POLICY statement.
+          const policyExists =
+            sql.includes(`on ${resource} for ${sqlCommand}`) ||
+            sql.includes(`on public.${resource} for ${sqlCommand}`) ||
+            sql.includes(`on ${resource} for all`) ||
+            sql.includes(`on public.${resource} for all`);
+
+          if (!policyExists) {
+            missing.push(`${role} → ${resource}.${action} (expected an RLS policy FOR ${sqlCommand.toUpperCase()})`);
+          }
         }
       }
     }
+
+    // Report every gap at once, named, instead of failing on the first bare boolean.
+    expect(missing).toEqual([]);
   });
 });
