@@ -10,7 +10,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required signup fields" }, { status: 422 });
     }
 
-    const { email, password, fullName, role, brand } = body;
+    // `role` is accepted for backwards compatibility with the signup form but is
+    // deliberately NOT forwarded to Supabase. Anything placed in user metadata is
+    // attacker-controlled (the anon key is public), so the role a self-service
+    // signup receives is decided solely by handle_new_user — see migration 029.
+    const { email, password, fullName, brand } = body;
 
     // Derive the origin from the request headers (server-side safe)
     const headersList = headers();
@@ -27,7 +31,6 @@ export async function POST(req: Request) {
       options: {
         data: {
           full_name: fullName,
-          role,
           brand,
         },
         emailRedirectTo: `${origin}/auth/callback`,

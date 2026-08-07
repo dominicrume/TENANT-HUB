@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { adminClient } from "@tenant-hub/db";
+import { timingSafeEqual } from "crypto";
+import {
+  getServiceChargesDueOn,
+  getSessionsOn,
+  getHousingBenefitAlerts,
+} from "@tenant-hub/db";
 import {
   sendRentDueReminder,
   sendSessionReminder,
@@ -8,25 +13,42 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** Constant-time comparison so a wrong secret leaks nothing via response timing. */
+function secretMatches(candidate: string | null, secret: string): boolean {
+  if (!candidate) return false;
+  const a = Buffer.from(candidate);
+  const b = Buffer.from(secret);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+function isoDateOffsetByDays(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  // slice rather than split(...)[0] — ISO 8601 dates are always 10 chars, and
+  // this keeps the return type `string` under noUncheckedIndexedAccess.
+  return d.toISOString().slice(0, 10);
+}
+
 export async function GET(req: Request) {
   try {
-    // 1. Verify CRON Security Token
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) {
       return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 500 });
     }
-    const authHeader = req.headers.get("authorization");
-    const cronKeyHeader = req.headers.get("x-cron-key");
 
-    if (authHeader !== `Bearer ${cronSecret}` && cronKeyHeader !== cronSecret) {
-      // Allow local development check if query param is set
-      const url = new URL(req.url);
-      if (url.searchParams.get("key") !== cronSecret) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    // Headers only. The secret must never travel in a query string — URLs are
+    // written to Vercel access logs, proxy logs and Referer headers.
+    const authHeader = req.headers.get("authorization");
+    const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    const authorised =
+      secretMatches(bearer, cronSecret) || secretMatches(req.headers.get("x-cron-key"), cronSecret);
+
+    if (!authorised) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const report: Record<string, any> = {
+    const report = {
       remindersSent: 0,
       sessionsSent: 0,
       hbAlertsSent: 0,
@@ -34,100 +56,52 @@ export async function GET(req: Request) {
     };
 
     // ── A. SERVICE CHARGE REMINDERS (DUE IN 3 DAYS) ──
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + 3);
-    const targetDateString = targetDate.toISOString().split("T")[0];
-
-    const { data: charges, error: chargesErr } = await adminClient
-      .from("service_charges")
-      .select("amount, due_date, week_label, tenants(full_name, email)")
-      .eq("is_paid", false)
-      .eq("due_date", targetDateString);
-
-    if (chargesErr) {
-      report.errors.push(`Charges query error: ${chargesErr.message}`);
-    } else if (charges) {
-      for (const c of charges) {
-        const tenant = c.tenants as any;
-        if (tenant && tenant.email) {
-          try {
-            await sendRentDueReminder(
-              tenant.email,
-              tenant.full_name,
-              Number(c.amount),
-              c.due_date
-            );
-            report.remindersSent++;
-          } catch (err: any) {
-            report.errors.push(`Failed to send rent reminder to ${tenant.email}: ${err.message}`);
-          }
+    try {
+      for (const charge of await getServiceChargesDueOn(isoDateOffsetByDays(3))) {
+        try {
+          await sendRentDueReminder(
+            charge.tenantEmail,
+            charge.tenantName,
+            charge.amount,
+            charge.dueDate
+          );
+          report.remindersSent++;
+        } catch (err: any) {
+          report.errors.push(`Failed to send rent reminder to ${charge.tenantEmail}: ${err.message}`);
         }
       }
+    } catch (err: any) {
+      report.errors.push(err.message);
     }
 
     // ── B. SUPPORT SESSION REMINDERS (SCHEDULED FOR TOMORROW) ──
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowString = tomorrow.toISOString().split("T")[0];
-
-    const { data: sessions, error: sessionsErr } = await adminClient
-      .from("sessions")
-      .select("session_date, tenants(full_name, email)")
-      .eq("session_date", tomorrowString);
-
-    if (sessionsErr) {
-      report.errors.push(`Sessions query error: ${sessionsErr.message}`);
-    } else if (sessions) {
-      for (const s of sessions) {
-        const tenant = s.tenants as any;
-        if (tenant && tenant.email) {
-          try {
-            await sendSessionReminder(tenant.email, tenant.full_name, s.session_date);
-            report.sessionsSent++;
-          } catch (err: any) {
-            report.errors.push(`Failed to send session reminder to ${tenant.email}: ${err.message}`);
-          }
+    try {
+      for (const session of await getSessionsOn(isoDateOffsetByDays(1))) {
+        try {
+          await sendSessionReminder(session.tenantEmail, session.tenantName, session.sessionDate);
+          report.sessionsSent++;
+        } catch (err: any) {
+          report.errors.push(
+            `Failed to send session reminder to ${session.tenantEmail}: ${err.message}`
+          );
         }
       }
+    } catch (err: any) {
+      report.errors.push(err.message);
     }
 
     // ── C. HOUSING BENEFIT RISK ALERTS (TO MANAGERS) ──
-    const { data: managers, error: managersErr } = await adminClient
-      .from("profiles")
-      .select("email, full_name, org_id")
-      .eq("role", "manager");
-
-    if (managersErr) {
-      report.errors.push(`Managers query error: ${managersErr.message}`);
-    } else if (managers) {
-      for (const m of managers) {
-        if (!m.org_id || !m.email) continue;
-
-        const { data: riskyTenants, error: riskyErr } = await adminClient
-          .from("tenants")
-          .select("full_name, housing_benefit_status")
-          .eq("org_id", m.org_id)
-          .eq("is_archived", false)
-          .in("housing_benefit_status", ["suspended"]);
-
-        if (riskyErr) {
-          report.errors.push(`Risky tenants query error for org ${m.org_id}: ${riskyErr.message}`);
-        } else if (riskyTenants && riskyTenants.length > 0) {
-          try {
-            await sendHBAlert(
-              m.email,
-              m.full_name,
-              riskyTenants.map(t => ({
-                name: t.full_name,
-                status: t.housing_benefit_status,
-              }))
-            );
-            report.hbAlertsSent++;
-          } catch (err: any) {
-            report.errors.push(`Failed to send HB alert to manager ${m.email}: ${err.message}`);
-          }
+    try {
+      for (const alert of await getHousingBenefitAlerts()) {
+        try {
+          await sendHBAlert(alert.managerEmail, alert.managerName, alert.tenants);
+          report.hbAlertsSent++;
+        } catch (err: any) {
+          report.errors.push(`Failed to send HB alert to manager ${alert.managerEmail}: ${err.message}`);
         }
       }
+    } catch (err: any) {
+      report.errors.push(err.message);
     }
 
     return NextResponse.json({ success: true, report });
