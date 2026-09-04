@@ -52,12 +52,27 @@ function SignupPage() {
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
-      setError(data?.error || "Signup failed");
+      setError(data?.error || data?.message || (res.status === 500 ? "Server error during signup" : "Signup failed"));
       setLoading(false);
       return;
     }
 
-    router.push("/login");
+    // Attempt automatic login upon successful signup
+    const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInData?.session) {
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", signInData.session.user.id).single();
+      const userRole = profile?.role || role || "manager";
+      if (userRole === "tenant") {
+        router.push("/my-home");
+      } else if (userRole === "contractor") {
+        router.push("/jobs");
+      } else {
+        router.push("/dashboard");
+      }
+    } else {
+      router.push("/login");
+    }
+    router.refresh();
   }
 
   async function onGoogle() {

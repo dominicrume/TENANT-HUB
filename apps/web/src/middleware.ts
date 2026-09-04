@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseMiddleware } from "./lib/supabase-middleware";
 import { authRateLimit, aiRateLimit, genericRateLimit } from "./lib/rate-limit";
-const PUBLIC_PREFIXES = ["/login", "/signup", "/reset-password", "/update-password", "/intake/verify", "/auth/signout", "/auth/callback"];
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/signup",
+  "/reset-password",
+  "/update-password",
+  "/intake/verify",
+  "/auth/signout",
+  "/auth/callback",
+  "/api/auth",
+  "/api/health",
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -46,8 +56,11 @@ export async function middleware(req: NextRequest) {
 
   const isPublic = pathname === "/" || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 
-  // No session on a protected route → explicit redirect (fixes silent 401s).
+  // No session on a protected route → explicit redirect for HTML pages, 401 for API requests.
   if (!user && !isPublic) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return redirectWithCookies(new URL("/login", req.url));
   }
 

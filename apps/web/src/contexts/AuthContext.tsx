@@ -106,24 +106,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signOut() {
+    // 1. Clear local react state immediately
+    setUser(null);
+    setProfile(null);
+
+    // 2. Fire-and-forget background cleanup tasks
+    Promise.allSettled([
+      fetch("/auth/signout", { method: "POST" }),
+      getSupabaseBrowser().auth.signOut({ scope: "local" })
+    ]).catch((err) => console.error("Background signout error:", err));
+
+    // 3. Nuke local cookies and storage synchronously
     try {
-      // 1. Await server signout to nuke cookies properly
-      await fetch("/auth/signout", { method: "POST" });
-      // 2. Clear client state instantly
-      await getSupabaseBrowser().auth.signOut({ scope: "local" });
-      // 3. Clear cookies
       document.cookie.split(";").forEach((c) => {
         document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
-      // 4. Clear localStorage
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('sb-')) localStorage.removeItem(key);
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith("sb-")) localStorage.removeItem(key);
       });
     } catch (e) {
       console.error(e);
     }
-    setUser(null);
-    setProfile(null);
+
+    // 4. Instant redirect
     window.location.replace("/login");
   }
 
