@@ -106,8 +106,8 @@ export function DigitalSignaturePad({ label = "Signature", value, onChange }: Di
             flexDirection: "column",
             gap: "8px"
           }}>
-          <span>✅ Signed Digitally</span>
-          <img src={value} alt="Signature" style={{ maxHeight: "60px", margin: "0 auto" }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="Digital Signature" style={{ maxHeight: "60px", margin: "0 auto" }} />
           <button 
             type="button" 
             onClick={handleClear}

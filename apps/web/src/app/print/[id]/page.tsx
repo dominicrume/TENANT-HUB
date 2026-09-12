@@ -155,7 +155,8 @@ function ConsentItem({ title, description, signature, date }: any) {
       <div style={{ marginTop: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div style={{ borderBottom: "1px solid #000", minWidth: "250px", minHeight: "60px", position: "relative" }}>
           {signature?.startsWith("data:image") ? (
-            <img src={signature} alt="Signature" style={{ maxHeight: "60px", position: "absolute", bottom: "0" }} />
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={signature} alt="User Signature" style={{ maxHeight: "60px", position: "absolute", bottom: "0" }} />
           ) : (
             <span style={{ fontFamily: "cursive", position: "absolute", bottom: "5px" }}>{signature}</span>
           )}
