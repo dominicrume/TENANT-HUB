@@ -133,11 +133,17 @@ DROP POLICY IF EXISTS "org_certificates_write" ON public.certificates;
 CREATE POLICY "org_certificates_write" ON public.certificates FOR ALL
   USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id());
 
-DO $$ DECLARE t TEXT; BEGIN
-  FOREACH t IN ARRAY ARRAY['compliance_alerts','insurance_policies','insurance_renewal_cycles','insurance_quotes'] LOOP
-    EXECUTE format('DROP POLICY IF EXISTS "org_%s_all" ON public.%I', t, t);
-    EXECUTE format('CREATE POLICY "org_%s_all" ON public.%I FOR ALL USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id())', t, t);
-  END LOOP;
-END $$;
+DROP POLICY IF EXISTS "org_compliance_alerts_all" ON public.compliance_alerts;
+CREATE POLICY "org_compliance_alerts_all" ON public.compliance_alerts FOR ALL
+  USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id());
+DROP POLICY IF EXISTS "org_insurance_policies_all" ON public.insurance_policies;
+CREATE POLICY "org_insurance_policies_all" ON public.insurance_policies FOR ALL
+  USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id());
+DROP POLICY IF EXISTS "org_insurance_renewal_cycles_all" ON public.insurance_renewal_cycles;
+CREATE POLICY "org_insurance_renewal_cycles_all" ON public.insurance_renewal_cycles FOR ALL
+  USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id());
+DROP POLICY IF EXISTS "org_insurance_quotes_all" ON public.insurance_quotes;
+CREATE POLICY "org_insurance_quotes_all" ON public.insurance_quotes FOR ALL
+  USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id());
 
 NOTIFY pgrst, 'reload schema';

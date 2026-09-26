@@ -103,12 +103,18 @@ ALTER TABLE public.regulation_items   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.regulation_impacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trades             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dispatch_jobs      ENABLE ROW LEVEL SECURITY;
-DO $$ DECLARE t TEXT; BEGIN
-  FOREACH t IN ARRAY ARRAY['regulation_sources','regulation_items','regulation_impacts','trades'] LOOP
-    EXECUTE format('DROP POLICY IF EXISTS "org_%s_all" ON public.%I', t, t);
-    EXECUTE format('CREATE POLICY "org_%s_all" ON public.%I FOR ALL USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id())', t, t);
-  END LOOP;
-END $$;
+DROP POLICY IF EXISTS "org_regulation_sources_all" ON public.regulation_sources;
+CREATE POLICY "org_regulation_sources_all" ON public.regulation_sources FOR ALL
+  USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id());
+DROP POLICY IF EXISTS "org_regulation_items_all" ON public.regulation_items;
+CREATE POLICY "org_regulation_items_all" ON public.regulation_items FOR ALL
+  USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id());
+DROP POLICY IF EXISTS "org_regulation_impacts_all" ON public.regulation_impacts;
+CREATE POLICY "org_regulation_impacts_all" ON public.regulation_impacts FOR ALL
+  USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id());
+DROP POLICY IF EXISTS "org_trades_all" ON public.trades;
+CREATE POLICY "org_trades_all" ON public.trades FOR ALL
+  USING (public.is_staff() AND org_id = public.get_my_org_id()) WITH CHECK (public.is_staff() AND org_id = public.get_my_org_id());
 -- A contractor sees the jobs dispatched to their trade.
 DROP POLICY IF EXISTS "org_dispatch_read" ON public.dispatch_jobs;
 CREATE POLICY "org_dispatch_read" ON public.dispatch_jobs FOR SELECT
