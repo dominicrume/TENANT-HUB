@@ -71,6 +71,9 @@ H8. Resilient UI — background refreshes never blank a populated list
 - Tenant:         Read own record + sign only
 
 ## Key Files to Read for Context
+- docs/BUILD_PLAN.md           — THE ordered build plan (C01–C44). Continue from the first unticked commit.
+- docs/ESTATE_OPS_INTEGRATION_PROMPT.md — what we are folding in from Estate Ops and why
+- docs/PLATFORM_CONSOLIDATION.md — the move from Supabase + Vercel to Railway, by strangling
 - docs/architecture.md      — dependency graph + principles
 - docs/HARDENING.md         — H1-H8 as enforceable checklist
 - packages/validation/src/  — canonical Zod schemas (start here for any form work)

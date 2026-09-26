@@ -13,3 +13,6 @@ coverage
 ~$*
 .vercel
 .env*
+
+# Estate Ops reference source (untracked donor repo; never commit, never import)
+estate-ops*/
