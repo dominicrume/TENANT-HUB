@@ -1,14 +1,18 @@
 /**
  * LetterheadBlock — official document header used on the tenant detail form,
  * intake, reports and the eviction notice. Brand comes from BrandContext so one
- * click reletterheads every document. Always shows the OFFICIAL USE ONLY badge.
+ * click reletterheads every document. The switcher lives here, on the document
+ * that carries the letterhead, not in the console chrome (BUILD_PLAN C03). It is
+ * hidden in print. Always shows the OFFICIAL USE ONLY badge.
  */
 "use client";
 
-import { useBrand } from "../contexts/BrandContext";
+import { useBrand, BRAND_LABELS, type Brand } from "../contexts/BrandContext";
 
-export function LetterheadBlock({ roomNumber, date }: { roomNumber?: string; date?: string }) {
-  const { label } = useBrand();
+const SHORT: Record<Brand, string> = { mattys_place: "Matty's", reliance: "Reliance" };
+
+export function LetterheadBlock({ roomNumber, date, switchable = true }: { roomNumber?: string; date?: string; switchable?: boolean }) {
+  const { brand, setBrand, label } = useBrand();
   const letter = label.charAt(0).toUpperCase();
 
   return (
@@ -19,8 +23,9 @@ export function LetterheadBlock({ roomNumber, date }: { roomNumber?: string; dat
         gap: "14px",
         padding: "14px 16px",
         background: "var(--surface)",
-        border: "1px solid #EDE8E1",
+        border: "1px solid var(--line)",
         borderRadius: "12px",
+        flexWrap: "wrap",
       }}
     >
       <div
@@ -46,10 +51,38 @@ export function LetterheadBlock({ roomNumber, date }: { roomNumber?: string; dat
         <div style={{ color: "var(--navy)", fontWeight: 700, fontSize: "16px", fontFamily: "'Sora', sans-serif" }}>
           {label}
         </div>
-        <div style={{ color: "#7A8499", fontSize: "12px", fontFamily: "'JetBrains Mono', monospace" }}>
+        <div style={{ color: "var(--slate-2)", fontSize: "12px", fontFamily: "'JetBrains Mono', monospace" }}>
           {[roomNumber, date].filter(Boolean).join("  ·  ") || "Official record"}
         </div>
       </div>
+
+      {switchable && (
+        <div className="no-print" role="group" aria-label="Letterhead" style={{ display: "flex", gap: "4px" }}>
+          {(Object.keys(BRAND_LABELS) as Brand[]).map((b) => (
+            <button
+              key={b}
+              type="button"
+              onClick={() => setBrand(b)}
+              title={`Use the ${BRAND_LABELS[b]} letterhead`}
+              aria-pressed={brand === b}
+              style={{
+                minHeight: "36px",
+                padding: "6px 10px",
+                borderRadius: "8px",
+                border: brand === b ? "1.5px solid var(--navy)" : "1.5px solid var(--line)",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: 600,
+                fontFamily: "'Sora',sans-serif",
+                background: brand === b ? "var(--navy)" : "var(--surface)",
+                color: brand === b ? "#fff" : "var(--navy)",
+              }}
+            >
+              {SHORT[b]}
+            </button>
+          ))}
+        </div>
+      )}
 
       <span
         style={{

@@ -1,31 +1,28 @@
+/**
+ * Contractor layout — the same console shell, one screen: My jobs.
+ * Contractors never see settings, tenants or money (middleware enforces the route).
+ */
 "use client";
 
-import Link from "next/link";
+import type { ReactNode } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBrand } from "../../contexts/BrandContext";
+import { Shell, CONTRACTOR_NAV } from "../../components/Shell";
 
-const NAV = [
-  { href: "/jobs", label: "My Jobs", icon: "🛠️" },
-];
-
-export default function ContractorLayout({ children }: { children: React.ReactNode }) {
+export default function ContractorLayout({ children }: { children: ReactNode }) {
   const { profile, signOut } = useAuth();
-
+  const { label } = useBrand();
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
-      <header style={{ height: "56px", background: "var(--navy)", display: "flex", alignItems: "center", padding: "0 16px" }}>
-        <span style={{ color: "#fff", fontWeight: 700, fontFamily: "'Sora',sans-serif", fontSize: "15px" }}>
-          Matty&apos;s Place Contractor Portal
-        </span>
-        <div style={{ flex: 1 }} />
-        <button onClick={signOut} style={{ color: "#fff", border: "1px solid rgba(255,255,255,0.2)", padding: "4px 8px", borderRadius: "4px", background: "transparent", cursor: "pointer" }}>
-          Sign Out
-        </button>
-      </header>
-      <div style={{ display: "flex", flex: 1 }}>
-        <main style={{ flex: 1, overflowY: "auto", background: "var(--cream)" }}>
-          {children}
-        </main>
-      </div>
-    </div>
+    <Shell
+      nav={CONTRACTOR_NAV}
+      brand={label}
+      brandSub="Contractor"
+      user={profile?.full_name ?? "—"}
+      role={profile?.role ?? "contractor"}
+      settingsHref={null}
+      onSignOut={() => void signOut()}
+    >
+      {children}
+    </Shell>
   );
 }
