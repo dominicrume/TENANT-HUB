@@ -15,6 +15,32 @@ const SCOREBOARD_PATH = path.join(__dirname, '..', 'SCOREBOARD.md');
 // pass --ship and print a shipping verdict.
 const SHIP_VERDICT = process.argv.includes('--ship');
 
+// ── Source gates (docs/BUILD_PLAN.md C11): fail on forbidden imports anywhere in apps/ and packages/.
+const ROOT = path.join(__dirname, '..');
+const SKIP = new Set(['node_modules', '.next', 'dist', '.turbo', '.git']);
+function walk(dir, out) {
+  for (const f of fs.readdirSync(dir)) {
+    if (SKIP.has(f)) continue;
+    const full = path.join(dir, f);
+    if (fs.statSync(full).isDirectory()) walk(full, out);
+    else if (/\.(ts|tsx|js|mjs)$/.test(full)) out.push(full);
+  }
+  return out;
+}
+const GATES = [
+  { name: 'no @estate-ops imports (reference source only)', re: /(from\s+|import\s*\(\s*|require\(\s*)["']@estate-ops\//, where: () => true },
+  { name: 'pg imported only inside packages/db', re: /from\s+["']pg["']|require\(\s*["']pg["']\s*\)/, where: (f) => !f.includes(`${path.sep}packages${path.sep}db${path.sep}`) },
+];
+let gateFailed = false;
+const files = [];
+for (const d of ['apps', 'packages']) { const p = path.join(ROOT, d); if (fs.existsSync(p)) walk(p, files); }
+for (const g of GATES) {
+  const hits = files.filter((f) => g.where(f) && g.re.test(fs.readFileSync(f, 'utf8')));
+  if (hits.length) { gateFailed = true; console.error(`\x1b[31m[BLOCKED]\x1b[0m ${g.name}:\n  ${hits.map((h) => path.relative(ROOT, h)).join('\n  ')}`); }
+  else console.log(`\x1b[32m[GATE OK]\x1b[0m ${g.name}`);
+}
+if (gateFailed) { console.error('\n\x1b[31m[FAILED]\x1b[0m Source gates blocked shipment.'); process.exit(1); }
+
 try {
   const content = fs.readFileSync(SCOREBOARD_PATH, 'utf8');
   const lines = content.split('\n');
