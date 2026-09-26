@@ -63,6 +63,7 @@ export const TenancyCreateSchema = TenancySchema.pick({ unit_id: true, tenant_id
 
 export type AssetClass = z.infer<typeof AssetClassSchema>;
 export type UnitClass = z.infer<typeof UnitClassSchema>;
+export type RentFrequency = z.infer<typeof RentFrequencySchema>;
 export type Property = z.infer<typeof PropertySchema>;
 export type PropertyCreate = z.infer<typeof PropertyCreateSchema>;
 export type Unit = z.infer<typeof UnitSchema>;

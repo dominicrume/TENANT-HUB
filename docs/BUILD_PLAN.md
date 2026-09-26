@@ -134,7 +134,7 @@ Format: **id** · title · source · touches · **done when**.
 - [x] C03 · [x] C04 · [x] C05 · [x] C06 — **M1 gate** ✓ 2026-09-26 (signed-in e2e paths skip until a staff test account exists)
 - [x] C07 · [x] C08 · [ ] C09 (deferred until DATABASE_URL — DECISIONS D16) · [x] C10 · [x] C11 · [x] C12 · [x] C13 · [x] C14 — **M2 gate** open: C09 outstanding
 - [x] C15 · [x] C16 · [x] C17 · [x] C18 · [x] C19 · [x] C20 — **M3 gate** ✓ 2026-09-26 (RBAC parity, RLS zero-cross-org, spine backfill, arrears hardening — all proven on pglite; live-DB verification pending DATABASE_URL)
-- [ ] C21 · [ ] C22 · [ ] C23 · [ ] C24 · [ ] C25 · [ ] C26 · [ ] C27 · [ ] C28 — **M4 gate**
+- [x] C21 · [x] C22 · [ ] C23 · [ ] C24 · [ ] C25 · [ ] C26 · [ ] C27 · [ ] C28 — **M4 gate**
 - [ ] C29 · [ ] C30 · [ ] C31 · [ ] C32 · [ ] C33 · [ ] C34 · [ ] C35 · [ ] C36 · [ ] C37 — **M5 gate**
 - [ ] C38 · [ ] C39 · [ ] C40 · [ ] C41 · [ ] C42 — **M6 gate**
 - [ ] C43 · [ ] C44 — **M7 gate**
