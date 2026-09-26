@@ -5,6 +5,28 @@ Newest first.
 
 ---
 
+## D16 — C09 (reads through pg repositories) waits for DATABASE_URL; C10–C14 go first (2026-09-26)
+**Context:** Moving 43 API routes' reads from the Supabase client to pg repositories is security-relevant:
+with the pooler's `postgres` role, RLS is bypassed, so every repository must carry explicit org and role
+scoping. None of it can be run against a real database in this environment (no DATABASE_URL, no local
+Postgres, no Docker). Committing that rewrite unverified is not acceptable.
+**Decision:** Reorder within M2: build the agent runtime tables, the pure packages, the job queue, the
+adapters and the worker (C10–C14) now — all provable on pglite — and do C09 when DATABASE_URL is present.
+M2's gate is unchanged: no `@supabase` import outside packages/db and the auth pages before M2 closes.
+**Action required by user:** add `DATABASE_URL` (Supabase → Settings → Database → transaction pooler
+URI, port 6543) to `.env.local` and to the Vercel project before the branch merges; nothing in M2 ships to
+main without it.
+
+## D15 — writeWithAudit runs on pg; the RPC stays as a fallback until DATABASE_URL exists (2026-09-26, C08)
+**Context:** The pg write path is built and proven on an in-process Postgres, but the live pooler URL
+is not in this environment, and production (Vercel) has no DATABASE_URL yet.
+**Decision:** `writeWithAudit` uses the pg transaction when DATABASE_URL is set and falls back to the
+legacy `write_with_audit` RPC when it is not, logging once. Both paths write the same database and the
+same audit row shape. The fallback is deleted at C43 with the rest of the Supabase client code.
+**Why:** Production must keep working the moment this branch deploys, before the variable is added.
+This is a migration seam, not a second data path: same database, same tables, same chain. H7 is
+restored the day DATABASE_URL lands, which is the first thing the go-live checklist asks for.
+
 ## D14 — Where the folded pages went (2026-09-26, BUILD_PLAN C05)
 **Context:** The brief said Sessions, Handovers, Communications, Risk Flags and AI Brain fold into the
 tenant record. A shift handover is about the house, not one person; the org-wide sessions list was a

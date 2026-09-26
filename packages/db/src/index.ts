@@ -3,6 +3,7 @@
 // re-exported — H2 requires the service-role client stay inside packages/db.
 // Callers needing elevated reads use a purpose-built module (e.g. notifications).
 export { rlsClient } from "./client";
+export { db, hasDatabaseUrl, withScope, closePool, type DbClient, type Queryable, type RequestScope } from "./pool";
 export * from "./repositories/tenant.repo";
 export * from "./write-with-audit";
 export * from "./worker";

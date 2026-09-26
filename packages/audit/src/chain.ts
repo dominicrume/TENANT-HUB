@@ -20,6 +20,23 @@ export interface AuditEntry {
   prev_hash:   string;           // hash of the previous entry for THIS record
   entry_method?: string;
   tenant_id?:  string;           // links non-tenant writes (sessions, charges) to a tenant
+  // KYA receipt fields — present when an agent made the write (H12). Not part of the hash
+  // input today (the canonical string is fixed for chain compatibility); stored alongside.
+  agent?:          string;
+  sources_read?:   unknown;
+  refusals?:       unknown;
+  outcome?:        AuditOutcome;
+  correlation_id?: string;
+}
+
+export type AuditOutcome = "proposed" | "recorded" | "refused" | "decided";
+
+/** What an agent read, what it refused, and how it ended. Written to audit_logs with the row. */
+export interface AuditReceipt {
+  agent: string;
+  sourcesRead: unknown[];
+  refusals: unknown[];
+  outcome: AuditOutcome;
 }
 
 export interface AuditRecord extends AuditEntry {

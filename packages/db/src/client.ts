@@ -11,22 +11,32 @@
  *  rlsClient    — uses anon key, respects RLS — safe for user-context operations
  *  adminClient  — uses service-role key — INTERNAL USE ONLY (writeWithAudit)
  */
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@tenant-hub/env";
 
+/**
+ * Lazy: nothing is constructed until first use, so packages/db can be imported
+ * (and tested on pglite) without Supabase variables. These clients are the
+ * legacy path and are removed at C43 (docs/PLATFORM_CONSOLIDATION.md step 6).
+ */
+function lazy<T extends object>(make: () => T): T {
+  let inst: T | null = null;
+  return new Proxy({} as T, {
+    get(_t, prop) {
+      inst ??= make();
+      const v = (inst as unknown as Record<PropertyKey, unknown>)[prop];
+      return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(inst) : v;
+    },
+  });
+}
+
 // RLS-respecting client — operations run as the authenticated user
-export const rlsClient = createClient(
-  env.server.SUPABASE_URL,
-  env.client.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  { auth: { persistSession: false } }
-);
+export const rlsClient: SupabaseClient = lazy(() =>
+  createClient(env.server.SUPABASE_URL, env.client.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } }));
 
 // Service-role client — bypasses RLS — NEVER leak outside this package
-const _adminClient = createClient(
-  env.server.SUPABASE_URL,
-  env.server.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { persistSession: false } }
-);
+const _adminClient: SupabaseClient = lazy(() =>
+  createClient(env.server.SUPABASE_URL, env.server.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } }));
 
-// Only writeWithAudit may use this — not exported directly
+// Only writeWithAudit and the purpose-built read modules may use this — not exported from the package index
 export { _adminClient as adminClient };
