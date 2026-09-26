@@ -5,6 +5,17 @@ Newest first.
 
 ---
 
+## D19 — Repairs status vocabulary changes with the screen, not the migration (2026-09-26, C18)
+**Context:** The brief maps maintenance_tickets.status onto new | triaged | dispatched | in_progress |
+resolved | closed with a CHECK. The live Repairs screen and the tenant portal compare on the current
+labels ("Open", "In Progress", "Resolved") and colour-code them.
+**Decision:** Migration 036 adds the triage columns (where, how reported, own words, transcript,
+category, severity, reasoning) and leaves status text untouched. The vocabulary, the CHECK and a
+normalising trigger land with the Repairs screen rebuild (C33), when the API and both screens change in
+the same commit.
+**Why:** A data change the screens cannot read would show the wrong colours on a live product for the
+sake of a schema tidy-up. Severity, not status, is what Today reads.
+
 ## D18 — RLS helpers read request settings first; tenant-role leaks closed (2026-09-26, C15)
 **Context:** Every policy resolved the caller through `auth.uid()`, directly or via `get_my_org_id()` /
 `get_my_role()`. That ties row security to Supabase Auth. Rewriting 90 policies one by one was the plan.
