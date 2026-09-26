@@ -92,7 +92,7 @@ export function _setDbClientForTests(client: DbClient | null): DbClient | null {
 export async function closePool() { if (_db) { await _db.end(); _db = null; } }
 
 /* ── Org scoping (CON step 2 reads this setting in every RLS policy) ─────── */
-export interface RequestScope { orgId: string; userId?: string; role?: string }
+export interface RequestScope { orgId: string; userId?: string; role?: string; tenantId?: string }
 
 /** Run fn in a transaction with the request settings applied for its duration. */
 export async function withScope<T>(client: DbClient, scope: RequestScope, fn: (tx: Queryable) => Promise<T>): Promise<T> {
@@ -100,6 +100,7 @@ export async function withScope<T>(client: DbClient, scope: RequestScope, fn: (t
     await tx.query("SELECT set_config('app.current_org', $1, true)", [scope.orgId]);
     if (scope.userId) await tx.query("SELECT set_config('app.current_user', $1, true)", [scope.userId]);
     if (scope.role) await tx.query("SELECT set_config('app.current_role', $1, true)", [scope.role]);
+    if (scope.tenantId) await tx.query("SELECT set_config('app.current_tenant', $1, true)", [scope.tenantId]);
     return fn(tx);
   });
 }

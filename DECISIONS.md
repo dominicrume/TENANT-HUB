@@ -5,6 +5,20 @@ Newest first.
 
 ---
 
+## D18 — RLS helpers read request settings first; tenant-role leaks closed (2026-09-26, C15)
+**Context:** Every policy resolved the caller through `auth.uid()`, directly or via `get_my_org_id()` /
+`get_my_role()`. That ties row security to Supabase Auth. Rewriting 90 policies one by one was the plan.
+**Decision:** Migration 032 redefines the helpers to read `app.current_user` / `app.current_org` /
+`app.current_role` / `app.current_tenant` first and fall back to `auth.uid()` (guarded, so the same SQL
+runs on Railway where `auth` does not exist). Policies that used `auth.uid()` or inline profile
+subqueries directly are recreated on the helpers; helper-based policies are untouched. A new
+`visible_tenant_ids()` returns the whole organisation for staff and only the caller's own tenant for
+the tenant role. Roles: web connects without bypassrls, the worker with it.
+**Found and fixed on the way:** a tenant login could read every tenant, charge, payment, staff note and
+message in its organisation, and goals were role-gated but not org-scoped. Both closed; proven by the
+non-superuser pglite test.
+**Why:** One RLS model for both hosts, and fail-closed when no identity is present.
+
 ## D17 — audit_logs stores the hashed payload (2026-09-26, C14)
 **Context:** The chain hash is computed over the write payload (the patch), but the audit row stored only
 `record_snapshot` (the full saved row). A chain check could confirm each row links to its predecessor but
