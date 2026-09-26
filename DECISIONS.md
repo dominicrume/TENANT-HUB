@@ -5,6 +5,50 @@ Newest first.
 
 ---
 
+## D13 — Sequencing: hero first, driver before runtime, RLS rewrite before new tables (2026-09-26)
+**Context:** The integration brief and the consolidation record each had their own order.
+**Decision:** One sequence, `docs/BUILD_PLAN.md` C01–C44. Today ships first with no schema change (M1).
+The `pg` driver swap (CON step 1) lands before the agent runtime (M2) so the runtime is written once.
+The RLS rewrite to request settings (CON step 2) is the first migration of M3 so every new table gets
+the new policy shape. Auth and storage move during the screens milestone. The database moves last, as a
+seven-day parallel run. Supabase is paused for 30 days before deletion.
+**Why:** A live customer. Every step must leave production working and be reversible on its own.
+
+## D12 — Leave Supabase and Vercel; consolidate on Railway by strangling (2026-09-26)
+**Context:** Tenant Hub runs on Vercel + Supabase and needs a long-running worker, which means a third
+vendor. Estate Ops proved Postgres + web + worker on Railway from one Dockerfile.
+**Decision:** Consolidate on Railway (Option A in `docs/PLATFORM_CONSOLIDATION.md`). Replace one
+dependency at a time behind existing package boundaries while still hosted on Supabase: `pg` as the one
+driver inside `packages/db`; RLS keyed on `app.current_org`/`app.current_user`/`app.current_role`; own
+sessions (scrypt + hashed token table); storage behind a port (R2). Move the database by dump/restore last.
+**Why:** One vendor, one client, one session model, one RLS model shared by web and worker. H7 becomes
+literally true. Rejected: big-bang rewrite (no rollback with live PII) and staying split forever.
+**Action required by user:** sign section 6 of the consolidation record; raise EU data residency with
+the client before C39.
+
+## D11 — A third asset class: `supported`, with its own arrears ladder (2026-09-26)
+**Context:** Estate Ops selects rule sets by asset class (residential | commercial). Its residential ladder is
+reminder → formal letter → solicitor → notice. Matty's Place tenants are vulnerable adults whose arrears
+are usually a pending or suspended Housing Benefit / Universal Credit claim.
+**Decision:** `packages/domain` gains `supported` as a unit class and ladder: check-in (day 7, auto) →
+chase housing benefit (14) → support-plan review (28) → formal letter (56) → manager review (90). Every
+rung past check-in requires a recorded human approval. No supported rung ever drafts a notice. Unit tests
+enforce both.
+**Why:** Sending a formal letter to a vulnerable tenant on day 14 because the council is slow would be
+the wrong tool, and would breach the trust the product exists to protect.
+
+## D10 — Fold Estate Ops into Tenant Hub as capabilities; reverse its rule N7 (2026-09-26)
+**Context:** `estate-ops 2/` is a finished, deployed Railway product (nine mandated agents, KYA receipts,
+ports/adapters, "Needs you today" console) for a private landlord. Its rule N7 forbade anything from the
+supported-housing domain crossing into it.
+**Decision:** Tenant Hub is the product; Estate Ops is the donor. Port the agent runtime, KYA, ports and
+adapters, asset-class rule sets, the property spine and the console into Tenant Hub through
+`packages/db` and `writeWithAudit`. One runtime, one data path (H7). Do not run two apps or two
+databases. N7 protected a standalone product and does not apply in this direction; N1–N6 become Tenant
+Hub hardening rules H9–H14. The folder stays untracked and un-importable; it moves out of the repo at C42.
+**Why:** Rume's first principle: stupidly simple, customer-experience back to technology. One product
+that acts for the customer, not two to learn.
+
 ## D1 — Live secrets removed from tracked `.env.example` (SECURITY)
 **Context:** `.env.example` was committed to git containing **real, live secrets**: a Supabase
 `SUPABASE_SERVICE_ROLE_KEY` (full RLS bypass), an `openai_api_key`, a `POLYGON_RPC_URL` with an
