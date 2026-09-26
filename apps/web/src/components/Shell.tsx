@@ -47,23 +47,17 @@ export interface NavItem {
 }
 
 /**
- * The staff console nav. Entries are added as their screens ship (see
- * docs/BUILD_PLAN.md C05, C29, C32, C35) and removed as they fold into the
- * tenant record. Target: eight items.
+ * The staff console nav. Homes, Paperwork and New laws join as their screens
+ * ship (docs/BUILD_PLAN.md C29, C32, C35). Target: eight items. Sessions,
+ * Handovers, Messages, Risk flags and AI live inside the tenant record and
+ * People page; Reports and Analytics are reached from Today (C05).
  */
 export const STAFF_NAV: NavItem[] = [
-  { href: "/dashboard",      label: "Today",               icon: "today",     mobile: true },
-  { href: "/tenants",        label: "People",              icon: "people",    mobile: true },
-  { href: "/ledger",         label: "Rent",                icon: "rent",      mobile: true },
-  { href: "/maintenance",    label: "Repairs",             icon: "repairs",   mobile: true },
-  { href: "/sessions",       label: "Sessions",            icon: "sessions" },
-  { href: "/handovers",      label: "Handovers",           icon: "handovers" },
-  { href: "/communications", label: "Messages",            icon: "messages" },
-  { href: "/risk-flags",     label: "Risk flags",          icon: "risk" },
-  { href: "/reports",        label: "Reports",             icon: "reports" },
-  { href: "/analytics",      label: "Analytics",           icon: "analytics" },
-  { href: "/ai-brain",       label: "AI Brain",            icon: "ai" },
-  { href: "/audit-log",      label: "What the system did", icon: "audit",     mobile: true, short: "Log" },
+  { href: "/dashboard",   label: "Today",               icon: "today",   mobile: true },
+  { href: "/tenants",     label: "People",              icon: "people",  mobile: true },
+  { href: "/ledger",      label: "Rent",                icon: "rent",    mobile: true },
+  { href: "/maintenance", label: "Repairs",             icon: "repairs", mobile: true },
+  { href: "/audit",       label: "What the system did", icon: "audit",   mobile: true, short: "Log" },
 ];
 
 export const CONTRACTOR_NAV: NavItem[] = [
@@ -164,7 +158,7 @@ export function Shell({
           )}
           {live === true && <span className="pill live"><span className="dot" /> System live</span>}
           {live === false && (
-            <Link href="/audit-log" className="pill paused" title="No agent has checked in for over two minutes"><span className="dot" /> Agents paused</Link>
+            <Link href="/audit" className="pill paused" title="No agent has checked in for over two minutes"><span className="dot" /> Agents paused</Link>
           )}
           {primaryAction && <Link href={primaryAction.href} className="act topact">{primaryAction.label}</Link>}
         </div>

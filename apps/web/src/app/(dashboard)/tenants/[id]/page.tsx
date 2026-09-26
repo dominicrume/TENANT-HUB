@@ -29,6 +29,8 @@ import { SupportPlanTab } from "../../../../components/tenant/SupportPlanTab";
 import { MaintenanceTab } from "../../../../components/tenant/MaintenanceTab";
 import { DocumentsTab } from "../../../../components/tenant/DocumentsTab";
 import { NotesTab } from "../../../../components/tenant/NotesTab";
+import { MessagesTab } from "../../../../components/tenant/MessagesTab";
+import { AskTab } from "../../../../components/tenant/AskTab";
 import { DynamicFormTab, type FormTemplate } from "../../../../components/tenant/DynamicFormTab";
 import { FormsPanel } from "../../../../components/layout/FormsPanel";
 
@@ -42,6 +44,8 @@ const CORE_TABS = [
   { key: "maintenance", label: "Maintenance" },
   { key: "documents", label: "Documents" },
   { key: "notes", label: "Staff Notes" },
+  { key: "messages", label: "Messages" },
+  { key: "ask", label: "Ask the AI" },
 ];
 
 type FormState = Record<string, string>;
@@ -579,6 +583,8 @@ export default function TenantDetailPage() {
       {tab === "maintenance" && <MaintenanceTab tenantId={id} roomNumber={tenant?.room_number} />}
       {tab === "documents" && <DocumentsTab tenantId={id} />}
       {tab === "notes" && <NotesTab tenantId={id} />}
+      {tab === "messages" && <MessagesTab tenantId={id} tenantName={tenant?.full_name} />}
+      {tab === "ask" && <AskTab tenantId={id} />}
       {TABS.find(t => t.key === tab && 'template' in t) && (
         <DynamicFormTab tenantId={id} tenant={tenant!} template={(TABS.find(t => t.key === tab) as any).template} />
       )}

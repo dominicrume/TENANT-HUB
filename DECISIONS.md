@@ -5,6 +5,18 @@ Newest first.
 
 ---
 
+## D14 — Where the folded pages went (2026-09-26, BUILD_PLAN C05)
+**Context:** The brief said Sessions, Handovers, Communications, Risk Flags and AI Brain fold into the
+tenant record. A shift handover is about the house, not one person; the org-wide sessions list was a
+reporting view; risk flags were the same arrears rule Today now shows.
+**Decision:** Messages and Ask the AI become tabs on the tenant record. The handover and incident log
+become a panel at the top of People (staff read the handover where they look at the people). The
+quarterly sessions summary moves onto Reports, which stays a page reached from Today ("Monthly report")
+and links on to Analytics. Risk flags are retired: Today's "Money owed" group is the same rule with a
+button. Old routes 301 (`next.config.js`). `/audit-log` becomes `/audit` ("What the system did").
+**Why:** Every removed function stays reachable in two taps, and nothing about a person lives anywhere
+but on the person.
+
 ## D13 — Sequencing: hero first, driver before runtime, RLS rewrite before new tables (2026-09-26)
 **Context:** The integration brief and the consolidation record each had their own order.
 **Decision:** One sequence, `docs/BUILD_PLAN.md` C01–C44. Today ships first with no schema change (M1).

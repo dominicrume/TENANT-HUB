@@ -4,7 +4,8 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { CanonicalTenant, Session, ServiceCharge } from "@tenant-hub/validation";
 import { useTenants } from "../../../hooks/useTenants";
 import { LetterheadBlock } from "../../../components/LetterheadBlock";
@@ -22,6 +23,8 @@ export default function ReportsPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [report, setReport] = useState<ReportData | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sessions, setSessions] = useState<Session[] | null>(null);
+  useEffect(() => { fetch("/api/sessions").then((r) => (r.ok ? r.json() : [])).then((d) => setSessions(Array.isArray(d) ? d : [])).catch(() => setSessions([])); }, []);
 
   async function generate() {
     if (!tenantId) return;
@@ -33,9 +36,10 @@ export default function ReportsPage() {
 
   return (
     <div style={{ padding: "1.75rem", fontFamily: "'Sora', sans-serif" }}>
-      <h1 style={{ color: "var(--navy)", fontSize: "22px", fontWeight: 700, marginBottom: "14px" }} className="no-print">
-        Monthly Council Report
-      </h1>
+      <div className="no-print" style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
+        <h1 style={{ color: "var(--navy)", fontSize: "22px", fontWeight: 700, margin: 0 }}>Monthly council report</h1>
+        <Link href="/analytics" style={{ fontSize: 13, fontWeight: 600, color: "var(--amber-deep)" }}>Numbers across the service →</Link>
+      </div>
 
       <div className="no-print" style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "18px" }}>
         <select value={tenantId} onChange={(e) => setTenantId(e.target.value)}
@@ -111,6 +115,20 @@ export default function ReportsPage() {
           </div>
         </div>
       )}
+
+      <section id="sessions" className="no-print" style={{ marginTop: 28 }}>
+        <h2 style={{ color: "var(--navy)", fontSize: 16, fontWeight: 700, margin: "0 0 10px" }}>Sessions by quarter</h2>
+        {sessions === null ? <p className="muted">Loading…</p> : sessions.length === 0 ? <p className="muted">No sessions recorded yet. They appear here as staff log them on each tenant&apos;s record.</p> : (
+          <div className="stats" style={{ marginTop: 0 }}>
+            {Object.entries(sessions.reduce((acc, s) => {
+              const d = new Date(s.created_at ?? s.session_date); const key = `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`;
+              const cur = acc[key] ?? { n: 0, tenants: new Set<string>() }; cur.n++; cur.tenants.add(s.tenant_id); acc[key] = cur; return acc;
+            }, {} as Record<string, { n: number; tenants: Set<string> }>)).map(([q, v]) => (
+              <div className="stat" key={q}><div className="k">{q}</div><div className="v">{v.n}</div><div className="m">{v.tenants.size} {v.tenants.size === 1 ? "person" : "people"} seen</div></div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -76,6 +76,8 @@ export default function TodayPage() {
         <Link href="/maintenance" className="stat"><div className="k">Repairs</div><div className="v">{data ? data.stats.repairsOpen : "—"}</div><div className="m">{data ? (data.stats.repairsOpen === 0 ? "nothing open" : "open right now") : " "}</div></Link>
       </div>
 
+      <p className="muted" style={{ margin: "10px 0 0" }}><Link href="/reports" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Monthly report</Link> · <Link href="/settings" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Settings</Link></p>
+
       {data && (
         <div className="clear">
           <div className="tick" aria-hidden="true">✓</div>

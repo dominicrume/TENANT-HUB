@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTenants } from "../../../hooks/useTenants";
+import { HandoverPanel } from "../../../components/HandoverPanel";
 
 export default function TenantsIndexPage() {
   const { tenants, loading, error } = useTenants();
@@ -31,9 +32,10 @@ export default function TenantsIndexPage() {
   };
 
   return (
-    <div style={{ padding: "32px", fontFamily: "'Sora', sans-serif" }}>
+    <div style={{ fontFamily: "'Sora', sans-serif" }}>
+      <HandoverPanel />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-        <h1 style={{ color: "var(--navy)", margin: 0 }}>Housing Benefit Triage</h1>
+        <h1 style={{ color: "var(--navy)", margin: 0 }}>People</h1>
         <Link href="/intake/new" style={{ background: "var(--amber)", color: "var(--navy)", padding: "8px 16px", borderRadius: "8px", textDecoration: "none", fontWeight: 700, fontSize: "14px" }}>
           + New Tenant
         </Link>

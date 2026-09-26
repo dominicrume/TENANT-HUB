@@ -11,6 +11,7 @@
     "gen": "node scripts/gen-package.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.60.0",
     "@types/node": "20.12.12",
     "playwright": "^1.60.0",
     "prettier": "3.2.5",
