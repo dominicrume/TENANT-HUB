@@ -1,256 +1,90 @@
 /**
- * Dashboard — greeting, 4-stat strip, recent audit trail, quick actions, and
- * recent tenants. Active-tenant stats + recent tenants both come from
- * useTenants() (single source of truth, H8). Stats whose APIs land in later
- * sprints degrade gracefully to "—" rather than erroring.
+ * Today — the hero. Opens on only what needs a person, then says everything
+ * else is handled. One button per item. Governed by
+ * docs/ESTATE_OPS_INTEGRATION_PROMPT.md §4.2.
+ *
+ * Data: useNeedsYou() (one call, shared with the nav badge). The agent grid
+ * appears when the agent runtime lands (docs/BUILD_PLAN.md C14).
  */
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useTenants } from "../../../hooks/useTenants";
 import { useAuth } from "../../../contexts/AuthContext";
-import { BRAND_LABELS, type Brand } from "../../../contexts/BrandContext";
-import {
-  formatUkDate,
-  formatDateTime,
-  formatMoney,
-  truncateHash,
-  initials,
-  greeting,
-} from "../../../lib/format";
+import { useNeedsYou } from "../../../hooks/useNeedsYou";
+import { GROUP, GROUP_ORDER, GROUP_ICON } from "../../../lib/needs-you";
+import { formatMoney, greeting } from "../../../lib/format";
 
-interface AuditRow {
-  id: string;
-  action: string;
-  user_name: string | null;
-  blockchain_hash: string | null;
-  created_at: string;
-  table_name: string;
-}
-
-const ACTION_COLOR: Record<string, string> = {
-  CREATE: "#34C87A",
-  UPDATE: "#E8A84C",
-  DELETE: "#E05252",
-  SIGN: "#7C3AED",
-  VERIFY: "#7C3AED",
-  EXPORT: "#7A8499",
-  LOGIN: "#0F1C2E",
-};
-
-const card: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1px solid #EDE8E1",
-  borderRadius: "12px",
-  padding: "18px",
-};
-
-function StatCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
-  return (
-    <div style={{ ...card, flex: 1, minWidth: "160px" }}>
-      <div style={{ color: "#7A8499", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-        {label}
-      </div>
-      <div style={{ color: accent ?? "var(--navy)", fontFamily: "'JetBrains Mono', monospace", fontSize: "30px", fontWeight: 600, marginTop: "6px" }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function useArrayEndpoint<T = unknown>(url: string): T[] | null {
-  const [data, setData] = useState<T[] | null>(null);
-  useEffect(() => {
-    let alive = true;
-    fetch(url)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => alive && setData(Array.isArray(d) ? d : null))
-      .catch(() => alive && setData(null));
-    return () => {
-      alive = false;
-    };
-  }, [url]);
-  return data;
-}
-
-function useAnalytics() {
-  const [data, setData] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/analytics/dashboard")
-      .then(async (r) => {
-        const d = await r.json().catch(() => null);
-        if (!r.ok) {
-          throw new Error(d?.error || r.statusText || "Analytics failed to load");
-        }
-        return d;
-      })
-      .then((d) => {
-        if (alive) {
-          setData(d);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (alive) {
-          setError(err.message);
-          setData(null);
-        }
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  return { data, error };
-}
-
-export default function DashboardPage() {
-  const { count, activeTenants } = useTenants();
+export default function TodayPage() {
   const { profile } = useAuth();
-  const [now, setNow] = useState<Date | null>(null);
-  const [audit, setAudit] = useState<AuditRow[] | null>(null);
-
-  // Compute date client-side to avoid hydration mismatch.
-  useEffect(() => setNow(new Date()), []);
-
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/audit-logs?limit=10")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => alive && setAudit(Array.isArray(d) ? d : []))
-      .catch(() => alive && setAudit([]));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const unpaid = useArrayEndpoint<{ amount: number }>("/api/service-charges?unpaid=true");
-  const risks = useArrayEndpoint("/api/risk-flags");
-  const sessions = useArrayEndpoint("/api/sessions?thisWeek=true");
-  const { data: analytics, error: analyticsError } = useAnalytics();
-
-  const unpaidTotal =
-    unpaid === null ? "—" : formatMoney(unpaid.reduce((s, c) => s + Number(c.amount ?? 0), 0));
+  const { data, error, loading } = useNeedsYou();
+  const first = profile?.full_name?.split(" ")[0];
+  const items = data?.items ?? [];
+  const n = items.length;
 
   return (
-    <div style={{ padding: "1.75rem", fontFamily: "'Sora', sans-serif" }}>
-      <h1 style={{ color: "var(--navy)", fontSize: "22px", fontWeight: 700 }}>
-        {greeting()}, {profile?.full_name?.split(" ")[0] ?? "there"}.
-      </h1>
-      <p style={{ color: "#7A8499", fontSize: "13px", marginTop: "2px" }}>
-        {now ? formatUkDate(now) : " "}
+    <>
+      <h1>{greeting()}{first ? `, ${first}` : ""}.</h1>
+      <p className="sub">
+        {loading ? "Checking what needs you…"
+          : error ? "Couldn't check just now. What you last saw is still below."
+          : n === 0 ? "Nothing needs a decision from you. Everything is being handled."
+          : `${n === 1 ? "One thing needs" : `${n} things need`} a decision from you. Everything else is handled.`}
       </p>
 
-      {/* STATS STRIP */}
-      <div style={{ display: "flex", gap: "14px", marginTop: "18px", flexWrap: "wrap" }}>
-        <StatCard label="Active Tenants" value={analytics ? String(analytics.totalActiveTenants) : "—"} />
-        <StatCard label="Pending HB Claims" value={analytics ? String(analytics.totalPendingHBClaims) : "—"} accent="#E8A84C" />
-        <StatCard label="Suspended HB" value={analytics ? String(analytics.totalSuspendedHB) : "—"} accent="#E05252" />
-        <StatCard label="Expected Revenue" value={analytics ? formatMoney(analytics.expectedRevenue) : "—"} />
-        <StatCard label="Pending Revenue" value={analytics ? formatMoney(analytics.pendingRevenue) : "—"} accent="#E8A84C" />
+      <div className="how" aria-label="How this works">
+        <div><b><i>1</i>The system watches</b>Housing benefit, service charges, repairs, signatures and handovers.</div>
+        <div><b><i>2</i>It lines up the next step</b>Each item below says what happened and what to do.</div>
+        <div><b><i>3</i>You press the button</b>Nothing is sent or changed without you.</div>
       </div>
 
-      <div style={{ display: "flex", gap: "16px", marginTop: "20px", flexWrap: "wrap", alignItems: "flex-start" }}>
-        {/* LEFT — Recent Audit Trail */}
-        <div style={{ ...card, flex: "2 1 420px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <h2 style={{ color: "var(--navy)", fontSize: "15px", fontWeight: 700 }}>Recent Audit Trail</h2>
-            <Link href="/audit-log" style={{ color: "#7A8499", fontSize: "12px", textDecoration: "none" }}>
-              View all →
-            </Link>
+      <section className="needs" aria-live="polite">
+        <div className="hd"><h2>Needs you today</h2><span>The system proposes — you decide</span></div>
+        {error && !data ? (
+          <div className="decision due">
+            <div className="ic" aria-hidden="true">!</div>
+            <div><p className="t">Couldn&apos;t load the list</p><p className="d">{error.message}. Try again in a moment; nothing was lost.</p></div>
+            <Link className="act ghost" href="/tenants">People</Link>
           </div>
-          {audit === null ? (
-            <p style={{ color: "#7A8499", fontSize: "13px" }}>Loading…</p>
-          ) : audit.length === 0 ? (
-            <p style={{ color: "#7A8499", fontSize: "13px" }}>No audit entries yet.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {audit.map((a) => (
-                <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "12px", padding: "6px 0", borderBottom: "1px solid #F3EEE7" }}>
-                  <span style={{ background: ACTION_COLOR[a.action] ?? "#7A8499", color: "#fff", borderRadius: "5px", padding: "2px 7px", fontSize: "10px", fontWeight: 700, minWidth: "54px", textAlign: "center" }}>
-                    {a.action}
-                  </span>
-                  <span style={{ color: "var(--navy)", flex: 1 }}>{a.user_name ?? "—"}</span>
-                  <span style={{ color: "#7A8499", fontFamily: "'JetBrains Mono', monospace" }}>{truncateHash(a.blockchain_hash)}</span>
-                  <span style={{ color: "#9AA6BC" }}>{formatDateTime(a.created_at)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* MIDDLE — Alerts Feed */}
-        <div style={{ ...card, flex: "1 1 300px" }}>
-          <h2 style={{ color: "var(--navy)", fontSize: "15px", fontWeight: 700, marginBottom: "12px" }}>Alerts & Action Items</h2>
-          {analyticsError ? (
-            <p style={{ color: "#E05252", fontSize: "13px" }}>⚠️ Error: {analyticsError}</p>
-          ) : !analytics ? (
-            <p style={{ color: "#7A8499", fontSize: "13px" }}>Loading…</p>
-          ) : analytics.alerts?.length === 0 ? (
-            <p style={{ color: "#7A8499", fontSize: "13px" }}>No urgent alerts.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {analytics.alerts.map((alert: any) => (
-                <Link key={alert.id} href={`/tenants/${alert.tenantId}?tab=housing-benefit`} style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", padding: "10px", borderRadius: "8px", border: "1px solid #EDE8E1", background: alert.severity === "high" ? "#fef2f2" : alert.severity === "medium" ? "#fffbeb" : "#f3f4f6", textDecoration: "none" }}>
-                  <span style={{ color: alert.severity === "high" ? "#991b1b" : alert.severity === "medium" ? "#b45309" : "#374151", fontWeight: 700 }}>
-                    {alert.tenantName}
-                  </span>
-                  <span style={{ color: alert.severity === "high" ? "#b91c1c" : alert.severity === "medium" ? "#d97706" : "#4b5563" }}>
-                    {alert.message}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-        {/* RIGHT — Quick Actions + Recent Tenants */}
-        <div style={{ flex: "1 1 280px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div style={{ ...card, background: "var(--navy)", border: "none" }}>
-            <h2 style={{ color: "#fff", fontSize: "15px", fontWeight: 700, marginBottom: "10px" }}>Quick Actions</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {[
-                { href: "/intake/new", label: "Start Intake" },
-                { href: "/sessions", label: "Log a Session" },
-                { href: "/ledger", label: "Record Payment" },
-                { href: "/ai-brain", label: "Generate AI Report" },
-                { href: "/reports", label: "Print Weekly Report" },
-              ].map((q) => (
-                <Link key={q.href} href={q.href} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#C7CFDD", textDecoration: "none", fontSize: "13px", padding: "9px 11px", borderRadius: "8px", background: "rgba(255,255,255,0.06)" }}>
-                  {q.label} <span style={{ color: "var(--amber)" }}>→</span>
-                </Link>
-              ))}
-            </div>
+        ) : n === 0 && !loading ? (
+          <div className="decision">
+            <div className="ic" aria-hidden="true">✓</div>
+            <div><p className="t">You&apos;re clear.</p><p className="d">Come back tomorrow, or look at People while you wait.</p></div>
+            <Link className="act ghost" href="/tenants">People</Link>
           </div>
-
-          <div style={card}>
-            <h2 style={{ color: "var(--navy)", fontSize: "15px", fontWeight: 700, marginBottom: "10px" }}>Recent Tenants</h2>
-            {activeTenants.length === 0 ? (
-              <p style={{ color: "#7A8499", fontSize: "13px" }}>No tenants yet.</p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {activeTenants.slice(0, 5).map((t) => (
-                  <Link key={t.id} href={`/tenants/${t.id}`} style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
-                    <span style={{ width: "30px", height: "30px", borderRadius: "50%", background: "var(--navy)", color: "var(--amber)", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {initials(t.full_name)}
-                    </span>
-                    <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: "block", color: "var(--navy)", fontSize: "13px", fontWeight: 500 }}>{t.full_name}</span>
-                      <span style={{ display: "block", color: "#7A8499", fontSize: "11px" }}>{t.room_number}</span>
-                    </span>
-                    <span style={{ fontSize: "10px", color: "#7A8499", border: "1px solid #EDE8E1", borderRadius: "5px", padding: "2px 6px" }}>
-                      {BRAND_LABELS[t.brand as Brand]?.split(" ")[0] ?? t.brand}
-                    </span>
-                  </Link>
+        ) : (
+          <div className="decisions">
+            {GROUP_ORDER.filter((g) => items.some((d) => d.kind === g)).map((g) => (
+              <div className="group" key={g}>
+                <p className="gh">{GROUP[g]} <span>{items.filter((d) => d.kind === g).length}</span></p>
+                {items.filter((d) => d.kind === g).map((d, i) => (
+                  <div className={`decision ${d.tone}`} key={`${g}-${i}`}>
+                    <div className="ic" aria-hidden="true">{GROUP_ICON[d.kind]}</div>
+                    <div><p className="t">{d.title}</p><p className="d">{d.detail}</p></div>
+                    <Link className="act" href={d.href}>{d.cta}</Link>
+                  </div>
                 ))}
               </div>
-            )}
+            ))}
+          </div>
+        )}
+      </section>
+
+      <div className="stats">
+        <Link href="/tenants" className="stat"><div className="k">People housed</div><div className="v">{data ? data.stats.peopleHoused : "—"}</div><div className="m">active tenants</div></Link>
+        <Link href="/ledger" className="stat"><div className="k">Money owed</div><div className={`v${data && data.stats.moneyOwed > 0 ? " money" : ""}`}>{data ? formatMoney(data.stats.moneyOwed) : "—"}</div><div className="m">{data ? (data.stats.moneyOwed > 0 ? "service charge past its due date" : "nobody is behind") : " "}</div></Link>
+        <Link href="/tenants?filter=suspended" className="stat"><div className="k">Housing benefit</div><div className="v">{data ? data.stats.housingBenefitAtRisk : "—"}</div><div className="m">{data ? (data.stats.housingBenefitAtRisk === 0 ? "all claims paying" : "pending or suspended") : " "}</div></Link>
+        <Link href="/maintenance" className="stat"><div className="k">Repairs</div><div className="v">{data ? data.stats.repairsOpen : "—"}</div><div className="m">{data ? (data.stats.repairsOpen === 0 ? "nothing open" : "open right now") : " "}</div></Link>
+      </div>
+
+      {data && (
+        <div className="clear">
+          <div className="tick" aria-hidden="true">✓</div>
+          <div>
+            <b>{n === 0 ? "Everything is handled." : "Everything else is handled."}</b>
+            <span>Checked {new Date(data.generatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}: {data.checked.join(", ")}.</span>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
