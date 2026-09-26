@@ -177,6 +177,9 @@ importers:
       '@tenant-hub/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
+      '@tenant-hub/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@tenant-hub/audit':
         specifier: workspace:*
         version: link:../../packages/audit
@@ -270,6 +273,9 @@ importers:
       typescript:
         specifier: 5.4.5
         version: 5.4.5
+      vitest:
+        specifier: 1.6.0
+        version: 1.6.0(@types/node@22.7.5)(jsdom@29.1.1)(terser@5.48.0)
 
   packages/audit:
     devDependencies:

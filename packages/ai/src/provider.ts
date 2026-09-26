@@ -1,5 +1,12 @@
-import { generateText } from "ai";
-import { getBrainModel, AIBrainProvider } from "./router";
+// `ai` and `./router` (which loads @ai-sdk/openai, @ai-sdk/azure, @ai-sdk/anthropic,
+// @ai-sdk/google) are imported LAZILY inside complete(), not at module load time.
+// Their dependency graph has a real transitive version conflict in this monorepo
+// (zod-to-json-schema@3.25 expects a zod subpath export this repo's pinned
+// zod@3.23 does not have). Next.js's webpack resolver tolerates it; plain Node
+// ESM resolution — what the worker runs under via tsx, and what any test of
+// this package runs under — does not. Importing @tenant-hub/ai at all must
+// never eagerly trigger that failure; only an actual LLM call should.
+import type { AIBrainProvider } from "./router";
 import OpenAI from "openai";
 
 export interface CompleteOptions {
@@ -33,6 +40,8 @@ export async function complete(opts: CompleteOptions): Promise<string> {
   const provider = providerId as AIBrainProvider;
 
   try {
+    const { getBrainModel } = await import("./router");
+    const { generateText } = await import("ai");
     const model = getBrainModel(provider);
 
     // Prepare content for vision or text

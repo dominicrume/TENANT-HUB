@@ -3,18 +3,27 @@
   "version": "0.0.1",
   "private": true,
   "main": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc --noEmit", "lint": "eslint src --ext .ts,.tsx" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest run --passWithNoTests"
+  },
   "dependencies": {
     "@tenant-hub/validation": "workspace:*",
-    "@tenant-hub/audit":      "workspace:*",
-    "ai":                     "^3.1.32",
-    "@ai-sdk/openai":         "^0.0.18",
-    "@ai-sdk/google":         "^0.0.17",
-    "@ai-sdk/anthropic":      "^0.0.16",
-    "@ai-sdk/azure":          "^0.0.18",
-    "openai":                 "4.56.0",
-    "zod":                    "3.23.8"
+    "@tenant-hub/audit": "workspace:*",
+    "ai": "^3.1.32",
+    "@ai-sdk/openai": "^0.0.18",
+    "@ai-sdk/google": "^0.0.17",
+    "@ai-sdk/anthropic": "^0.0.16",
+    "@ai-sdk/azure": "^0.0.18",
+    "openai": "4.56.0",
+    "zod": "3.23.8"
   },
-  "devDependencies": { "typescript": "5.4.5" }
+  "devDependencies": {
+    "typescript": "5.4.5",
+    "vitest": "1.6.0"
+  }
 }

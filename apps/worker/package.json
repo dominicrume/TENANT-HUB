@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tenant-hub/adapters": "workspace:*",
+    "@tenant-hub/ai": "workspace:*",
     "@tenant-hub/audit": "workspace:*",
     "@tenant-hub/blockchain": "workspace:*",
     "@tenant-hub/db": "workspace:*",
