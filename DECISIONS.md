@@ -5,6 +5,22 @@ Newest first.
 
 ---
 
+## D21 — `needs-you.ts` moved from `apps/web/src/lib` to `@tenant-hub/domain` (2026-09-27, C26)
+**Context:** owner-digest's brief is "one email, same list as Today." Today's list is
+`buildNeedsYou()`, a pure function that lived only in `apps/web/src/lib` — a leaf app the worker
+cannot import (package topology is one-directional, and apps never depend on each other). Hand-porting
+its rules into a second, worker-side implementation over pg rows would create exactly the two-queries-
+that-can-quietly-diverge failure this whole architecture exists to prevent (CLAUDE.md's prototype
+failure #2 — "Tenant list vanished after a save — two different queries diverged").
+**Decision:** Moved `needs-you.ts` and its test verbatim into `packages/domain` (it was already
+dependency-free — no react/next/supabase imports, pure data in, data out) and re-exported it from
+`@tenant-hub/domain`'s index. `apps/web`'s API route, hook and Today page now import it from there
+instead of `../lib/needs-you`; behaviour is unchanged. owner-digest fetches the same five row shapes
+itself via pg and calls the identical function, so the digest can never show a different list to the
+one on screen.
+**Why:** One rule set, read by both runtimes, matching H8's actual mechanism (one shared function,
+not one shared intention). No behaviour changed for the web app; this is a relocation, not a rewrite.
+
 ## D20 — the "Paperwork" group waits for the Homes/Paperwork screens to exist (2026-09-26, C21)
 **Context:** The build plan's done-when for compliance-watch is "the seeded missing Fire Risk
 Assessment appears on Today with 'Add certificate'." The seed script is C36 and the Paperwork screen

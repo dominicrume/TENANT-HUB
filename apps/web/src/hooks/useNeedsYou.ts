@@ -6,7 +6,7 @@
 "use client";
 
 import useSWR from "swr";
-import type { NeedsYouResponse } from "../lib/needs-you";
+import type { NeedsYouResponse } from "@tenant-hub/domain";
 
 const fetcher = async (url: string): Promise<NeedsYouResponse> => {
   const res = await fetch(url, { cache: "no-store" });

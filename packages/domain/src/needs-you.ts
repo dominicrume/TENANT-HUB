@@ -2,9 +2,14 @@
  * Needs you today — the short list of things only a person can decide.
  *
  * This module is PURE: it turns already-fetched rows into items so the same
- * logic can be unit-tested and reused. Fetching lives in /api/needs-you; the UI
- * reads it through useNeedsYou() so the Today page and the nav badge can never
- * disagree (H8).
+ * logic can be unit-tested and reused. On the web app, fetching lives in
+ * /api/needs-you and the UI reads it through useNeedsYou(), so the Today page
+ * and the nav badge can never disagree (H8). It lives here, in the shared
+ * domain package, so the worker's owner-digest agent (BUILD_PLAN C26) can
+ * build its morning summary from this SAME function over its own pg-fetched
+ * rows — one rule set, never two queries that could quietly diverge (H8's
+ * whole reason for existing: a second, hand-rolled "Today, but for email"
+ * list is exactly how the prototype's tenant list once vanished after a save).
  *
  * C04 builds this from data Tenant Hub already has. Agent-driven groups
  * (letters to send, money in, insurance, paperwork) arrive with their agents

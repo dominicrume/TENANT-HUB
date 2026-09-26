@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { withRouteHandler } from "../../../lib/api-handler";
-import { buildNeedsYou, type TenantRow, type ChargeRow, type TicketRow, type DraftRow, type HandoverRow } from "../../../lib/needs-you";
+import { buildNeedsYou, type TenantRow, type ChargeRow, type TicketRow, type DraftRow, type HandoverRow } from "@tenant-hub/domain";
 
 export const dynamic = "force-dynamic";
 

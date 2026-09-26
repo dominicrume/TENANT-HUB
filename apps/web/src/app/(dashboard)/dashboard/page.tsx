@@ -11,7 +11,7 @@
 import Link from "next/link";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useNeedsYou } from "../../../hooks/useNeedsYou";
-import { GROUP, GROUP_ORDER, GROUP_ICON } from "../../../lib/needs-you";
+import { GROUP, GROUP_ORDER, GROUP_ICON } from "@tenant-hub/domain";
 import { formatMoney, greeting } from "../../../lib/format";
 
 export default function TodayPage() {
@@ -76,7 +76,7 @@ export default function TodayPage() {
         <Link href="/maintenance" className="stat"><div className="k">Repairs</div><div className="v">{data ? data.stats.repairsOpen : "—"}</div><div className="m">{data ? (data.stats.repairsOpen === 0 ? "nothing open" : "open right now") : " "}</div></Link>
       </div>
 
-      <p className="muted" style={{ margin: "10px 0 0" }}><Link href="/reports" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Monthly report</Link> · <Link href="/settings" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Settings</Link></p>
+      <p className="muted" style={{ margin: "10px 0 0" }}><Link href="/reports/morning-summary" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>This morning&apos;s summary</Link> · <Link href="/reports" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Monthly report</Link> · <Link href="/settings" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Settings</Link></p>
 
       {data && (
         <div className="clear">
