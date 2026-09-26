@@ -5,6 +5,18 @@ Newest first.
 
 ---
 
+## D22 — "New laws renders" waits for its own screen (C35), same as D20 (2026-09-27, C27)
+**Context:** C27's done-when reads "`regulation_items` fills from legislation.gov.uk on first drain
+and New laws renders." The New laws screen is C35, in Phase 5 — it does not exist yet, and Shell.tsx's
+own nav comment already says so ("New laws join as their screens land").
+**Decision:** Ship regulation-watch now, fully tested on pglite with an injected fake feed (no
+network dependency, and legislation.gov.uk is unreachable from this sandbox regardless) — the
+housing-irrelevant-item, supported-only-mapping, all-scope-including-mixed, idempotence and
+unreachable-feed-ends-quietly scenarios all pass. Defer the New laws screen itself to C35, exactly
+the precedent D20 set for compliance-watch and the Paperwork group.
+**Why:** Same reasoning as D20 — a done-when describes the feature's eventual, fully-verified
+behaviour once its screen lands, not a licence to fake a link into a page that isn't built yet.
+
 ## D21 — `needs-you.ts` moved from `apps/web/src/lib` to `@tenant-hub/domain` (2026-09-27, C26)
 **Context:** owner-digest's brief is "one email, same list as Today." Today's list is
 `buildNeedsYou()`, a pure function that lived only in `apps/web/src/lib` — a leaf app the worker

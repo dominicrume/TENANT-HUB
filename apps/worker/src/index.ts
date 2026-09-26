@@ -25,6 +25,7 @@ import { arrearsLadder, ARREARS_MANDATE, ARREARS_LABEL } from "./agents/arrears-
 import { issueTriage, TRIAGE_MANDATE, TRIAGE_LABEL } from "./agents/issue-triage";
 import { interactionMemory, MEMORY_MANDATE, MEMORY_LABEL } from "./agents/interaction-memory";
 import { ownerDigest, DIGEST_MANDATE, DIGEST_LABEL } from "./agents/owner-digest";
+import { regulationWatch, REGULATION_MANDATE, REGULATION_LABEL } from "./agents/regulation-watch";
 import { managerEmail } from "./agents/common";
 
 setLogger(createLogger({ level: env.server.LOG_LEVEL, service: "tenant-hub-worker" }));
@@ -37,7 +38,8 @@ export function registerAgents() {
   register({ name: "issue-triage", label: TRIAGE_LABEL, fn: issueTriage, mandate: TRIAGE_MANDATE, scheduleMs: HOUR });
   register({ name: "interaction-memory", label: MEMORY_LABEL, fn: interactionMemory, mandate: MEMORY_MANDATE, scheduleMs: DAY });
   register({ name: "owner-digest", label: DIGEST_LABEL, fn: ownerDigest, mandate: DIGEST_MANDATE, scheduleMs: DAY });
-  // Ported agents register here one per commit: regulation-watch (C27), insurance-renewal (C28).
+  register({ name: "regulation-watch", label: REGULATION_LABEL, fn: regulationWatch, mandate: REGULATION_MANDATE, scheduleMs: DAY });
+  // Ported agents register here one per commit: insurance-renewal (C28).
 }
 
 async function main() {
