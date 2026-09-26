@@ -21,6 +21,7 @@ import { drainStamps } from "./agents/chain-stamp";
 import { chainCheck, CHAIN_MANDATE, CHAIN_LABEL } from "./agents/chain-check";
 import { complianceWatch, COMPLIANCE_MANDATE, COMPLIANCE_LABEL } from "./agents/compliance-watch";
 import { rentReconciliation, RENT_MANDATE, RENT_LABEL } from "./agents/rent-reconciliation";
+import { arrearsLadder, ARREARS_MANDATE, ARREARS_LABEL } from "./agents/arrears-ladder";
 import { managerEmail } from "./agents/common";
 
 setLogger(createLogger({ level: env.server.LOG_LEVEL, service: "tenant-hub-worker" }));
@@ -29,7 +30,8 @@ export function registerAgents() {
   register({ name: "chain-check", label: CHAIN_LABEL, fn: chainCheck, mandate: CHAIN_MANDATE, scheduleMs: DAY });
   register({ name: "compliance-watch", label: COMPLIANCE_LABEL, fn: complianceWatch, mandate: COMPLIANCE_MANDATE, scheduleMs: DAY });
   register({ name: "rent-reconciliation", label: RENT_LABEL, fn: rentReconciliation, mandate: RENT_MANDATE, scheduleMs: DAY });
-  // Ported agents register here one per commit: arrears-ladder (C23), issue-triage (C24), ...
+  register({ name: "arrears-ladder", label: ARREARS_LABEL, fn: arrearsLadder, mandate: ARREARS_MANDATE, scheduleMs: DAY });
+  // Ported agents register here one per commit: issue-triage (C24), interaction-memory (C25), ...
 }
 
 async function main() {

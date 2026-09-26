@@ -16,3 +16,9 @@ export async function managerEmail(client: Queryable, orgId: string): Promise<st
 
 export const today = () => new Date().toISOString().slice(0, 10);
 export const daysBetween = (a: string | Date, b = new Date()) => Math.floor((b.getTime() - new Date(a).getTime()) / 864e5);
+
+/** The organisation's registered name, for the header of an agent-drafted document. */
+export async function orgName(client: Queryable, orgId: string): Promise<string> {
+  const r = await client.query<{ name: string | null }>("SELECT name FROM organisations WHERE id = $1", [orgId]);
+  return r.rows[0]?.name ?? "Tenant Hub";
+}

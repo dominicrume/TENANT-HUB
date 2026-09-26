@@ -56,6 +56,19 @@ export function stageIndex(cls: UnitClass, stage: string): number {
   return ARREARS_LADDER[cls].findIndex((r) => r.stage === stage);
 }
 
+/**
+ * Stages whose draft is addressed directly to the tenant — eligible to
+ * actually be emailed to them, on auto-release or once a person presses
+ * release. Every other stage (hb_chase → the council, support_plan and
+ * manager_review → internal, solicitor/notice/forfeiture/bailiff → a
+ * solicitor or enforcement agent) is a brief for a person or a third party
+ * this system holds no contact record for; releasing one records that a
+ * person has read and actioned it, and that person delivers it by their own
+ * judgement (H10: the system never independently reaches a regulator, a
+ * council or a solicitor).
+ */
+export const TENANT_FACING_STAGES: ReadonlySet<string> = new Set(["reminder", "formal_letter"]);
+
 /* ── Required certificates ─────────────────────────────────────────────── */
 
 export const REQUIRED_CERTIFICATES: Record<UnitClass, readonly string[]> = {
