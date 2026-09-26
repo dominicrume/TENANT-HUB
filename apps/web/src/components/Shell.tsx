@@ -47,17 +47,18 @@ export interface NavItem {
 }
 
 /**
- * The staff console nav. Homes, Paperwork and New laws join as their screens
- * ship (docs/BUILD_PLAN.md C29, C32, C35). Target: eight items. Sessions,
- * Handovers, Messages, Risk flags and AI live inside the tenant record and
- * People page; Reports and Analytics are reached from Today (C05).
+ * The staff console nav. Paperwork and New laws join as their screens ship
+ * (docs/BUILD_PLAN.md C32, C35). Target: eight items. Sessions, Handovers,
+ * Messages, Risk flags and AI live inside the tenant record and People page;
+ * Reports and Analytics are reached from Today (C05).
  */
 export const STAFF_NAV: NavItem[] = [
   { href: "/dashboard",   label: "Today",               icon: "today",   mobile: true },
   { href: "/tenants",     label: "People",              icon: "people",  mobile: true },
+  { href: "/homes",       label: "Homes",               icon: "homes",   mobile: true },
   { href: "/ledger",      label: "Rent",                icon: "rent",    mobile: true },
-  { href: "/maintenance", label: "Repairs",             icon: "repairs", mobile: true },
-  { href: "/audit",       label: "What the system did", icon: "audit",   mobile: true, short: "Log" },
+  { href: "/maintenance", label: "Repairs",             icon: "repairs", mobile: true, short: "Fix" },
+  { href: "/audit",       label: "What the system did", icon: "audit",   short: "Log" },
 ];
 
 export const CONTRACTOR_NAV: NavItem[] = [

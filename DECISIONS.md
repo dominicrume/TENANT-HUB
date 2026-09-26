@@ -5,6 +5,22 @@ Newest first.
 
 ---
 
+## D23 — Homes: "Add tenancy" links an existing tenant, never creates one; QR is generated client-side (2026-09-27, C29)
+**Context:** The Homes brief says "Add tenancy in three fields." A fourth field — a brand-new tenant's
+name — was tempting, but /intake/new is the only route a new tenant should ever enter through: it
+carries the compliance forms, the signature step and the audit trail an ad-hoc insert on the Homes
+screen would skip entirely.
+**Decision:** "Add tenancy" on the home page always links an EXISTING tenant (chosen from the same
+list useTenants() already serves) to a room, with rent amount and frequency as its two typed fields.
+A brand-new person still starts at /intake/new. Separately, `Print QR` (the wall poster for
+/report/[propertyId], C33) needed a QR image; this sandbox's network access turned out to work for
+the npm registry (unlike live API calls, which fail), so `qrcode` (zero further dependencies, MIT)
+was added to apps/web and the code is generated entirely client-side — nothing is fetched to draw it,
+so it works identically once deployed with no network egress assumption either way.
+**Why:** One entry point for a new tenant, never two that could diverge on what "creating a tenant"
+actually requires (H8's spirit again). The QR library choice is the smallest dependency that does
+the one thing needed, verified to install in this environment before being relied upon.
+
 ## D22 — "New laws renders" waits for its own screen (C35), same as D20 (2026-09-27, C27)
 **Context:** C27's done-when reads "`regulation_items` fills from legislation.gov.uk on first drain
 and New laws renders." The New laws screen is C35, in Phase 5 — it does not exist yet, and Shell.tsx's
