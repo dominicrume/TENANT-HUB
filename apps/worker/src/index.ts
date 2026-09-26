@@ -26,6 +26,7 @@ import { issueTriage, TRIAGE_MANDATE, TRIAGE_LABEL } from "./agents/issue-triage
 import { interactionMemory, MEMORY_MANDATE, MEMORY_LABEL } from "./agents/interaction-memory";
 import { ownerDigest, DIGEST_MANDATE, DIGEST_LABEL } from "./agents/owner-digest";
 import { regulationWatch, REGULATION_MANDATE, REGULATION_LABEL } from "./agents/regulation-watch";
+import { insuranceRenewal, INSURANCE_MANDATE, INSURANCE_LABEL } from "./agents/insurance-renewal";
 import { managerEmail } from "./agents/common";
 
 setLogger(createLogger({ level: env.server.LOG_LEVEL, service: "tenant-hub-worker" }));
@@ -39,7 +40,8 @@ export function registerAgents() {
   register({ name: "interaction-memory", label: MEMORY_LABEL, fn: interactionMemory, mandate: MEMORY_MANDATE, scheduleMs: DAY });
   register({ name: "owner-digest", label: DIGEST_LABEL, fn: ownerDigest, mandate: DIGEST_MANDATE, scheduleMs: DAY });
   register({ name: "regulation-watch", label: REGULATION_LABEL, fn: regulationWatch, mandate: REGULATION_MANDATE, scheduleMs: DAY });
-  // Ported agents register here one per commit: insurance-renewal (C28).
+  register({ name: "insurance-renewal", label: INSURANCE_LABEL, fn: insuranceRenewal, mandate: INSURANCE_MANDATE, scheduleMs: DAY });
+  // M4 complete. Screens land in M5 (C29+).
 }
 
 async function main() {
