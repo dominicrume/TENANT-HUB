@@ -105,4 +105,22 @@ describe("Hardening Architecture Enforcement", () => {
     const hasBreach = searchRecursive(appsWebSrc);
     expect(hasBreach).toBe(false);
   });
+
+  it("CON-1: `pg` is imported only inside packages/db", () => {
+    let rootDir = path.resolve(__dirname);
+    while (rootDir !== "/" && !fs.existsSync(path.join(rootDir, "pnpm-workspace.yaml"))) rootDir = path.dirname(rootDir);
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const f of fs.readdirSync(dir)) {
+        if (["node_modules", ".next", ".git", "dist", ".turbo"].includes(f)) continue;
+        const full = path.join(dir, f);
+        if (fs.statSync(full).isDirectory()) walk(full);
+        else if (/\.(ts|tsx)$/.test(full) && !full.includes(`${path.sep}packages${path.sep}db${path.sep}`)) {
+          if (/from\s+["']pg["']|require\(\s*["']pg["']\s*\)/.test(fs.readFileSync(full, "utf-8"))) offenders.push(full);
+        }
+      }
+    };
+    for (const d of ["apps", "packages"]) { const p = path.join(rootDir, d); if (fs.existsSync(p)) walk(p); }
+    expect(offenders).toEqual([]);
+  });
 });

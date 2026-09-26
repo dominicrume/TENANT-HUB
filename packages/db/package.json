@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
@@ -17,9 +17,12 @@
     "@tenant-hub/env": "workspace:*",
     "@tenant-hub/validation": "workspace:*",
     "dotenv": "^17.4.2",
+    "pg": "8.23.0",
     "zod": "3.23.8"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@types/pg": "8.23.1",
     "typescript": "5.4.5",
     "vitest": "1.6.0"
   }

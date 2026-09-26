@@ -10,6 +10,9 @@ import { z } from "zod";
 const serverSchema = z.object({
   SUPABASE_URL:              z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  // The one database connection (docs/PLATFORM_CONSOLIDATION.md step 1). Supabase's
+  // transaction pooler URI today, Railway Postgres after step 5. Optional until then.
+  DATABASE_URL:              z.string().url().optional(),
   // One of these powers the AI features. Both optional; the AI gateway picks a
   // provider at runtime (OpenAI preferred when present). See DECISIONS.md D3.
   RUNCRATE_API_KEY:          z.string().optional(),

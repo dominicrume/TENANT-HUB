@@ -13,6 +13,10 @@ module.exports = {
     },
   },
   rules: {
+    // The one database driver lives in packages/db (docs/PLATFORM_CONSOLIDATION.md step 1).
+    "no-restricted-imports": ["error", {
+      paths: [{ name: "pg", message: "pg is the database driver of packages/db only. Use a repository from @tenant-hub/db." }],
+    }],
     "import/no-restricted-paths": ["error", {
       zones: [
         // ui must never import infrastructure packages
@@ -69,4 +73,7 @@ module.exports = {
       ],
     }],
   },
+  overrides: [
+    { files: ["packages/db/**/*.ts"], rules: { "no-restricted-imports": "off" } },
+  ],
 };
