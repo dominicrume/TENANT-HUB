@@ -123,4 +123,36 @@ describe("Hardening Architecture Enforcement", () => {
     for (const d of ["apps", "packages"]) { const p = path.join(rootDir, d); if (fs.existsSync(p)) walk(p); }
     expect(offenders).toEqual([]);
   });
+
+  it("H1 ratchet: no NEW direct table writes outside writeWithAudit (legacy set shrinks at C09, never grows)", () => {
+    // Every direct .insert/.update/.upsert/.delete on a table through the Supabase client, as of C10.
+    // Each one is an H1 gap fixed when its route moves onto a repository (docs/BUILD_PLAN.md C09).
+    // Remove entries here as they are fixed. Adding one is a build failure.
+    const LEGACY = new Set([
+      "communications insert", "communications_log insert", "form_templates upsert", "incident_reports insert",
+      "intake_checklists update", "maintenance_tickets insert", "maintenance_tickets update", "organisations insert",
+      "profiles update", "service_charges delete", "shift_handovers insert", "staff_notes insert", "stamp_queue update",
+      "tenant_documents delete", "tenant_documents insert", "tenant_forms upsert", "tenant_goal_updates insert", "tenant_goals insert",
+    ]);
+    let rootDir = path.resolve(__dirname);
+    while (rootDir !== "/" && !fs.existsSync(path.join(rootDir, "pnpm-workspace.yaml"))) rootDir = path.dirname(rootDir);
+    const found = new Map<string, string[]>();
+    const walk = (dir: string) => {
+      for (const f of fs.readdirSync(dir)) {
+        if ([".next", "node_modules", "dist"].includes(f)) continue;
+        const full = path.join(dir, f);
+        if (fs.statSync(full).isDirectory()) { walk(full); continue; }
+        if (!/\.(ts|tsx)$/.test(full)) continue;
+        const src = fs.readFileSync(full, "utf-8");
+        const re = /\.from\(\s*["']([a-z_]+)["']\s*\)[\s\S]{0,200}?\.(insert|update|upsert|delete)\(/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(src))) { const k = `${m[1]} ${m[2]}`; found.set(k, [...(found.get(k) ?? []), path.relative(rootDir, full)]); }
+      }
+    };
+    walk(path.join(rootDir, "apps/web/src"));
+    const added = [...found.keys()].filter((k) => !LEGACY.has(k));
+    expect(added, `New direct writes bypass writeWithAudit: ${added.map((k) => `${k} in ${found.get(k)!.join(", ")}`).join("; ")}`).toEqual([]);
+    const fixed = [...LEGACY].filter((k) => !found.has(k));
+    if (fixed.length) console.log(`H1 ratchet: ${fixed.length} legacy direct writes fixed — remove from LEGACY: ${fixed.join(", ")}`);
+  });
 });
