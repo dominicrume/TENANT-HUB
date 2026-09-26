@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTenants } from "../../../hooks/useTenants";
+import { RentLaddersPanel } from "../../../components/RentLaddersPanel";
 
 export default function LedgerIndexPage() {
   const { tenants } = useTenants();
@@ -62,6 +63,7 @@ export default function LedgerIndexPage() {
 
   return (
     <div style={{ padding: "32px", fontFamily: "'Sora', sans-serif" }}>
+      <RentLaddersPanel />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
         <h1 style={{ color: "var(--navy)", margin: 0 }}>Global Ledger</h1>
         <div style={{ display: "flex", gap: "12px" }}>

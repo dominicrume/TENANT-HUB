@@ -5,6 +5,17 @@ Newest first.
 
 ---
 
+## D24 — Rent screen: the new ladders/queue/up-to-date panel is added above the existing ledger, not a replacement of it (2026-09-27, C30)
+**Context:** C30's brief describes a new view — ladders as beads, "Is this rent?", HB status, "Up to
+date" — but says nothing about the existing /ledger page's charge-recording and payment-recording
+forms, which are a real, currently-used workflow for cash and manual entries the bank feed can't see.
+**Decision:** Built the new view as its own component (RentLaddersPanel) and placed it above the
+existing page's content, unchanged. Nothing about record-payment or add-charge was touched.
+**Why:** The brief describes what to add, not what to remove; deleting a working manual-entry
+workflow on the strength of a screen redesign brief that never mentions it would be a scope
+overreach in the wrong direction — precisely the kind of change CLAUDE.md's engineering discipline
+warns against (don't remove what wasn't asked to be removed).
+
 ## D23 — Homes: "Add tenancy" links an existing tenant, never creates one; QR is generated client-side (2026-09-27, C29)
 **Context:** The Homes brief says "Add tenancy in three fields." A fourth field — a brand-new tenant's
 name — was tempting, but /intake/new is the only route a new tenant should ever enter through: it
