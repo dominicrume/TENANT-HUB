@@ -191,6 +191,22 @@ importers:
         specifier: 5.4.5
         version: 5.4.5
 
+  packages/adapters:
+    dependencies:
+      '@tenant-hub/env':
+        specifier: workspace:*
+        version: link:../env
+      '@tenant-hub/ports':
+        specifier: workspace:*
+        version: link:../ports
+    devDependencies:
+      typescript:
+        specifier: 5.4.5
+        version: 5.4.5
+      vitest:
+        specifier: 1.6.0
+        version: 1.6.0(@types/node@22.7.5)(jsdom@29.1.1)(terser@5.48.0)
+
   packages/ai:
     dependencies:
       '@ai-sdk/anthropic':

@@ -21,6 +21,24 @@ const serverSchema = z.object({
   POLYGON_RPC_URL:           z.string().url().optional(),
   STAMP_WALLET_PRIVATE_KEY:  z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  // ── Agent runtime (docs/BUILD_PLAN.md C13/C14) ─────────────────────────
+  LOG_LEVEL:          z.enum(["debug", "info", "warn", "error"]).default("info"),
+  WORKER_POLL_MS:     z.coerce.number().int().positive().default(30_000),
+  WORKER_MAX_RETRIES: z.coerce.number().int().positive().default(3),
+  APP_URL:            z.string().url().optional(),
+  // Adapter modes: live | simulated. Declared here, badged on screen (H9). Only regulation is live by default.
+  ADAPTER_MODE_REGULATION: z.enum(["live", "simulated"]).default("live"),
+  ADAPTER_MODE_NOTIFY:     z.enum(["live", "simulated"]).default("simulated"),
+  ADAPTER_MODE_BANK:       z.enum(["live", "simulated"]).default("simulated"),
+  ADAPTER_MODE_INSURANCE:  z.enum(["live", "simulated"]).default("simulated"),
+  ADAPTER_MODE_STT:        z.enum(["live", "simulated"]).default("simulated"),
+  // Live adapters switch on only when their credentials exist.
+  RESEND_API_KEY:          z.string().optional(),
+  NOTIFY_FROM:             z.string().optional(),
+  TRUELAYER_ACCESS_TOKEN:  z.string().optional(),
+  TRUELAYER_ACCOUNT_ID:    z.string().optional(),
+  INSURANCE_QUOTE_URL:     z.string().url().optional(),
+  INSURANCE_QUOTE_KEY:     z.string().optional(),
 });
 
 // ── Client-safe schema (NEXT_PUBLIC_ prefix) ─────────────────────────────

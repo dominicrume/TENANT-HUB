@@ -1,0 +1,185 @@
+/**
+ * @tenant-hub/adapters — every port implemented twice: live and simulated.
+ *
+ * H9: a simulated adapter always says so (mode: "simulated") and never reports
+ * a message as delivered. A live adapter without its credentials throws, so
+ * "live" can never quietly mean "pretend". Nothing here can bind cover, pay,
+ * or serve a notice: the ports have no such verbs (H10, H11).
+ *
+ * Reads configuration only through @tenant-hub/env.
+ */
+import { env } from "@tenant-hub/env";
+import type {
+  AdapterMode, AdapterResult, RegulationFeedPort, RegulationItem, InsuranceQuotePort, Quote, RiskProfile,
+  BankFeedPort, ExpectedRent, BankTransaction, SttPort, NotifyPort, Notification,
+} from "@tenant-hub/ports";
+
+export class AdapterError extends Error {
+  constructor(message: string, public readonly adapter: string) { super(message); this.name = "AdapterError"; }
+}
+const now = () => new Date().toISOString();
+const ok = <T>(data: T, mode: AdapterMode, source: string): AdapterResult<T> => ({ data, mode, source, retrievedAt: now() });
+
+/* ═══════════════════════ Regulation (live) ═══════════════════════════════ */
+export class LegislationGovUkAdapter implements RegulationFeedPort {
+  readonly mode = "live" as const;
+  constructor(private readonly feed = "https://www.legislation.gov.uk/new/data.feed", private readonly fetchImpl: typeof fetch = fetch) {}
+  async poll(_sinceIso: string): Promise<AdapterResult<RegulationItem[]>> {
+    const res = await this.fetchImpl(this.feed, { headers: { Accept: "application/atom+xml" } }).catch(() => null);
+    if (!res || !res.ok) throw new AdapterError(`legislation.gov.uk ${res?.status ?? "unreachable"}`, "regulation");
+    return ok(parseAtom(await res.text()), "live", "legislation.gov.uk");
+  }
+}
+/** Minimal Atom parser: entries → items. Exported for tests. */
+export function parseAtom(xml: string): RegulationItem[] {
+  const items: RegulationItem[] = [];
+  for (const m of xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)) {
+    const e = m[1] ?? "";
+    const pick = (re: RegExp) => decode((e.match(re)?.[1] ?? "").trim());
+    const title = pick(/<title[^>]*>([\s\S]*?)<\/title>/), id = pick(/<id>([\s\S]*?)<\/id>/);
+    const url = e.match(/<link[^>]*href="([^"]+)"/)?.[1] ?? "";
+    const updated = pick(/<updated>([\s\S]*?)<\/updated>/) || pick(/<published>([\s\S]*?)<\/published>/);
+    const excerpt = pick(/<summary[^>]*>([\s\S]*?)<\/summary>/).slice(0, 600);
+    if (id && title) items.push({ externalId: id, title, url, publishedOn: updated.slice(0, 10), excerpt });
+  }
+  return items;
+}
+/** Decode entities first (Atom summaries are often escaped HTML), then strip tags. */
+const decode = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim();
+
+/* ═══════════════════════ Insurance quotes ════════════════════════════════ */
+/** Deterministic, plausibly priced. Provider names carry "(simulated)" so no screen can forget. */
+export class SimInsuranceQuote implements InsuranceQuotePort {
+  readonly mode = "simulated" as const;
+  async getQuotes(r: RiskProfile): Promise<AdapterResult<Quote[]>> {
+    const base = Math.max(400, r.rebuildValue * 0.00085)
+      * (r.assetClass === "commercial" ? 1.15 : r.assetClass === "mixed" ? 1.08 : r.assetClass === "supported" ? 1.05 : 1)
+      * (1 + 0.04 * r.missingCertificates) * (1 + 0.02 * r.openIssues) * ((r.floors ?? 1) > 4 ? 1.1 : 1);
+    const anchor = r.priorPremium ?? base;
+    const q = (name: string, mult: number, excess: number): Quote =>
+      ({ providerName: `${name} (simulated)`, premium: Math.round(Math.min(anchor, base) * mult), excess, coverSummary: { buildings: true, lossOfRent: true, publicLiability: "£5m" } });
+    return ok([q("Provider A", 0.89, 500), q("Provider B", 0.98, 250), q("Provider C", 0.81, 750)], "simulated", "sim:insurance");
+  }
+}
+/** Any broker or aggregator that answers JSON { quotes: [{ providerName, premium, excess }] }. Still stops at the decision card. */
+export class HttpInsuranceQuote implements InsuranceQuotePort {
+  readonly mode = "live" as const;
+  constructor(private readonly url: string, private readonly key?: string, private readonly fetchImpl: typeof fetch = fetch) {}
+  async getQuotes(r: RiskProfile): Promise<AdapterResult<Quote[]>> {
+    const res = await this.fetchImpl(this.url, { method: "POST", headers: { "Content-Type": "application/json", ...(this.key ? { Authorization: `Bearer ${this.key}` } : {}) }, body: JSON.stringify(r) }).catch(() => null);
+    if (!res || !res.ok) throw new AdapterError(`Quote endpoint ${res?.status ?? "unreachable"}`, "insurance");
+    const j = (await res.json()) as { quotes?: unknown[] } | unknown[];
+    const raw = Array.isArray(j) ? j : (j.quotes ?? []);
+    const quotes = raw.map((q) => { const x = q as Record<string, unknown>; return { providerName: String(x.providerName ?? x.provider ?? "Provider"), premium: Number(x.premium), excess: Number(x.excess ?? 0), coverSummary: (x.coverSummary as Record<string, unknown>) ?? {} }; })
+      .filter((q) => Number.isFinite(q.premium) && q.premium > 0);
+    if (!quotes.length) throw new AdapterError("Quote endpoint returned no usable quotes", "insurance");
+    return ok(quotes, "live", new URL(this.url).host);
+  }
+}
+
+/* ═══════════════════════ Bank feed (read-only) ═══════════════════════════ */
+/** Pays fresh charges cleanly; every second one arrives as a half payment with a vague reference, so the weak-match queue is always demonstrable. */
+export class SimBankFeed implements BankFeedPort {
+  readonly mode = "simulated" as const;
+  constructor(private readonly today = () => new Date()) {}
+  async transactions(expected: ExpectedRent[], _sinceIso: string): Promise<AdapterResult<BankTransaction[]>> {
+    const t = this.today().getTime();
+    const fresh = expected.filter((e) => { const age = (t - new Date(e.dueDate).getTime()) / 864e5; return age >= 0 && age <= 3; })
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.reference.localeCompare(b.reference));
+    const out = fresh.map((e, i) => {
+      const weak = i % 2 === 1;
+      return { externalId: `sim-${e.tenancyId.slice(0, 8)}-${e.dueDate}`, postedOn: e.dueDate, amount: weak ? Math.round(e.amount * 50) / 100 : e.amount, reference: weak ? `${e.reference.split(" ")[0]} PART` : `RENT ${e.reference}` };
+    });
+    return ok(out, "simulated", "sim:bank");
+  }
+}
+/** TrueLayer Data API, credits only, read-only. */
+export class TrueLayerBankFeed implements BankFeedPort {
+  readonly mode = "live" as const;
+  constructor(private readonly token: string, private readonly accountId: string, private readonly fetchImpl: typeof fetch = fetch) {}
+  async transactions(_expected: ExpectedRent[], sinceIso: string): Promise<AdapterResult<BankTransaction[]>> {
+    const from = sinceIso.slice(0, 10), to = now().slice(0, 10);
+    const res = await this.fetchImpl(`https://api.truelayer.com/data/v1/accounts/${this.accountId}/transactions?from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${this.token}` } }).catch(() => null);
+    if (!res || !res.ok) throw new AdapterError(`TrueLayer ${res?.status ?? "unreachable"}`, "bank");
+    const j = (await res.json()) as { results?: Array<Record<string, unknown>> };
+    const out = (j.results ?? []).filter((x) => x.transaction_type === "CREDIT" && Number(x.amount) > 0)
+      .map((x) => ({ externalId: String(x.transaction_id), amount: Number(x.amount), postedOn: String(x.timestamp).slice(0, 10), reference: String(x.description ?? x.merchant_name ?? "") }));
+    return ok(out, "live", "truelayer");
+  }
+}
+
+/* ═══════════════════════ Speech to text ══════════════════════════════════ */
+/** Returns the typed hint as the transcript. Badged wherever it appears. */
+export class SimStt implements SttPort {
+  readonly mode = "simulated" as const;
+  async transcribe(i: { audioRef?: string | null; hint?: string | null }) {
+    return ok({ transcript: (i.hint ?? "").trim() || "(no speech detected)" }, "simulated" as const, "sim:stt");
+  }
+}
+
+/* ═══════════════════════ Notify ══════════════════════════════════════════ */
+/** Records the message and reports delivered=false, so nothing pretends it went out. */
+export class SimNotify implements NotifyPort {
+  readonly mode = "simulated" as const;
+  readonly sent: Notification[] = [];
+  async send(n: Notification) {
+    this.sent.push(n);
+    return ok({ delivered: false, reference: `sim-notify-${Date.now().toString(36)}-${n.channel}` }, "simulated" as const, "sim:notify");
+  }
+}
+/** Resend transactional email. Sender comes from NOTIFY_FROM — never a hard-coded brand. */
+export class ResendNotify implements NotifyPort {
+  readonly mode = "live" as const;
+  constructor(private readonly key: string, private readonly from: string, private readonly fetchImpl: typeof fetch = fetch) {}
+  async send(n: Notification) {
+    if (n.channel !== "email") throw new AdapterError("Resend sends email only", "notify");
+    const res = await this.fetchImpl("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: this.from, to: [n.to], subject: n.subject, text: n.body }) }).catch(() => null);
+    if (!res || !res.ok) throw new AdapterError(`Resend ${res?.status ?? "unreachable"}`, "notify");
+    const j = (await res.json().catch(() => ({}))) as { id?: string };
+    return ok({ delivered: true, reference: String(j.id ?? "") }, "live" as const, "resend");
+  }
+}
+
+/* ═══════════════════════ Mode-aware factories ════════════════════════════ */
+type Env = typeof env.server;
+const need = (adapter: string, mode: string, ...missing: string[]) =>
+  new AdapterError(`ADAPTER_MODE_${adapter.toUpperCase()}=${mode} needs ${missing.join(" and ")}`, adapter);
+
+export function regulationFeed(e: Env = env.server): RegulationFeedPort {
+  if (e.ADAPTER_MODE_REGULATION === "simulated") return { mode: "simulated", async poll(_sinceIso: string) { return ok([], "simulated", "sim:regulation"); } };
+  return new LegislationGovUkAdapter();
+}
+export function insuranceQuotes(e: Env = env.server): InsuranceQuotePort {
+  if (e.ADAPTER_MODE_INSURANCE === "live") { if (!e.INSURANCE_QUOTE_URL) throw need("insurance", "live", "INSURANCE_QUOTE_URL"); return new HttpInsuranceQuote(e.INSURANCE_QUOTE_URL, e.INSURANCE_QUOTE_KEY); }
+  return new SimInsuranceQuote();
+}
+export function bankFeed(e: Env = env.server): BankFeedPort {
+  if (e.ADAPTER_MODE_BANK === "live") { if (!e.TRUELAYER_ACCESS_TOKEN || !e.TRUELAYER_ACCOUNT_ID) throw need("bank", "live", "TRUELAYER_ACCESS_TOKEN", "TRUELAYER_ACCOUNT_ID"); return new TrueLayerBankFeed(e.TRUELAYER_ACCESS_TOKEN, e.TRUELAYER_ACCOUNT_ID); }
+  return new SimBankFeed();
+}
+export function stt(e: Env = env.server): SttPort {
+  if (e.ADAPTER_MODE_STT === "live") throw new AdapterError("No live speech-to-text adapter exists yet — set ADAPTER_MODE_STT=simulated", "stt");
+  return new SimStt();
+}
+export function notifier(e: Env = env.server): NotifyPort {
+  if (e.ADAPTER_MODE_NOTIFY === "live") { if (!e.RESEND_API_KEY || !e.NOTIFY_FROM) throw need("notify", "live", "RESEND_API_KEY", "NOTIFY_FROM"); return new ResendNotify(e.RESEND_API_KEY, e.NOTIFY_FROM); }
+  return new SimNotify();
+}
+
+/** Which connections are live right now, and the variable that switches each on — shown on Settings → Connections. */
+export function adapterStatus(e: Env = env.server) {
+  const live = (v: AdapterMode) => v === "live";
+  return {
+    regulation: { mode: e.ADAPTER_MODE_REGULATION, source: live(e.ADAPTER_MODE_REGULATION) ? "legislation.gov.uk" : "sim:regulation", switch: "ADAPTER_MODE_REGULATION" },
+    notify:     { mode: e.ADAPTER_MODE_NOTIFY, source: live(e.ADAPTER_MODE_NOTIFY) ? "resend" : "sim:notify", switch: "RESEND_API_KEY + NOTIFY_FROM, ADAPTER_MODE_NOTIFY=live" },
+    bank:       { mode: e.ADAPTER_MODE_BANK, source: live(e.ADAPTER_MODE_BANK) ? "truelayer" : "sim:bank", switch: "TRUELAYER_ACCESS_TOKEN + TRUELAYER_ACCOUNT_ID, ADAPTER_MODE_BANK=live" },
+    insurance:  { mode: e.ADAPTER_MODE_INSURANCE, source: live(e.ADAPTER_MODE_INSURANCE) ? "quote endpoint" : "sim:insurance", switch: "INSURANCE_QUOTE_URL, ADAPTER_MODE_INSURANCE=live" },
+    stt:        { mode: e.ADAPTER_MODE_STT, source: "sim:stt", switch: "no live adapter yet" },
+    ai:         { mode: (e.OPENAI_API_KEY || e.ANTHROPIC_API_KEY ? "live" : "simulated") as AdapterMode, source: e.OPENAI_API_KEY ? "openai" : e.ANTHROPIC_API_KEY ? "anthropic" : "rules", switch: "OPENAI_API_KEY or ANTHROPIC_API_KEY" },
+  };
+}
+/** Names of the connections still in practice mode, for the topbar pill. */
+export function practiceMode(e: Env = env.server): string[] {
+  const s = adapterStatus(e);
+  return [s.notify.mode !== "live" && "email", s.bank.mode !== "live" && "bank feed", s.insurance.mode !== "live" && "quotes"].filter((x): x is string => Boolean(x));
+}
