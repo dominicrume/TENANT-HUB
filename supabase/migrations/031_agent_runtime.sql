@@ -77,7 +77,9 @@ ALTER TABLE public.audit_logs
   ADD COLUMN IF NOT EXISTS sources_read   JSONB,
   ADD COLUMN IF NOT EXISTS refusals       JSONB,
   ADD COLUMN IF NOT EXISTS outcome        TEXT CHECK (outcome IS NULL OR outcome IN ('proposed','recorded','refused','decided')),
-  ADD COLUMN IF NOT EXISTS correlation_id TEXT;
+  ADD COLUMN IF NOT EXISTS correlation_id TEXT,
+  -- The exact payload the hash was computed over (record_snapshot is the saved row, which may differ).
+  ADD COLUMN IF NOT EXISTS payload        JSONB;
 CREATE INDEX IF NOT EXISTS idx_audit_org_time ON public.audit_logs (org_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_agent ON public.audit_logs (agent, created_at DESC) WHERE agent IS NOT NULL;
 

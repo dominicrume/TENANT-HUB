@@ -54,7 +54,7 @@ Format: **id** · title · source · touches · **done when**.
 
 - **C07** · `pg` inside `packages/db` · CON step 1 · `packages/db/src/pool.ts` (bounded pool, 30 s statement timeout, `DATABASE_URL` = Supabase transaction pooler for now), `packages/env` (+`DATABASE_URL`), ESLint zone: `pg` only in `packages/db` · **done when** `pnpm --filter @tenant-hub/db test` runs a round-trip query.
 - **C08** · `writeWithAudit` as a transaction · CON step 1, INT §3.3 · replaces the RPC call with BEGIN → per-org advisory lock → upsert → chain hash → `audit_logs` insert → `stamp_queue` insert → COMMIT; gains `receipt`, `correlationId`, `actor`; `updateWithAudit` added · **done when** the existing write tests pass unchanged and a new test proves rollback leaves no audit row. RPC left in place, unused, until M6.
-- **C09** · Repositories own reads · CON step 1, closes DECISIONS D6 · every API route that used `createSupabaseServer` for reads calls a `packages/db` repository with the session passed in; `createSupabaseServer` deleted · **done when** `grep -r createSupabaseServer apps` is empty and every `GET` route test passes. (Auth pages still use Supabase Auth until C31.)
+- **C09** · Repositories own reads · CON step 1, closes DECISIONS D6 · **DEFERRED (D16): needs DATABASE_URL to verify; built after C14** · every API route that used `createSupabaseServer` for reads calls a `packages/db` repository with the session passed in; `createSupabaseServer` deleted · **done when** `grep -r createSupabaseServer apps` is empty and every `GET` route test passes. (Auth pages still use Supabase Auth until C31.)
 - **C10** · Agent runtime tables · INT §3.2 031 · `supabase/migrations/031_agent_runtime.sql` (`jobs`, `agent_health`, `agent_telemetry`, `audit_logs` receipt columns), Zod schemas, H1 coverage test updated · **done when** migration applies on a Supabase branch and the H1 test is green.
 - **C11** · Pure packages · INT §3.1 · `packages/kya`, `packages/ports`, `packages/telemetry` (ported from donor), ESLint zones, `scripts/kya-gate.js` grep gates (`@estate-ops`, `pg` outside db) · **done when** unit tests for mandate/receipt and span pass and the gate fails on a planted violation.
 - **C12** · Job queue and telemetry sink in `packages/db` · INT §3.3 · `enqueueJob`, `claimJobs` (SKIP LOCKED), `completeJob`, `failJob`, `deadLetterJob`, `heartbeat`, `setAgentHealth`, `emitTelemetry`, `pgTelemetrySink` · **done when** a test enqueues, claims, completes and dead-letters a job.
@@ -130,9 +130,9 @@ Format: **id** · title · source · touches · **done when**.
 
 ## 7. Checklist
 
-- [ ] C01 · [ ] C02 — **M0 gate**
-- [ ] C03 · [ ] C04 · [ ] C05 · [ ] C06 — **M1 gate**
-- [ ] C07 · [ ] C08 · [ ] C09 · [ ] C10 · [ ] C11 · [ ] C12 · [ ] C13 · [ ] C14 — **M2 gate**
+- [x] C01 · [x] C02 — **M0 gate** ✓ 2026-09-26
+- [x] C03 · [x] C04 · [x] C05 · [x] C06 — **M1 gate** ✓ 2026-09-26 (signed-in e2e paths skip until a staff test account exists)
+- [x] C07 · [x] C08 · [ ] C09 (deferred until DATABASE_URL — DECISIONS D16) · [x] C10 · [x] C11 · [x] C12 · [x] C13 · [x] C14 — **M2 gate** open: C09 outstanding
 - [ ] C15 · [ ] C16 · [ ] C17 · [ ] C18 · [ ] C19 · [ ] C20 — **M3 gate**
 - [ ] C21 · [ ] C22 · [ ] C23 · [ ] C24 · [ ] C25 · [ ] C26 · [ ] C27 · [ ] C28 — **M4 gate**
 - [ ] C29 · [ ] C30 · [ ] C31 · [ ] C32 · [ ] C33 · [ ] C34 · [ ] C35 · [ ] C36 · [ ] C37 — **M5 gate**

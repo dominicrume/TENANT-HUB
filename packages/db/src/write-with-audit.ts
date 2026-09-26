@@ -121,6 +121,7 @@ export async function writeWithAudit<T extends Record<string, unknown>>(opts: Wr
     const extra: Record<string, unknown> = {
       org_id: opts.org_id ?? null, agent: opts.receipt?.agent ?? null, sources_read: opts.receipt?.sourcesRead ?? null,
       refusals: opts.receipt?.refusals ?? null, outcome: opts.receipt?.outcome ?? null, correlation_id: opts.correlationId ?? null,
+      payload: opts.record,
     };
     for (const [k, v] of Object.entries(extra)) if (auditCols.has(k)) row[k] = v;
     const ak = Object.keys(row);

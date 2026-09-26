@@ -46,7 +46,7 @@ describe("031_agent_runtime.sql", () => {
     const tables = (await db.query<{ table_name: string }>("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY 1")).rows.map((r) => r.table_name);
     expect(tables).toEqual(expect.arrayContaining(["jobs", "agent_health", "agent_telemetry"]));
     const cols = (await db.query<{ column_name: string }>("SELECT column_name FROM information_schema.columns WHERE table_name='audit_logs'")).rows.map((r) => r.column_name);
-    expect(cols).toEqual(expect.arrayContaining(["org_id", "agent", "sources_read", "refusals", "outcome", "correlation_id"]));
+    expect(cols).toEqual(expect.arrayContaining(["org_id", "agent", "sources_read", "refusals", "outcome", "correlation_id", "payload"]));
   });
 
   it("refuses to queue the same dedupe_key twice while a job is live, and allows it once the job is done", async () => {

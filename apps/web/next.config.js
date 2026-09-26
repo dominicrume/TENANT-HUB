@@ -11,6 +11,10 @@ const nextConfig = {
     "@tenant-hub/db",
     "@tenant-hub/blockchain",
     "@tenant-hub/env",
+    "@tenant-hub/adapters",
+    "@tenant-hub/ports",
+    "@tenant-hub/telemetry",
+    "@tenant-hub/kya",
   ],
   // BUILD_PLAN C05: folded pages keep working links. Evaluated before middleware.
   async redirects() {

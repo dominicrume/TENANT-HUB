@@ -5,6 +5,16 @@ Newest first.
 
 ---
 
+## D17 — audit_logs stores the hashed payload (2026-09-26, C14)
+**Context:** The chain hash is computed over the write payload (the patch), but the audit row stored only
+`record_snapshot` (the full saved row). A chain check could confirm each row links to its predecessor but
+could not recompute a single hash, so a tampered payload would go unnoticed.
+**Decision:** Migration 031 (not yet applied anywhere) gains `payload JSONB` on `audit_logs`;
+`writeWithAudit` fills it. The daily chain-check agent recomputes every hash where a payload exists and
+verifies linkage everywhere. Rows written before this column stays nullable and are checked for linkage
+only.
+**Why:** H12 promises the chain is verifiable, not just present.
+
 ## D16 — C09 (reads through pg repositories) waits for DATABASE_URL; C10–C14 go first (2026-09-26)
 **Context:** Moving 43 API routes' reads from the Supabase client to pg repositories is security-relevant:
 with the pooler's `postgres` role, RLS is bypassed, so every repository must carry explicit org and role
