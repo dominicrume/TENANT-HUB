@@ -10,3 +10,4 @@ export * from "./reliance-pack.schema";
 export * from "./settings.schema";
 export * from "./agent-runtime.schema";
 export * from "./property.schema";
+export * from "./arrears.schema";
