@@ -280,6 +280,9 @@ importers:
       '@tenant-hub/env':
         specifier: workspace:*
         version: link:../env
+      '@tenant-hub/telemetry':
+        specifier: workspace:*
+        version: link:../telemetry
       '@tenant-hub/validation':
         specifier: workspace:*
         version: link:../validation

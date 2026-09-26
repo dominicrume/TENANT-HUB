@@ -9,3 +9,5 @@ export * from "./write-with-audit";
 export * from "./worker";
 export * from "./invite";
 export * from "./notifications";
+export * from "./jobs";
+export { createPgTelemetrySink, workerHeartbeatAge } from "./telemetry-sink";
