@@ -33,6 +33,7 @@ import { MessagesTab } from "../../../../components/tenant/MessagesTab";
 import { AskTab } from "../../../../components/tenant/AskTab";
 import { DynamicFormTab, type FormTemplate } from "../../../../components/tenant/DynamicFormTab";
 import { FormsPanel } from "../../../../components/layout/FormsPanel";
+import { BeforeYourNextContact } from "../../../../components/tenant/BeforeYourNextContact";
 
 const CORE_TABS = [
   { key: "personal", label: "Personal Details" },
@@ -287,6 +288,8 @@ export default function TenantDetailPage() {
           </button>
         </div>
       </div>
+
+      {id && <BeforeYourNextContact tenantId={id} />}
 
       {/* TABS */}
       <div className="tab-row" style={{ display: "flex", flexWrap: "wrap", gap: "4px", margin: "18px 0 14px", borderBottom: "1px solid #EDE8E1" }}>

@@ -103,4 +103,6 @@ export type TriageResult = z.infer<typeof TriageResultSchema>;
 export type PublicReport = z.infer<typeof PublicReportSchema>;
 export type Trade = z.infer<typeof TradeSchema>;
 export type DispatchJob = z.infer<typeof DispatchJobSchema>;
+export type CommitmentOwner = z.infer<typeof CommitmentOwnerSchema>;
+export type CommitmentStatus = z.infer<typeof CommitmentStatusSchema>;
 export type Commitment = z.infer<typeof CommitmentSchema>;
