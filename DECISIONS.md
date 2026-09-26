@@ -5,6 +5,17 @@ Newest first.
 
 ---
 
+## D20 — the "Paperwork" group waits for the Homes/Paperwork screens to exist (2026-09-26, C21)
+**Context:** The build plan's done-when for compliance-watch is "the seeded missing Fire Risk
+Assessment appears on Today with 'Add certificate'." The seed script is C36 and the Paperwork screen
+is C32 — both land well after this commit. Wiring a Today group now would need a link target
+(`/compliance#property-<id>` or similar) that does not exist yet.
+**Decision:** Ship the agent now, fully tested on pglite (the exact missing-Fire-Risk-Assessment
+scenario passes). Defer wiring compliance_alerts into needs-you.ts's "Paperwork" group until C32, when
+the destination screen exists, so Today never carries a button that 404s.
+**Why:** No dead states (UX_FIRST rule 2). A done-when in the plan describes the feature's eventual,
+fully-verified behaviour once its dependent screens land — not a requirement to fake a link early.
+
 ## D19 — Repairs status vocabulary changes with the screen, not the migration (2026-09-26, C18)
 **Context:** The brief maps maintenance_tickets.status onto new | triaged | dispatched | in_progress |
 resolved | closed with a CHECK. The live Repairs screen and the tenant portal compare on the current

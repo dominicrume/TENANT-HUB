@@ -186,6 +186,9 @@ importers:
       '@tenant-hub/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@tenant-hub/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@tenant-hub/env':
         specifier: workspace:*
         version: link:../../packages/env

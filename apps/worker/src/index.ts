@@ -19,13 +19,15 @@ import { drainOnce } from "./drain";
 import { startHeartbeat, installGracefulShutdown, isShuttingDown } from "./lifecycle";
 import { drainStamps } from "./agents/chain-stamp";
 import { chainCheck, CHAIN_MANDATE, CHAIN_LABEL } from "./agents/chain-check";
+import { complianceWatch, COMPLIANCE_MANDATE, COMPLIANCE_LABEL } from "./agents/compliance-watch";
 import { managerEmail } from "./agents/common";
 
 setLogger(createLogger({ level: env.server.LOG_LEVEL, service: "tenant-hub-worker" }));
 
 export function registerAgents() {
   register({ name: "chain-check", label: CHAIN_LABEL, fn: chainCheck, mandate: CHAIN_MANDATE, scheduleMs: DAY });
-  // Ported agents register here one per commit: compliance-watch (C21), rent-reconciliation (C22), ...
+  register({ name: "compliance-watch", label: COMPLIANCE_LABEL, fn: complianceWatch, mandate: COMPLIANCE_MANDATE, scheduleMs: DAY });
+  // Ported agents register here one per commit: rent-reconciliation (C22), arrears-ladder (C23), ...
 }
 
 async function main() {

@@ -113,9 +113,13 @@ export async function writeWithAudit<T extends Record<string, unknown>>(opts: Wr
 
     // 3. Append the audit row. Receipt columns are written when the schema has them (C10).
     const auditCols = await columnsOf(tx, "audit_logs");
+    // An agent write has no human actor. user_id is a nullable UUID column, so an
+    // empty string ("no actor", the convention chain-check.ts already reads back as
+    // `?? ""`) is written as NULL to satisfy the column type and its FK, while the
+    // HASH still uses the empty string so verification is consistent either way.
     const row: Record<string, unknown> = {
       tenant_id: tenantId ?? null, action: audit.action, table_name: opts.table, record_id: recordId,
-      user_id: opts.user_id, user_name: opts.user_name, user_role: opts.user_role, entry_method: opts.entry_method ?? null,
+      user_id: opts.user_id || null, user_name: opts.user_name, user_role: opts.user_role, entry_method: opts.entry_method ?? null,
       prev_hash: audit.prev_hash, blockchain_hash: audit.hash, record_snapshot: saved, created_at: timestamp,
     };
     const extra: Record<string, unknown> = {

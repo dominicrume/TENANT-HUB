@@ -97,4 +97,18 @@ describe("writeWithAudit on pg", () => {
     await expect(db.query("UPDATE audit_logs SET user_name = 'x'")).rejects.toThrow(/append-only/);
     await expect(db.query("DELETE FROM audit_logs")).rejects.toThrow(/append-only/);
   });
+
+  it("an agent write has no human actor: user_id='' writes NULL to the column, not the FK-violating empty string", async () => {
+    const { data, audit_hash } = await writeWithAudit({ client: db, table: "tenants", action: "CREATE",
+      user_id: "", user_name: "System · compliance-watch", user_role: "system", record: { full_name: "Agent-created" } });
+    const row = (await db.query<{ user_id: string | null; created_at: Date; prev_hash: string }>(
+      "SELECT user_id, created_at, prev_hash FROM audit_logs WHERE record_id = $1", [data.id])).rows[0]!;
+    expect(row.user_id).toBeNull();
+    // The hash was still computed using the empty string (never NULL), matching how
+    // chain-check.ts reads a NULL user_id back (`?? ""`) when it recomputes and verifies.
+    const canonical = buildCanonicalString({ table_name: "tenants", record_id: data.id as string, action: "CREATE", payload: { full_name: "Agent-created" },
+      user_id: "", user_name: "System · compliance-watch", user_role: "system", prev_hash: row.prev_hash, created_at: new Date(row.created_at).toISOString() });
+    const expected = Array.from(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical)))).map((b) => b.toString(16).padStart(2, "0")).join("");
+    expect(audit_hash).toBe(expected);
+  });
 });

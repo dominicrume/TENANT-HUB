@@ -11,14 +11,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@tenant-hub/env": "workspace:*",
-    "@tenant-hub/db": "workspace:*",
-    "@tenant-hub/blockchain": "workspace:*",
-    "@tenant-hub/audit": "workspace:*",
-    "@tenant-hub/kya": "workspace:*",
-    "@tenant-hub/telemetry": "workspace:*",
     "@tenant-hub/adapters": "workspace:*",
+    "@tenant-hub/audit": "workspace:*",
+    "@tenant-hub/blockchain": "workspace:*",
+    "@tenant-hub/db": "workspace:*",
+    "@tenant-hub/domain": "workspace:*",
+    "@tenant-hub/env": "workspace:*",
+    "@tenant-hub/kya": "workspace:*",
     "@tenant-hub/ports": "workspace:*",
+    "@tenant-hub/telemetry": "workspace:*",
     "@tenant-hub/validation": "workspace:*",
     "tsx": "4.11.0"
   },
