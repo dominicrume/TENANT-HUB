@@ -108,7 +108,7 @@ export function LedgerTab({ tenantId }: { tenantId: string }) {
         <Link href={`/tenants/${tenantId}/statement`}
           className="no-print"
           style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: "44px", padding: "0 16px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 600, fontSize: "13px", cursor: "pointer", textDecoration: "none" }}>
-          🖨 Generate Statement
+          Print a statement
         </Link>
       </div>
 

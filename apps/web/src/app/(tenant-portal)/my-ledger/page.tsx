@@ -86,7 +86,7 @@ export default function MyLedgerPage() {
       <div style={styles.page}>
         <div style={styles.errorCard}>
           <span style={{ fontSize: "32px" }}>😔</span>
-          <h2 style={styles.errorTitle}>We couldn&apos;t load your ledger</h2>
+          <h2 style={styles.errorTitle}>We couldn&apos;t load your money page</h2>
           <p style={styles.errorText}>{error}</p>
           <button onClick={() => window.location.reload()} style={styles.retryBtn}>
             Try Again
@@ -102,9 +102,9 @@ export default function MyLedgerPage() {
   return (
     <div style={styles.page}>
       {/* ── Page title ──────────────────────────────────────── */}
-      <h1 style={styles.pageTitle}>My Ledger</h1>
+      <h1 style={styles.pageTitle}>My money</h1>
       <p style={styles.pageSubtitle}>
-        A summary of your charges and payments.
+        What you&apos;ve been charged and what you&apos;ve paid.
       </p>
 
       {/* ── Balance Summary ─────────────────────────────────── */}

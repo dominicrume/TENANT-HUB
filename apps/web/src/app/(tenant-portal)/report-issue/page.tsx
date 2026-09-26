@@ -106,9 +106,9 @@ export default function ReportIssuePage() {
 
   return (
     <div style={styles.page}>
-      <h1 style={styles.pageTitle}>Report a Repair</h1>
+      <h1 style={styles.pageTitle}>Report a problem</h1>
       <p style={styles.pageSubtitle}>
-        Let us know if something in your room or building needs fixing.
+        Tell us what&apos;s wrong. You don&apos;t need to know what kind of problem it is.
       </p>
 
       {error && (

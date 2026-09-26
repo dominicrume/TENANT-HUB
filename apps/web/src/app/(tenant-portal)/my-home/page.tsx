@@ -167,17 +167,17 @@ export default function MyHomePage() {
         <div style={styles.actionsGrid}>
           <Link href="/report-issue" style={styles.actionBtn}>
             <span style={styles.actionIcon}>🛠️</span>
-            <span style={styles.actionLabel}>Report an Issue</span>
+            <span style={styles.actionLabel}>Report a problem</span>
             <span style={styles.actionDesc}>
-              Let us know about something that needs fixing
+              Tell us what&apos;s wrong, in your own words
             </span>
           </Link>
 
           <Link href="/my-ledger" style={styles.actionBtn}>
             <span style={styles.actionIcon}>💷</span>
-            <span style={styles.actionLabel}>View My Ledger</span>
+            <span style={styles.actionLabel}>My money</span>
             <span style={styles.actionDesc}>
-              See your charges and payment history
+              What you&apos;ve been charged and what you&apos;ve paid
             </span>
           </Link>
         </div>
