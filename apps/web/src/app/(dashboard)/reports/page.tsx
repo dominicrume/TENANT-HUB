@@ -41,24 +41,14 @@ export default function ReportsPage() {
         <Link href="/analytics" style={{ fontSize: 13, fontWeight: 600, color: "var(--amber-deep)" }}>Numbers across the service →</Link>
       </div>
 
-      <div className="no-print" style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "18px" }}>
-        <select value={tenantId} onChange={(e) => setTenantId(e.target.value)}
-          style={{ minHeight: "44px", padding: "8px 11px", borderRadius: "8px", border: "1px solid #EDE8E1" }}>
+      <div className="no-print" style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "18px", alignItems: "center" }}>
+        <select value={tenantId} onChange={(e) => setTenantId(e.target.value)} className="btn ghost sm" style={{ cursor: "pointer" }}>
           <option value="">Select tenant…</option>
           {activeTenants.map((t) => <option key={t.id} value={t.id}>{t.full_name} · {t.room_number}</option>)}
         </select>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
-          style={{ minHeight: "44px", padding: "8px 11px", borderRadius: "8px", border: "1px solid #EDE8E1" }} />
-        <button onClick={generate} disabled={busy || !tenantId}
-          style={{ minHeight: "44px", padding: "0 18px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 600, cursor: busy || !tenantId ? "not-allowed" : "pointer" }}>
-          {busy ? "Generating…" : "Generate Report"}
-        </button>
-        {report && (
-          <button onClick={() => window.print()}
-            style={{ minHeight: "44px", padding: "0 18px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", color: "var(--navy)", fontWeight: 600, cursor: "pointer" }}>
-            🖨 Print / Export PDF
-          </button>
-        )}
+        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="btn ghost sm" />
+        <button type="button" className="rel sm" onClick={generate} disabled={busy || !tenantId}>{busy ? "Generating…" : "Generate report"}</button>
+        {report && <button type="button" className="btn ghost sm" onClick={() => window.print()}>Print / Export PDF</button>}
       </div>
 
       {report && (

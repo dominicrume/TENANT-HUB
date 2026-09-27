@@ -1,3 +1,9 @@
+/**
+ * People — every tenant, red/orange/green by housing benefit risk, one card
+ * per person. Rebuilt onto the console design system (globals.css's card/li/
+ * tag classes) so this matches Today, Homes and Rent instead of the
+ * inline-styled table it used to be. Filtering and sort logic is unchanged.
+ */
 "use client";
 
 import { useState } from "react";
@@ -5,19 +11,21 @@ import Link from "next/link";
 import { useTenants } from "../../../hooks/useTenants";
 import { HandoverPanel } from "../../../components/HandoverPanel";
 
+const HB_TAG: Record<string, { color: string; bg: string; label: string }> = {
+  active: { color: "var(--live)", bg: "rgba(46,158,107,.12)", label: "HB active" },
+  suspended: { color: "var(--brick)", bg: "rgba(178,74,49,.12)", label: "HB suspended" },
+  in_progress: { color: "var(--amber-deep)", bg: "rgba(232,168,76,.16)", label: "HB in progress" },
+};
+
 export default function TenantsIndexPage() {
   const { tenants, loading, error } = useTenants();
   const [filter, setFilter] = useState<"all" | "active" | "in_progress" | "suspended">("all");
   const [brandFilter, setBrandFilter] = useState<string>("all");
 
-  if (loading) return <div style={{ padding: "32px", fontFamily: "'Sora', sans-serif" }}>Loading tenants...</div>;
-  if (error) return <div style={{ padding: "32px", color: "red", fontFamily: "'Sora', sans-serif" }}>Error: {error}</div>;
-
   const filteredTenants = tenants
-    .filter(t => filter === "all" || t.housing_benefit_status === filter)
-    .filter(t => brandFilter === "all" || t.brand === brandFilter)
+    .filter((t) => filter === "all" || t.housing_benefit_status === filter)
+    .filter((t) => brandFilter === "all" || t.brand === brandFilter)
     .sort((a, b) => {
-      // Sort Red -> Orange -> Green
       const order = { suspended: 0, in_progress: 1, active: 2 };
       const aVal = order[a.housing_benefit_status as keyof typeof order] ?? 3;
       const bVal = order[b.housing_benefit_status as keyof typeof order] ?? 3;
@@ -25,131 +33,56 @@ export default function TenantsIndexPage() {
       return a.full_name.localeCompare(b.full_name);
     });
 
-  const getHbColor = (status: string) => {
-    if (status === "active") return { bg: "rgba(52,200,122,0.15)", text: "#2CA162", label: "ACTIVE" };
-    if (status === "suspended") return { bg: "rgba(224,82,82,0.15)", text: "#E05252", label: "PROBLEM" };
-    return { bg: "rgba(245,166,35,0.15)", text: "#D08816", label: "IN PROGRESS" }; // Amber/Orange
-  };
-
   return (
-    <div style={{ fontFamily: "'Sora', sans-serif" }}>
+    <div style={{ padding: "1.75rem", maxWidth: 900 }}>
       <HandoverPanel />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-        <h1 style={{ color: "var(--navy)", margin: 0 }}>People</h1>
-        <Link href="/intake/new" style={{ background: "var(--amber)", color: "var(--navy)", padding: "8px 16px", borderRadius: "8px", textDecoration: "none", fontWeight: 700, fontSize: "14px" }}>
-          + New Tenant
-        </Link>
+
+      <div className="ch" style={{ padding: 0, marginBottom: 18, border: "none" }}>
+        <h1 style={{ margin: 0 }}>People</h1>
+        <Link href="/intake/new" className="rel">+ New tenant</Link>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-5 items-center">
-        {(["all", "suspended", "in_progress", "active"] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            style={{
-              padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer",
-              background: filter === f ? "var(--navy)" : "#fff",
-              color: filter === f ? "#fff" : "var(--navy)",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-            }}
-          >
-            {f === "all" ? "All Tenants" : f === "suspended" ? "Red (At Financial Risk)" : f === "in_progress" ? "Orange (In Progress)" : "Green (Active)"}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16, alignItems: "center" }}>
+        {(["all", "suspended", "in_progress", "active"] as const).map((f) => (
+          <button key={f} type="button" className={filter === f ? "btn sm" : "btn ghost sm"} onClick={() => setFilter(f)}>
+            {f === "all" ? "All tenants" : f === "suspended" ? "At financial risk" : f === "in_progress" ? "Housing benefit in progress" : "Active"}
           </button>
         ))}
-        <select
-          value={brandFilter}
-          onChange={(e) => setBrandFilter(e.target.value)}
-          className="ml-auto"
-          style={{
-            padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, border: "1px solid #EDE8E1", cursor: "pointer",
-            background: "#fff",
-            color: "var(--navy)",
-          }}
-        >
-          <option value="all">All HMOs / Brands</option>
+        <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="btn ghost sm" style={{ marginLeft: "auto", cursor: "pointer" }}>
+          <option value="all">All HMOs / brands</option>
           <option value="mattys_place">Matty&apos;s Place</option>
           <option value="reliance">Reliance Housing</option>
         </select>
       </div>
-      
-      {filteredTenants.length === 0 ? (
-        <p style={{ color: "#7A8499" }}>No tenants match this filter.</p>
-      ) : (
-        <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #EDE8E1", overflowX: "auto" }}>
-          <table className="hidden md:table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-            <thead>
-              <tr style={{ background: "#F8F4EF", color: "#7A8499", textAlign: "left" }}>
-                <th style={{ padding: "12px 16px", fontWeight: 600 }}>Name</th>
-                <th style={{ padding: "12px 16px", fontWeight: 600 }}>Home / Room</th>
-                <th style={{ padding: "12px 16px", fontWeight: 600 }}>Tenant Status</th>
-                <th style={{ padding: "12px 16px", fontWeight: 600 }}>Housing Benefit</th>
-                <th style={{ padding: "12px 16px", fontWeight: 600 }}>NINO</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTenants.map(t => {
-                const hbColor = getHbColor(t.housing_benefit_status);
-                return (
-                  <tr key={t.id} style={{ borderTop: "1px solid #EDE8E1" }}>
-                    <td style={{ padding: "12px 16px" }}>
-                      <Link href={`/tenants/${t.id}`} style={{ color: "var(--navy)", fontWeight: 600, textDecoration: "none" }}>
-                        {t.full_name}
-                      </Link>
-                    </td>
-                    <td style={{ padding: "12px 16px", color: "#475569" }}>
-                      {t.address ? <span style={{ fontWeight: 600, color: "var(--navy)" }}>{t.address}</span> : null}
-                      {t.address && t.room_number ? " · " : ""}
-                      {t.room_number ? `Room ${t.room_number}` : (t.address ? "" : "—")}
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <span style={{ 
-                        padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
-                        background: t.is_active ? "rgba(52,200,122,0.15)" : "rgba(122,132,153,0.15)",
-                        color: t.is_active ? "#2CA162" : "#7A8499"
-                      }}>
-                        {t.is_active ? "ACTIVE" : "INACTIVE"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <span style={{ 
-                        padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
-                        background: hbColor.bg, color: hbColor.text
-                      }}>
-                        {hbColor.label}
-                      </span>
-                    </td>
-                    <td style={{ padding: "12px 16px", color: "#475569", fontFamily: "monospace" }}>{t.nino || "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div className="md:hidden flex flex-col divide-y divide-gray-100">
-             {filteredTenants.map(t => {
-                const hbColor = getHbColor(t.housing_benefit_status);
-                return (
-                  <div key={t.id} className="flex flex-col p-4 gap-3">
-                     <div className="flex justify-between items-start">
-                        <Link href={`/tenants/${t.id}`} style={{ color: "var(--navy)", fontWeight: 600, textDecoration: "none", fontSize: "15px" }}>
-                          {t.full_name}
-                        </Link>
-                        <span style={{ 
-                          padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
-                          background: hbColor.bg, color: hbColor.text
-                        }}>
-                          {hbColor.label}
-                        </span>
-                     </div>
-                     <div className="flex justify-between items-center text-sm text-gray-500">
-                        <span>{t.address ? `${t.address} · ` : ""}{t.room_number ? `Room ${t.room_number}` : "—"}</span>
-                        <span style={{ fontFamily: "monospace", fontSize: "12px" }}>NINO: {t.nino || "—"}</span>
-                     </div>
-                  </div>
-                );
-             })}
-          </div>
-        </div>
-      )}
+
+      <section className="card">
+        {loading ? (
+          <div className="li"><p className="muted">Loading…</p></div>
+        ) : error ? (
+          <div className="li"><div className="body"><b>Couldn&apos;t load people</b><p>{error}</p></div></div>
+        ) : filteredTenants.length === 0 ? (
+          <div className="li"><p className="muted">No one matches this filter.</p></div>
+        ) : (
+          filteredTenants.map((t) => {
+            const hb = t.housing_benefit_status ? HB_TAG[t.housing_benefit_status] : null;
+            return (
+              <Link href={`/tenants/${t.id}`} key={t.id} className="li row" style={{ textDecoration: "none", color: "inherit" }}>
+                <div className="body">
+                  <b>{t.full_name}</b>
+                  <p>
+                    {[t.address, t.room_number ? `Room ${t.room_number}` : null].filter(Boolean).join(" · ") || "No home on file"}
+                    {" · "}<span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{t.nino || "no NINO on file"}</span>
+                  </p>
+                </div>
+                <div className="btns" style={{ marginLeft: "auto" }}>
+                  {!t.is_active && <span className="tag" style={{ background: "rgba(92,102,115,.12)", color: "var(--slate)" }}>Inactive</span>}
+                  {hb && <span className="tag" style={{ background: hb.bg, color: hb.color }}>{hb.label}</span>}
+                </div>
+              </Link>
+            );
+          })
+        )}
+      </section>
     </div>
   );
 }
