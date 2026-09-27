@@ -77,15 +77,24 @@ export default function ExtractPage() {
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
         {/* Left — upload + paste */}
         <div style={{ flex: "1 1 280px" }}>
-          <label style={{ display: "block", border: "2px dashed #D9D2C7", borderRadius: "12px", padding: "20px", textAlign: "center", cursor: "pointer", color: "#7A8499", fontSize: "13px" }}>
+          <div style={{ border: "2px dashed #D9D2C7", borderRadius: "12px", padding: "20px", textAlign: "center", color: "#7A8499", fontSize: "13px" }}>
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="Uploaded form" style={{ maxWidth: "100%", borderRadius: "8px" }} />
+              <img src={imageUrl} alt="Uploaded form" style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: 14 }} />
             ) : (
-              "📄 Click to upload a form image"
+              <p style={{ margin: "0 0 14px" }}>📄 Snap the paper form, or upload a photo of it</p>
             )}
-            <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
-          </label>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+              <label style={{ minHeight: 44, padding: "0 16px", borderRadius: 8, border: "none", background: "var(--navy)", color: "#fff", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                📷 Take photo
+                <input type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+              </label>
+              <label style={{ minHeight: 44, padding: "0 16px", borderRadius: 8, border: "1px solid #EDE8E1", background: "#fff", color: "var(--navy)", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                Choose a file
+                <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+              </label>
+            </div>
+          </div>
           <textarea
             placeholder="Or paste the form text here, then Extract…"
             value={rawText}

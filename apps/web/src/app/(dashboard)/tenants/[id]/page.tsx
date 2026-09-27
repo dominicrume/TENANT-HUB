@@ -83,6 +83,8 @@ export default function TenantDetailPage() {
   const [form, setForm] = useState<FormState>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoMsg, setPhotoMsg] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<Record<string, string>>({});
   const [latestAudit, setLatestAudit] = useState<{ user_name?: string; blockchain_hash?: string } | null>(null);
@@ -185,49 +187,61 @@ export default function TenantDetailPage() {
       <div className="print-area" style={{ flex: 1, minWidth: 0, padding: "1.75rem", fontFamily: "'Sora', sans-serif", maxWidth: "920px" }}>
         <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
         <div style={{ flex: 1, display: "flex", gap: "16px", alignItems: "center" }}>
-          <input 
-            type="file" 
+          <input
+            type="file"
             id="profile-photo-upload"
-            style={{ display: 'none' }} 
+            style={{ display: 'none' }}
             accept="image/*"
-            onChange={async (e: any) => {
-              const file = e.target.files[0];
-              if (file) {
+            capture="environment"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const previousPhoto = tenant?.photo_url;
+              setPhotoBusy(true);
+              setPhotoMsg(null);
+              try {
                 const supabase = getSupabaseBrowser();
                 const ext = file.name.split('.').pop();
                 const fileName = `tenant-${id}-${Date.now()}.${ext}`;
-                
+
                 const { data, error } = await supabase.storage
                   .from("maintenance-photos")
                   .upload(fileName, file);
-                  
-                if (error) {
-                  alert("Failed to upload image: " + error.message);
-                  return;
+
+                if (error) throw new Error(error.message);
+                if (!data) throw new Error("Upload returned no file path");
+
+                const publicUrl = supabase.storage.from("maintenance-photos").getPublicUrl(data.path).data.publicUrl;
+                setTenant(prev => prev ? { ...prev, photo_url: publicUrl } : null);
+
+                const res = await fetch(`/api/tenants/${id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ photo_url: publicUrl }),
+                });
+                if (!res.ok) {
+                  const b = await res.json().catch(() => null);
+                  throw new Error(b?.error ?? `${res.status} ${res.statusText}`);
                 }
-                
-                if (data) {
-                  const publicUrl = supabase.storage.from("maintenance-photos").getPublicUrl(data.path).data.publicUrl;
-                  setTenant(prev => prev ? { ...prev, photo_url: publicUrl } : null);
-                  await fetch(`/api/tenants/${id}`, { 
-                    method: "PATCH", 
-                    headers: { "Content-Type": "application/json" }, 
-                    body: JSON.stringify({ photo_url: publicUrl }) 
-                  });
-                }
+                setPhotoMsg(`✓ Photo saved — ${new Date().toLocaleTimeString("en-GB")}`);
+              } catch (err) {
+                setTenant(prev => prev ? { ...prev, photo_url: previousPhoto } : null);
+                setPhotoMsg(`✗ ${err instanceof Error ? err.message : "Photo did not save"}`);
+              } finally {
+                setPhotoBusy(false);
+                e.target.value = '';
               }
-              e.target.value = '';
             }}
           />
-          <div 
-            style={{ 
-              width: "72px", height: "72px", borderRadius: "50%", background: "#E2E8F0", 
-              display: "flex", alignItems: "center", justifyContent: "center", 
-              overflow: "hidden", cursor: "pointer", border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", flexShrink: 0,
-              position: "relative"
+          <div
+            style={{
+              width: "72px", height: "72px", borderRadius: "50%", background: "#E2E8F0",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              overflow: "hidden", cursor: photoBusy ? "wait" : "pointer", border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", flexShrink: 0,
+              position: "relative", opacity: photoBusy ? 0.6 : 1,
             }}
-            onClick={() => document.getElementById('profile-photo-upload')?.click()}
-            title="Upload Tenant Photo"
+            onClick={() => !photoBusy && document.getElementById('profile-photo-upload')?.click()}
+            title="Upload or take a tenant photo"
           >
             {tenant?.photo_url ? (
                <Image src={tenant.photo_url} alt="Profile" fill sizes="72px" style={{ objectFit: "cover" }} />
@@ -237,9 +251,14 @@ export default function TenantDetailPage() {
           </div>
           <div style={{ flex: 1 }}>
             <LetterheadBlock roomNumber={tenant?.room_number} date={tenant?.full_name} />
+            {(photoBusy || photoMsg) && (
+              <p style={{ fontSize: 12.5, margin: "4px 0 0", color: photoBusy ? "#7A8499" : photoMsg?.startsWith("✓") ? "#1E7F4F" : "#E05252" }}>
+                {photoBusy ? "Saving photo…" : photoMsg}
+              </p>
+            )}
           </div>
         </div>
-        
+
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: "220px" }}>
           <select 
             value={tenant?.housing_benefit_status || "in_progress"} 

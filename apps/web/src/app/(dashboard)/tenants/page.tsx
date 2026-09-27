@@ -17,6 +17,17 @@ const HB_TAG: Record<string, { color: string; bg: string; label: string }> = {
   in_progress: { color: "var(--amber-deep)", bg: "rgba(232,168,76,.16)", label: "HB in progress" },
 };
 
+const BRAND_LABEL: Record<string, string> = { mattys_place: "Matty's Place", reliance: "Reliance Housing" };
+
+/** The house, however the record has it. address is the specific ask — "which
+ *  house" — but it's an optional field a lot of real tenant records never had
+ *  filled in; the brand (always set) means this is never blank. */
+function homeLabel(address: string | null | undefined, brand: string | null | undefined): string | null {
+  if (address) return address;
+  if (brand) return BRAND_LABEL[brand] ?? brand;
+  return null;
+}
+
 export default function TenantsIndexPage() {
   const { tenants, loading, error } = useTenants();
   const [filter, setFilter] = useState<"all" | "active" | "in_progress" | "suspended">("all");
@@ -70,7 +81,7 @@ export default function TenantsIndexPage() {
                 <div className="body">
                   <b>{t.full_name}</b>
                   <p>
-                    {[t.address, t.room_number ? `Room ${t.room_number}` : null].filter(Boolean).join(" · ") || "No home on file"}
+                    {[homeLabel(t.address, t.brand), t.room_number ? `Room ${t.room_number}` : null].filter(Boolean).join(" · ") || "No home on file"}
                     {" · "}<span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{t.nino || "no NINO on file"}</span>
                   </p>
                 </div>
