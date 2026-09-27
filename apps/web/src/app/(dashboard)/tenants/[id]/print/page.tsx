@@ -81,9 +81,9 @@ export default function PrintDossierPage() {
       ))}
 
       <div style={{ marginTop: "40px", paddingTop: "20px", borderTop: "2px solid #EEE", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace", color: "#7A8499", pageBreakInside: "avoid" }}>
-        <div style={{ fontWeight: 700, color: "var(--navy)", marginBottom: "4px" }}>CRYPTOGRAPHIC BIRTH CERTIFICATE</div>
-        <div>Tenant Blockchain Anchor: {latestAudit?.blockchain_hash || "PENDING BLOCKCHAIN SYNC"}</div>
-        <div>Last Updated: {latestAudit?.created_at ? new Date(latestAudit.created_at).toLocaleString() : "—"}</div>
+        <div style={{ fontWeight: 700, color: "var(--navy)", marginBottom: "4px" }}>Record hash</div>
+        <div>{latestAudit?.blockchain_hash || "not yet stamped"}</div>
+        <div>Last updated: {latestAudit?.created_at ? new Date(latestAudit.created_at).toLocaleString() : "—"}</div>
       </div>
 
       <div className="no-print" style={{ textAlign: "center", marginTop: "40px" }}>

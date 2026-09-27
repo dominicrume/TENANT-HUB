@@ -34,6 +34,7 @@ import { AskTab } from "../../../../components/tenant/AskTab";
 import { DynamicFormTab, type FormTemplate } from "../../../../components/tenant/DynamicFormTab";
 import { FormsPanel } from "../../../../components/layout/FormsPanel";
 import { BeforeYourNextContact } from "../../../../components/tenant/BeforeYourNextContact";
+import { ConfidentialityDeclaration } from "../../../../components/tenant/ConfidentialityDeclaration";
 
 const CORE_TABS = [
   { key: "personal", label: "Personal Details" },
@@ -396,26 +397,7 @@ export default function TenantDetailPage() {
             <TextField label="Probation Officer" value={form["probation_officer"] ?? ""} onChange={(v) => set("probation_officer", v)} />
           </FormSection>
 
-          {/* 6 · Confidentiality Declaration (static authorisation text) */}
-          <section id="confidentiality" style={{ marginBottom: "22px" }}>
-            <h3 style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--amber)", marginBottom: "10px", borderBottom: "1px solid #EDE8E1", paddingBottom: "5px" }}>
-              6 · Confidentiality Declaration
-            </h3>
-            <p style={{ fontSize: "12px", color: "#445", lineHeight: 1.6, background: "#F8F4EF", padding: "12px", borderRadius: "8px" }}>
-              I authorise Ash Shahada Housing Association Ltd to hold and process my personal
-              information for the purposes of providing housing and support services, and to share
-              it with relevant agencies (local authority, DWP, healthcare and probation services)
-              where necessary for my support and statutory obligations. Information will be held
-              securely and in accordance with the Data Protection Act 2018 and UK GDPR.
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "12px" }}>
-              <TextField label="Print Name" value={form["full_name"] ?? ""} onChange={() => {}} readOnly />
-              <TextField label="Date Signed" type="date" value="" onChange={() => {}} />
-            </div>
-            <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--navy)", fontWeight: 600 }}>
-              On behalf of Ash Shahada Housing Association Ltd — AHSAN REHMAN
-            </div>
-          </section>
+          <ConfidentialityDeclaration tenantId={id} tenantName={form["full_name"] ?? ""} />
 
           <div style={{ marginBottom: "14px" }}>
             <AuditStampBar
