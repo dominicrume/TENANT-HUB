@@ -127,15 +127,21 @@ export default function VoiceExtractPage() {
     return `${m}:${s}`;
   };
 
+  const hasResult = Object.keys(data).length > 0;
+
   return (
     <div>
-      <h1 style={{ fontSize: "20px", fontWeight: 700, color: "var(--navy)", marginBottom: "16px" }}>Voice Intake</h1>
+      <h1 style={{ fontSize: "20px", fontWeight: 700, color: "var(--navy)", marginBottom: "6px" }}>Voice intake</h1>
+      <p style={{ fontSize: 14, color: "#5C6673", marginBottom: 20, maxWidth: 480 }}>
+        Just talk — say the tenant&apos;s name, date of birth, address, and anything else you know.
+        Stop when you&apos;re done, and it fills in the form below for you to check.
+      </p>
 
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
         {/* Left — recording UI */}
         <div style={{ flex: "1 1 280px" }}>
           <div style={{ border: "2px dashed #D9D2C7", borderRadius: "12px", padding: "30px 20px", textAlign: "center", background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-            
+
             <div style={{
               width: "80px", height: "80px", borderRadius: "50%",
               background: isRecording ? "#E05252" : "#f1f5f9",
@@ -163,22 +169,22 @@ export default function VoiceExtractPage() {
             {isRecording ? (
               <button onClick={stopRecording}
                 style={{ minHeight: "44px", padding: "0 24px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-                ⏹ Stop Recording
+                ⏹ Stop recording
               </button>
             ) : (
               <button onClick={startRecording} disabled={busy}
                 style={{ minHeight: "44px", padding: "0 24px", borderRadius: "8px", border: "1px solid #E05252", background: "#fff", color: "#E05252", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer" }}>
-                ⏺ Start Recording
+                ⏺ {hasResult ? "Record again" : "Start recording"}
               </button>
             )}
 
           </div>
 
           {note && <p style={{ fontSize: "13px", color: "#7A8499", marginTop: "12px", background: "#f8fafc", padding: "10px", borderRadius: "8px" }}>{note}</p>}
-          
+
           {transcript && (
             <div style={{ marginTop: "16px" }}>
-              <h4 style={{ fontSize: "12px", textTransform: "uppercase", color: "var(--amber)", marginBottom: "8px" }}>Transcript</h4>
+              <h4 style={{ fontSize: "12px", textTransform: "uppercase", color: "var(--amber)", marginBottom: "8px" }}>What we heard</h4>
               <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.5, background: "#F8F4EF", padding: "12px", borderRadius: "8px" }}>
                 &quot;{transcript}&quot;
               </p>
@@ -186,18 +192,29 @@ export default function VoiceExtractPage() {
           )}
         </div>
 
-        {/* Right — editable fields */}
+        {/* Right — appears once there's something to check, so the connection between recording and the form is unmistakable */}
         <div style={{ flex: "2 1 380px" }}>
-          <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} />
+          {hasResult ? (
+            <>
+              <h4 style={{ fontSize: "12px", textTransform: "uppercase", color: "var(--slate)", marginBottom: "10px" }}>Check these — edit anything that&apos;s wrong</h4>
+              <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} />
+            </>
+          ) : (
+            <div style={{ border: "1px dashed #D9D2C7", borderRadius: "12px", padding: "40px 24px", textAlign: "center", color: "#8A93A0", fontSize: 13.5, background: "#fff" }}>
+              The form appears here once you&apos;ve recorded.
+            </div>
+          )}
         </div>
       </div>
 
-      <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
-        <button onClick={confirm} disabled={busy || Object.keys(data).length === 0}
-          style={{ minHeight: "56px", padding: "0 24px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: (busy || Object.keys(data).length === 0) ? "not-allowed" : "pointer" }}>
-          Confirm Extraction →
-        </button>
-      </div>
+      {hasResult && (
+        <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={confirm} disabled={busy}
+            style={{ minHeight: "56px", padding: "0 24px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer" }}>
+            Confirm extraction →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
