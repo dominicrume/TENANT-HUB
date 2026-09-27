@@ -80,7 +80,7 @@ export default function TenantsIndexPage() {
             <thead>
               <tr style={{ background: "#F8F4EF", color: "#7A8499", textAlign: "left" }}>
                 <th style={{ padding: "12px 16px", fontWeight: 600 }}>Name</th>
-                <th style={{ padding: "12px 16px", fontWeight: 600 }}>Room</th>
+                <th style={{ padding: "12px 16px", fontWeight: 600 }}>Home / Room</th>
                 <th style={{ padding: "12px 16px", fontWeight: 600 }}>Tenant Status</th>
                 <th style={{ padding: "12px 16px", fontWeight: 600 }}>Housing Benefit</th>
                 <th style={{ padding: "12px 16px", fontWeight: 600 }}>NINO</th>
@@ -96,7 +96,11 @@ export default function TenantsIndexPage() {
                         {t.full_name}
                       </Link>
                     </td>
-                    <td style={{ padding: "12px 16px", color: "#475569" }}>{t.room_number || "—"}</td>
+                    <td style={{ padding: "12px 16px", color: "#475569" }}>
+                      {t.address ? <span style={{ fontWeight: 600, color: "var(--navy)" }}>{t.address}</span> : null}
+                      {t.address && t.room_number ? " · " : ""}
+                      {t.room_number ? `Room ${t.room_number}` : (t.address ? "" : "—")}
+                    </td>
                     <td style={{ padding: "12px 16px" }}>
                       <span style={{ 
                         padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
@@ -137,7 +141,7 @@ export default function TenantsIndexPage() {
                         </span>
                      </div>
                      <div className="flex justify-between items-center text-sm text-gray-500">
-                        <span>Room: {t.room_number || "—"}</span>
+                        <span>{t.address ? `${t.address} · ` : ""}{t.room_number ? `Room ${t.room_number}` : "—"}</span>
                         <span style={{ fontFamily: "monospace", fontSize: "12px" }}>NINO: {t.nino || "—"}</span>
                      </div>
                   </div>

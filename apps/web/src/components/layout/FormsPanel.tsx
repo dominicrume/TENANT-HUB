@@ -13,20 +13,19 @@ import { EvictionNoticeModal } from "../EvictionNoticeModal";
 interface FormCard {
   key: string;
   name: string;
-  page: string;
   tint: string;
   tab?: string;
   checklist?: ChecklistItem;
 }
 
 const FORMS: FormCard[] = [
-  { key: "personal", name: "Personal Details", page: "Quest 1", tint: "#4C7CE8", tab: "personal", checklist: "personal_details_form" },
-  { key: "hb", name: "Housing Benefit", page: "Quest 2", tint: "#34C87A", tab: "hb", checklist: "housing_benefit_claim" },
-  { key: "missing", name: "Missing Person", page: "Quest 3", tint: "#E8A84C", tab: "missing", checklist: "missing_person_form" },
-  { key: "charge", name: "Service Charge", page: "Quest 4", tint: "#0FB5A6", tab: "ledger", checklist: "service_charge_agreement" },
-  { key: "risk", name: "Risk Assessment", page: "Quest 5", tint: "#E05252", tab: "risk", checklist: "risk_assessment" },
-  { key: "confidentiality", name: "Confidentiality", page: "Quest 6", tint: "#7C3AED", tab: "personal", checklist: "confidentiality_form" },
-  { key: "initial", name: "Initial Assessment", page: "Quest 7", tint: "#0F1C2E", tab: "initial", checklist: "initial_assessment" },
+  { key: "personal", name: "Personal Details", tint: "#4C7CE8", tab: "personal", checklist: "personal_details_form" },
+  { key: "hb", name: "Housing Benefit", tint: "#34C87A", tab: "hb", checklist: "housing_benefit_claim" },
+  { key: "missing", name: "Missing Person", tint: "#E8A84C", tab: "missing", checklist: "missing_person_form" },
+  { key: "charge", name: "Service Charge", tint: "#0FB5A6", tab: "ledger", checklist: "service_charge_agreement" },
+  { key: "risk", name: "Risk Assessment", tint: "#E05252", tab: "risk", checklist: "risk_assessment" },
+  { key: "confidentiality", name: "Confidentiality", tint: "#7C3AED", tab: "personal", checklist: "confidentiality_form" },
+  { key: "initial", name: "Initial Assessment", tint: "#0F1C2E", tab: "initial", checklist: "initial_assessment" },
 ];
 
 export function FormsPanel({ tenant }: { tenant: CanonicalTenant }) {
@@ -60,7 +59,7 @@ export function FormsPanel({ tenant }: { tenant: CanonicalTenant }) {
     
     return (
       <div style={{ padding: "4px 8px", borderRadius: "8px", background: "#F1F5F9", color: "#94A3B8", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-        Locked
+        Not started
       </div>
     );
   }
@@ -70,12 +69,7 @@ export function FormsPanel({ tenant }: { tenant: CanonicalTenant }) {
       <aside className="forms-panel" style={{ width: "280px", flexShrink: 0, background: "var(--surface)", borderLeft: "1px solid #EDE8E1", padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-             <span style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--navy)" }}>Quest Log</span>
-             <span style={{ fontSize: "18px" }}>📜</span>
-          </div>
-          
-          <div style={{ background: "linear-gradient(to right, rgba(76,124,232,0.06), rgba(76,124,232,0.02))", borderLeft: "3px solid #4C7CE8", borderRadius: "4px", padding: "10px 12px", fontSize: "11px", color: "#4C7CE8", marginBottom: "8px", lineHeight: 1.4 }}>
-            <strong>Pro Tip:</strong> Completing forms here will unlock achievements in the Checklist tab!
+             <span style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--navy)" }}>Forms</span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -125,7 +119,6 @@ export function FormsPanel({ tenant }: { tenant: CanonicalTenant }) {
                   </div>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: "block", fontSize: "13px", fontWeight: 600, color: isDone ? "#1E7F4F" : "var(--navy)" }}>{f.name}</span>
-                    <span style={{ display: "block", fontSize: "10px", color: isDone ? "#34C87A" : "#94A3B8" }}>{f.page}</span>
                   </span>
                   {statusBadge(f)}
                 </button>
