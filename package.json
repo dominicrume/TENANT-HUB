@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "start": "pnpm --filter @tenant-hub/worker start",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "node scripts/kya-gate.js && turbo run test",
