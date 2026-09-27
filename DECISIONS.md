@@ -5,6 +5,35 @@ Newest first.
 
 ---
 
+## D25 — SUPABASE_URL/SERVICE_ROLE_KEY made optional in packages/env; a real Railway Postgres provisioned (2026-09-27)
+**Context:** Rume asked to move off Supabase onto Railway entirely, not on a later phase's schedule. packages/env's
+own header comment already described DATABASE_URL as "Supabase's transaction pooler URI today, Railway Postgres
+after step 5" — but SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY were still hard-required at the top of the schema,
+which meant any runtime without them (the worker, deployed anywhere other than next to a Supabase project) would
+fail env validation and exit(1) in production, even though writeWithAudit's pg-transaction path never touches the
+Supabase clients once DATABASE_URL is set.
+**Decision:** Made both optional in the shared schema, and pushed the real requirement down to the two places that
+still generatively need Supabase — packages/db's `rlsClient`/`adminClient` factories, which now throw a clear error
+naming exactly which variable is missing, only at the point something actually tries to use the legacy Supabase
+path — rather than a blanket check every runtime pays for. Nothing about apps/web's actual behaviour changed: its
+Vercel environment still has both variables set, so it keeps working exactly as before; this only unblocks a
+runtime that has DATABASE_URL and nothing else.
+Separately: provisioned a real Railway Postgres database (project "tenant-hub"), enabled a public TCP proxy so it's
+reachable from outside Railway's network, and applied all 41 migration files against it. Getting a clean run
+required a small compatibility shim (not part of the tracked migrations, run once before them) since this schema
+was written against Supabase's Postgres, which ships things vanilla Postgres does not: an `auth` schema with a real
+`auth.users` table and `uid()` function, `pgcrypto` pre-enabled, and Supabase Storage's `storage.buckets`/
+`storage.objects` tables and its `authenticated`/`anon`/`service_role` roles. All 47 tables (including
+properties/tenancies/regulation_items/commitments/insurance_policies — everything failing on the live Supabase
+project for want of these exact migrations) and the certificate_types seed data (20 rows) verified present.
+**Why:** This is real, verified infrastructure — not a placeholder — and it directly unblocks the next real step
+(the worker actually running against a live database for the first time). It does NOT mean the web app has moved
+off Supabase: reads still go through the Supabase JS client and RLS, not packages/db, and auth is still Supabase
+Auth. Cutting the web app over needs the API-route rewiring PLATFORM_CONSOLIDATION.md's "strangling migration" plan
+already describes, plus a real export of the LIVE Supabase data (this environment has no Supabase CLI or access
+token, so that step is still blocked pending credentials) — conflating "a database exists" with "we're off Supabase"
+would be dishonest, so this decision states plainly what has and hasn't happened.
+
 ## D24 — Rent screen: the new ladders/queue/up-to-date panel is added above the existing ledger, not a replacement of it (2026-09-27, C30)
 **Context:** C30's brief describes a new view — ladders as beads, "Is this rent?", HB status, "Up to
 date" — but says nothing about the existing /ledger page's charge-recording and payment-recording

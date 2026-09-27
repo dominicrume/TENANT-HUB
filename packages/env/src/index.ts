@@ -8,8 +8,14 @@ import { z } from "zod";
 
 // ── Server-side schema (never exposed to browser) ────────────────────────
 const serverSchema = z.object({
-  SUPABASE_URL:              z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  // Required only by the legacy write_with_audit RPC fallback (packages/db,
+  // removed at C43) and by apps/web's Supabase-client reads, which still run
+  // through @supabase/ssr rather than packages/db. The worker needs neither
+  // once DATABASE_URL is set — writeWithAudit's pg-transaction path never
+  // touches adminClient — so these can no longer be blanket-required across
+  // every runtime in the monorepo (DECISIONS D25).
+  SUPABASE_URL:              z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   // The one database connection (docs/PLATFORM_CONSOLIDATION.md step 1). Supabase's
   // transaction pooler URI today, Railway Postgres after step 5. Optional until then.
   DATABASE_URL:              z.string().url().optional(),
