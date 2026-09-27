@@ -1,0 +1,31 @@
+# apps/worker's Railway deployment. A dedicated Dockerfile rather than
+# Railway's auto-detected build: Railpack (and the root package.json's own
+# "build" script, which CI needs to keep building every package) both end up
+# trying to build apps/web too, which fails without real Supabase credentials
+# at build time. This only ever installs and runs the worker.
+FROM node:20-slim
+
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@9.1.4 --activate
+
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY apps/worker/package.json apps/worker/package.json
+COPY packages/adapters/package.json packages/adapters/package.json
+COPY packages/ai/package.json packages/ai/package.json
+COPY packages/audit/package.json packages/audit/package.json
+COPY packages/auth/package.json packages/auth/package.json
+COPY packages/blockchain/package.json packages/blockchain/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/domain/package.json packages/domain/package.json
+COPY packages/env/package.json packages/env/package.json
+COPY packages/kya/package.json packages/kya/package.json
+COPY packages/ports/package.json packages/ports/package.json
+COPY packages/telemetry/package.json packages/telemetry/package.json
+COPY packages/validation/package.json packages/validation/package.json
+
+RUN pnpm install --frozen-lockfile --filter @tenant-hub/worker...
+
+COPY apps/worker apps/worker
+COPY packages packages
+
+CMD ["pnpm", "--filter", "@tenant-hub/worker", "start"]
