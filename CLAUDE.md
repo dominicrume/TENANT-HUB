@@ -71,6 +71,7 @@ H8. Resilient UI — background refreshes never blank a populated list
 - Tenant:         Read own record + sign only
 
 ## Key Files to Read for Context
+- context.md                   — current-state snapshot: what's live where, what's broken, what's needed next. Read this too, every session — it changes faster than this file does.
 - docs/BUILD_PLAN.md           — THE ordered build plan (C01–C44). Continue from the first unticked commit.
 - docs/ESTATE_OPS_INTEGRATION_PROMPT.md — what we are folding in from Estate Ops and why
 - docs/PLATFORM_CONSOLIDATION.md — the move from Supabase + Vercel to Railway, by strangling
