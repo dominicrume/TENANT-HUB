@@ -1,8 +1,18 @@
 # context.md — Tenant Hub, current state
 > Read this alongside CLAUDE.md. That file is the permanent briefing (product, architecture,
 > hardening rules). This file is the snapshot: what is actually true right now, as of
-> 2026-09-27, in this specific project's real accounts and deployments — not the plan, not
+> 2026-09-28, in this specific project's real accounts and deployments — not the plan, not
 > the decision history (see DECISIONS.md for that), just where things stand today.
+
+## Login still runs on Supabase Auth — do not assume otherwise
+BUILD_PLAN C31 (own sessions) is under construction: password hashing, the new tables, and the
+login/logout/password-reset API routes are built and tested (DECISIONS D26). **None of it is
+live.** `/login` and `middleware.ts` are completely unchanged and still depend on Supabase Auth.
+Two real blockers stand between "built" and "live" here: production has no `DATABASE_URL` (the
+new routes need it, and setting it needs the same care as the rest of the Railway question —
+see below), and `middleware.ts` runs on the Edge runtime, which can't hold a raw Postgres
+connection the way the new session lookup needs. Don't wire the new routes into `/login` without
+resolving both.
 
 ## The one thing to know before anything else
 **Two separate infrastructure stacks currently exist, and they are not connected.**

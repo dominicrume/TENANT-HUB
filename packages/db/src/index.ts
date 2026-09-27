@@ -10,4 +10,5 @@ export * from "./worker";
 export * from "./invite";
 export * from "./notifications";
 export * from "./jobs";
+export * from "./auth-store";
 export { createPgTelemetrySink, workerHeartbeatAge } from "./telemetry-sink";

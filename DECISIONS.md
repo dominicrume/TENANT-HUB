@@ -5,6 +5,42 @@ Newest first.
 
 ---
 
+## D26 — C31's own-session system built and tested, deliberately not cut over to the live login yet (2026-09-28)
+**Context:** BUILD_PLAN C31 replaces Supabase Auth with the app's own sessions. This is the highest-stakes single
+piece of work in the whole engagement so far: every real user's ability to log in depends on it, there is no
+staging environment identical to production to rehearse a cutover against, and a mistake here is not "one page
+shows an error" the way every other bug this session has been — it is "nobody can get in." Two concrete technical
+facts make this worse to rush: (1) `hasDatabaseUrl()` is false on the live Vercel deployment — `DATABASE_URL` is
+only set on Railway right now — so any route requiring it (login, reset) would 503 in production the instant it
+went live; (2) `middleware.ts` runs on Next.js's Edge runtime, which the Supabase JS client tolerates today because
+it talks to Supabase over plain HTTPS (PostgREST), but `packages/db`'s pg `Pool` needs a raw TCP socket, which the
+Edge runtime does not provide — so an own-session check inside middleware itself cannot just call packages/db the
+way an ordinary API route can; it needs either an internal HTTP round-trip to a Node-runtime route, or a considered
+decision to move middleware onto the Node.js runtime, verified before trusting it on every request to a live app.
+**Decision:** Built and fully tested (packages/auth's scrypt hashing with bcrypt-verify-then-rehash for an account
+that still only has a Supabase-issued hash; migration 040's `user_sessions`/`login_attempts`/`password_resets`
+tables; packages/db's session-store functions, 15 pglite tests; the actual API routes — POST /api/auth/login,
+/logout, /password/reset-request, /password/reset-confirm — with an explicit cross-origin POST refusal
+(`apps/web/src/lib/csrf.ts`) on top of the session cookie's own SameSite=Lax; a new confirm-reset page at
+`/reset-password/[token]`). None of it is wired into the pages a real person actually uses: `/login` and the
+existing `/reset-password` request page still call Supabase exactly as before, and nothing changed in
+`middleware.ts`. The new routes correctly 503 rather than silently misbehaving while DATABASE_URL is absent from
+production.
+**Why:** This mirrors D25's own discipline — build real, tested, working infrastructure, and say plainly that
+building it is not the same as cutting over to it. The two blockers above (DATABASE_URL on Vercel, and the
+Edge-runtime constraint on middleware) both need their own explicit decisions, not something inferred from "the
+code compiles." Remaining before this is actually live: (1) decide the middleware approach — recommend an internal
+`/api/auth/verify` call from middleware over moving the whole file to the Node.js runtime untested, since a wrong
+guess there is undetectable until it fails; (2) a one-time script to copy `auth.users.encrypted_password` into
+`profiles.password_hash` for every existing account (blocked on the same Supabase credentials D25 already flagged
+as missing — nothing new); (3) rework `packages/db/src/invite.ts`'s `inviteStaffMember`/`inviteTenant`, which
+currently create the Supabase `auth.users` row directly via `adminClient.auth.admin.inviteUserByEmail` — the own
+system needs to send its own link (a `pending_invites.token_hash`, generated exactly like a session or reset
+token) instead, since a brand-new account should never depend on Supabase Auth issuing it. (2) is intentionally the
+one truly destructive-feeling step in this list — reading real users' password hashes out of a live system — and
+should happen only with Rume's explicit go-ahead on that specific action, separate from "move to Railway" in
+general.
+
 ## D25 — SUPABASE_URL/SERVICE_ROLE_KEY made optional in packages/env; a real Railway Postgres provisioned (2026-09-27)
 **Context:** Rume asked to move off Supabase onto Railway entirely, not on a later phase's schedule. packages/env's
 own header comment already described DATABASE_URL as "Supabase's transaction pooler URI today, Railway Postgres
