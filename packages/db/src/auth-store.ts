@@ -5,7 +5,7 @@
  * (scrypt, tokens) lives in @tenant-hub/auth — this file only ever stores and
  * looks up hashes, never a plaintext password or a raw token.
  */
-import type { Queryable } from "./pool";
+import type { DbClient, Queryable } from "./pool";
 
 export interface ProfileForLogin {
   id: string;
@@ -111,4 +111,59 @@ export async function consumePasswordReset(client: Queryable, tokenHash: string)
      WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > NOW()
      RETURNING profile_id`, [tokenHash]);
   return r.rows[0] ? { profileId: r.rows[0].profile_id } : null;
+}
+
+/* ── Invites ──────────────────────────────────────────────────────────────
+ * The own-session replacement for inviteUserByEmail: the invite row carries
+ * the role/org/tenant, its emailed link carries a one-time token (only the
+ * hash is stored, as with sessions and resets), and accepting it creates the
+ * profile directly — no Supabase auth.users row involved (migration 041). */
+export interface InviteRow {
+  id: string; email: string; role: string; org_id: string | null; tenant_id: string | null; full_name: string | null; brand: string;
+}
+
+/** Stamps a token onto the person's live invite. Returns false when there is no live invite for that email. */
+export async function attachInviteToken(client: Queryable, i: { email: string; tokenHash: string; ttlMs?: number }): Promise<boolean> {
+  const r = await client.query(
+    `UPDATE pending_invites SET token_hash = $2, expires_at = NOW() + ($3 || ' milliseconds')::interval
+     WHERE lower(email) = lower($1) AND consumed_at IS NULL`,
+    [i.email, i.tokenHash, String(i.ttlMs ?? 14 * 24 * 60 * 60 * 1000)]);
+  return (r.rowCount ?? 0) > 0;
+}
+
+export async function findLiveInvite(client: Queryable, tokenHash: string): Promise<InviteRow | null> {
+  const r = await client.query<InviteRow>(
+    `SELECT id, email, role, org_id, tenant_id, full_name, brand FROM pending_invites
+     WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > NOW()`, [tokenHash]);
+  return r.rows[0] ?? null;
+}
+
+/**
+ * Spends the invite and creates the account in ONE transaction: if the profile insert fails
+ * (say the email already has an account) the invite is not burned. Returns the new profile id,
+ * or null when the token is unknown, used, or expired.
+ */
+export async function acceptInvite(client: DbClient, i: { tokenHash: string; passwordHash: string }): Promise<{ profileId: string; role: string } | null> {
+  return client.transaction(async (tx) => {
+    const claimed = await tx.query<InviteRow>(
+      `UPDATE pending_invites SET consumed_at = NOW()
+       WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > NOW()
+       RETURNING id, email, role, org_id, tenant_id, full_name, brand`, [i.tokenHash]);
+    const invite = claimed.rows[0];
+    if (!invite) return null;
+    const created = await tx.query<{ id: string }>(
+      `INSERT INTO profiles (full_name, role, email, org_id, tenant_id, brand, password_hash)
+       VALUES (COALESCE($1, 'New User'), $2, lower($3), $4, $5, $6, $7) RETURNING id`,
+      [invite.full_name, invite.role, invite.email, invite.org_id, invite.tenant_id, invite.brand, i.passwordHash]);
+    return { profileId: created.rows[0]!.id, role: invite.role };
+  });
+}
+
+/** Issues an invite, replacing any outstanding one for the same email (mirrors createPendingInvite in invite.ts, minus the Supabase call). */
+export async function createInvite(client: Queryable, i: { email: string; role: string; orgId: string; fullName?: string | null; brand?: string | null; tenantId?: string | null; invitedBy?: string | null }): Promise<void> {
+  const email = i.email.trim().toLowerCase();
+  await client.query("DELETE FROM pending_invites WHERE lower(email) = $1 AND consumed_at IS NULL", [email]);
+  await client.query(
+    `INSERT INTO pending_invites (email, role, org_id, tenant_id, full_name, brand, invited_by) VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'mattys_place'), $7)`,
+    [email, i.role, i.orgId, i.tenantId ?? null, i.fullName ?? null, i.brand ?? null, i.invitedBy ?? null]);
 }

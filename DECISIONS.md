@@ -33,10 +33,15 @@ code compiles." Remaining before this is actually live: (1) decide the middlewar
 `/api/auth/verify` call from middleware over moving the whole file to the Node.js runtime untested, since a wrong
 guess there is undetectable until it fails; (2) a one-time script to copy `auth.users.encrypted_password` into
 `profiles.password_hash` for every existing account (blocked on the same Supabase credentials D25 already flagged
-as missing — nothing new); (3) rework `packages/db/src/invite.ts`'s `inviteStaffMember`/`inviteTenant`, which
-currently create the Supabase `auth.users` row directly via `adminClient.auth.admin.inviteUserByEmail` — the own
-system needs to send its own link (a `pending_invites.token_hash`, generated exactly like a session or reset
-token) instead, since a brand-new account should never depend on Supabase Auth issuing it. (2) is intentionally the
+as missing — nothing new); (3) ~~rework the invite path~~ — built 2026-09-28: migration 041 drops `profiles.id`'s foreign key to
+`auth.users` (a profile no longer needs a Supabase account) and adds a unique lower(email) index; `createInvite`/
+`attachInviteToken`/`acceptInvite` in packages/db (8 pglite tests, including that a failed profile insert rolls the
+invite back so the link isn't burned); `POST /api/auth/invite` (manager issues, emails the link via the notify
+port), `POST /api/auth/invite/accept` (creates the account and signs the person straight in), and `/invite/[token]`,
+made public in middleware. The old `invite.ts` (Supabase `inviteUserByEmail`) is untouched and still what
+`/api/invites` uses. **Before applying 041 to live Supabase:** check for duplicate emails in `profiles`
+(`SELECT lower(email), count(*) FROM profiles GROUP BY 1 HAVING count(*) > 1`) — the new unique index would fail
+on them, and that failure should be understood, not retried blindly. (2) is intentionally the
 one truly destructive-feeling step in this list — reading real users' password hashes out of a live system — and
 should happen only with Rume's explicit go-ahead on that specific action, separate from "move to Railway" in
 general.
