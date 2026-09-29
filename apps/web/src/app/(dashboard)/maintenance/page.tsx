@@ -15,10 +15,12 @@ const SEVERITY_STYLE: Record<string, { bg: string; color: string; label: string 
 export default function MaintenancePage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [trades, setTrades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showTrades, setShowTrades] = useState(false);
   const [busy, setBusy] = useState(false);
-  
+
   // New ticket state
   const [issueType, setIssueType] = useState("Plumbing");
   const [roomNumber, setRoomNumber] = useState("");
@@ -26,20 +28,47 @@ export default function MaintenancePage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [assignedTo, setAssignedTo] = useState("");
 
+  // New trade state
+  const [tradeName, setTradeName] = useState("");
+  const [tradeCategory, setTradeCategory] = useState("Plumbing");
+  const [tradeEmail, setTradeEmail] = useState("");
+  const [tradePhone, setTradePhone] = useState("");
+  const [tradeEmergency, setTradeEmergency] = useState(false);
+  const [tradeError, setTradeError] = useState<string | null>(null);
+
   const supabase = getSupabaseBrowser();
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [tRes, pRes] = await Promise.all([
+    const [tRes, pRes, trRes] = await Promise.all([
       fetch("/api/maintenance"),
-      fetch("/api/profiles")
+      fetch("/api/profiles"),
+      fetch("/api/trades"),
     ]);
     if (tRes.ok) setTickets(await tRes.json());
     if (pRes.ok) setProfiles(await pRes.json());
+    if (trRes.ok) setTrades(await trRes.json());
     setLoading(false);
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function handleAddTrade(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true); setTradeError(null);
+    const res = await fetch("/api/trades", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: tradeName, category: tradeCategory,
+        contact_email: tradeEmail || null, contact_phone: tradePhone || null,
+        is_emergency_capable: tradeEmergency,
+      }),
+    });
+    setBusy(false);
+    if (!res.ok) { const b = await res.json().catch(() => null); setTradeError(b?.error ?? "Could not save the trade"); return; }
+    setTradeName(""); setTradeEmail(""); setTradePhone(""); setTradeEmergency(false);
+    void load(); // trades stays populated with the old list until this resolves (H8)
+  }
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -97,11 +126,16 @@ export default function MaintenancePage() {
         <h1 style={{ color: "var(--navy)", fontSize: "22px", fontWeight: 700, margin: 0 }}>
           Maintenance & Repairs
         </h1>
-        <button onClick={() => setShowModal(true)} style={{ padding: "10px 20px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
-          + New Ticket
-        </button>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button onClick={() => setShowTrades(true)} style={{ padding: "10px 20px", borderRadius: "8px", border: "1px solid var(--navy)", background: "transparent", color: "var(--navy)", cursor: "pointer", fontWeight: 600 }}>
+            Trades
+          </button>
+          <button onClick={() => setShowModal(true)} style={{ padding: "10px 20px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
+            + New Ticket
+          </button>
+        </div>
       </div>
-      
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", alignItems: "start" }}>
         {["Open", "Assigned", "Resolved"].map(status => (
           <div key={status} style={{ background: "#F8F4EF", borderRadius: "12px", padding: "16px", minHeight: "60vh" }}>
@@ -217,6 +251,55 @@ export default function MaintenancePage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {showTrades && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15,28,46,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }} onClick={() => setShowTrades(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", padding: "24px", borderRadius: "12px", width: "420px", maxHeight: "80vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <h3 style={{ margin: 0, color: "var(--navy)" }}>Trades</h3>
+            <p style={{ fontSize: "12px", color: "#7A8499", margin: 0 }}>Who a repair gets sent to. issue-triage picks one of these by category, or &quot;general&quot; as a fallback.</p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {trades.length === 0 && <p style={{ fontSize: "12px", color: "#7A8499", fontStyle: "italic" }}>No trades yet — add the first one below.</p>}
+              {trades.map((t) => (
+                <div key={t.id} style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #EDE8E1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: "13px", color: "var(--navy)" }}>{t.name}</p>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "#7A8499" }}>{t.category}{t.is_emergency_capable ? " · 24/7" : ""}</p>
+                  </div>
+                  {t.contact_phone && <span style={{ fontSize: "11.5px", color: "#7A8499" }}>{t.contact_phone}</span>}
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={handleAddTrade} style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "8px", borderTop: "1px solid #EDE8E1" }}>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <input value={tradeName} onChange={(e) => setTradeName(e.target.value)} placeholder="Trade name *" required style={{ flex: 1, padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }} />
+                <select value={tradeCategory} onChange={(e) => setTradeCategory(e.target.value)} style={{ flex: 1, padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }}>
+                  <option value="Plumbing">Plumbing</option>
+                  <option value="Electrical">Electrical</option>
+                  <option value="Heating/Boiler">Heating/Boiler</option>
+                  <option value="general">General</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <input value={tradeEmail} onChange={(e) => setTradeEmail(e.target.value)} type="email" placeholder="Contact email" style={{ flex: 1, padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }} />
+                <input value={tradePhone} onChange={(e) => setTradePhone(e.target.value)} placeholder="Contact phone" style={{ flex: 1, padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }} />
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--navy)" }}>
+                <input type="checkbox" checked={tradeEmergency} onChange={(e) => setTradeEmergency(e.target.checked)} />
+                24/7 — may take an emergency straight away
+              </label>
+              {tradeError && <p style={{ color: "var(--brick)", margin: 0, fontSize: "12.5px" }}>{tradeError}</p>}
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setShowTrades(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "transparent", cursor: "pointer", color: "#7A8499", fontWeight: 600 }}>Close</button>
+                <button type="submit" disabled={busy || !tradeName} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
+                  {busy ? "Saving…" : "Add trade"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
