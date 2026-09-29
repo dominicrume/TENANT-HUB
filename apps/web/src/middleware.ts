@@ -12,6 +12,9 @@ const PUBLIC_PREFIXES = [
   "/auth/callback",
   "/api/auth",
   "/api/health",
+  // The wall-QR repair report — whoever scans the poster has no account (BUILD_PLAN C33).
+  "/report",
+  "/api/report",
 ];
 
 export async function middleware(req: NextRequest) {
@@ -103,7 +106,9 @@ export async function middleware(req: NextRequest) {
 
     // Tenant routing enforcement — confine to the tenant portal pages.
     if (role === "tenant") {
-      const TENANT_ALLOWED = ["/my-home", "/my-ledger", "/report-issue"];
+      // "/report" included so a tenant already signed in on their phone can still
+      // use the wall-QR poster without being bounced back to /my-home (BUILD_PLAN C33).
+      const TENANT_ALLOWED = ["/my-home", "/my-ledger", "/report-issue", "/report"];
       const isAllowed =
         TENANT_ALLOWED.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
         pathname.startsWith("/api/") ||
