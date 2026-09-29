@@ -5,6 +5,13 @@ import Image from "next/image";
 import { formatShortDate } from "../../../lib/format";
 import { getSupabaseBrowser } from "../../../lib/supabase-browser";
 
+const SEVERITY_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  emergency: { bg: "rgba(178,74,49,.14)", color: "var(--brick)", label: "Emergency" },
+  urgent:    { bg: "rgba(178,74,49,.08)", color: "var(--brick)", label: "Urgent" },
+  routine:   { bg: "rgba(232,168,76,.16)", color: "var(--amber-deep)", label: "Routine" },
+  cosmetic:  { bg: "rgba(92,102,115,.10)", color: "var(--slate)", label: "Cosmetic" },
+};
+
 export default function MaintenancePage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -105,15 +112,27 @@ export default function MaintenancePage() {
               {tickets.filter(t => t.status === status).map(ticket => (
                 <div key={ticket.id} style={{ background: "#fff", padding: "14px", borderRadius: "8px", border: "1px solid #EDE8E1", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                    <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--amber)", textTransform: "uppercase" }}>{ticket.issue_type}</span>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--amber)", textTransform: "uppercase" }}>{ticket.category || ticket.issue_type}</span>
                     <span style={{ fontSize: "11px", color: "#7A8499" }}>{formatShortDate(ticket.created_at)}</span>
                   </div>
+                  {ticket.severity && (
+                    <span style={{
+                      display: "inline-block", fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: 999, marginBottom: "8px",
+                      background: SEVERITY_STYLE[ticket.severity]?.bg, color: SEVERITY_STYLE[ticket.severity]?.color,
+                    }}>
+                      {SEVERITY_STYLE[ticket.severity]?.label ?? ticket.severity}
+                    </span>
+                  )}
                   <p style={{ fontSize: "13px", color: "var(--navy)", fontWeight: 600, margin: "0 0 6px 0" }}>{ticket.description}</p>
+                  {ticket.triage_reasoning && (
+                    <p style={{ fontSize: "11.5px", color: "#7A8499", fontStyle: "italic", margin: "0 0 8px 0" }}>{ticket.triage_reasoning}</p>
+                  )}
                   <p style={{ fontSize: "12px", color: "#7A8499", margin: "0 0 10px 0" }}>
                     Room: <strong>{ticket.room_number}</strong>
                     {ticket.tenant?.full_name ? ` · ${ticket.tenant.full_name}` : ""}
+                    {ticket.reported_via === "qr" ? " · via wall QR" : ""}
                   </p>
-                  
+
                   {ticket.photo_url && (
                     <div style={{ marginBottom: "10px", position: "relative", height: "120px", width: "100%" }}>
                       <Image 
