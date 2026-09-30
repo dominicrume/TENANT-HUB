@@ -93,6 +93,22 @@ Format: **id** · title · source · touches · **done when**.
 - **C36** · Seed · INT §5 #26 · `scripts/seed.ts` (refuses production unless `ALLOW_DEMO_SEED=1`): supported org with 3 HMOs, 12 tenants, HB-pending arrears at 10 and 30 days, missing FRA, emergency repair, overdue commitment; private-landlord org with residential + commercial · **done when** `pnpm seed` then a worker drain fills every Today group.
 - **C37** · Verify and golden path · INT §5 #27–28 · `scripts/verify.ts` (§11 checks: agents ran, rungs per class, H9–H12 invariants, chain intact, H1 coverage, RBAC parity, grep gates); Playwright golden path (manager → Read & send → audit ✋; QR report → Today; contractor sees Jobs only; tenant sees portal only) · **done when** `pnpm verify` and `pnpm e2e` are green against Supabase-hosted Postgres.
 
+### M8 — Properties refinement (9 commits, parallel track — see `docs/PROPERTIES_REFINEMENT.md`)
+
+From a live client walkthrough, 2026-09-30 (Matloob + Osama). Full detail, including
+what was actually said and why, lives in `docs/PROPERTIES_REFINEMENT.md` — this is
+just the checklist line. Does not block, and is not blocked by, M6/M7.
+
+- **C45** · Rename Homes → Properties · nav, page titles, `/homes` → `/properties` with a redirect · **done when** no user-facing "Home(s)" remains and old links still work.
+- **C46** · Landlords, for real · a `landlords` table, "Add landlord" form, `properties.landlord_id` · **done when** a manager adds one without SQL.
+- **C47** · Group/filter properties by landlord · dropdown fed by C46's table, addable, not hardcoded · **done when** a new landlord is immediately selectable with no code change.
+- **C48** · Search properties by address · **done when** a partial address jumps straight to the property, any landlord.
+- **C49** · Active / Pending status filter · **done when** Pending shows only what's missing, in plain words.
+- **C50** · Two document trees, typed dropdown · property docs vs tenant docs never cross · **done when** a doc's type always comes from the list (+ "Other"), never free text.
+- **C51** · Request a document from the landlord, in-app · **done when** the request and its status are real and visible on the property.
+- **C52** · Room-status overview, colour-coded by landlord · **done when** empty rooms are visible at a glance across every landlord.
+- **C53** · Sessions: Word/PDF export, per-user AI key, Claude as a provider option · **done when** export is a real file and a second provider genuinely runs sessions.
+
 ### M6 — Move and ship (5 commits)
 
 - **C38** · Docker and Railway services · CON step 5, donor `Dockerfile` · `Dockerfile` (one image, `START_CMD` selects web or worker; web runs migrations on release), `railway.json` (healthcheck `/api/health`), `scripts/migrate.ts` (numbered, tracked in `_migrations`) · **done when** both services build and the worker runs on Railway against the Supabase pooler.
@@ -138,6 +154,7 @@ Format: **id** · title · source · touches · **done when**.
 - [x] C29 · [x] C30 · [ ] C31 · [x] C32 · [ ] C33 · [ ] C34 · [ ] C35 · [ ] C36 · [ ] C37 — **M5 gate**
 - [ ] C38 · [ ] C39 · [ ] C40 · [ ] C41 · [ ] C42 — **M6 gate**
 - [ ] C43 · [ ] C44 — **M7 gate**
+- [ ] C45 · [ ] C46 · [ ] C47 · [ ] C48 · [ ] C49 · [ ] C50 · [ ] C51 · [ ] C52 · [ ] C53 — **M8 gate** (parallel track, see `docs/PROPERTIES_REFINEMENT.md`)
 
 ## 8. Indicative timing
 
