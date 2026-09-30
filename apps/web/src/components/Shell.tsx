@@ -17,7 +17,7 @@ import { useEffect, useState, type ReactNode } from "react";
 const I = {
   today:     <path d="M3 12l9-9 9 9M5 10v10h14V10" />,
   people:    <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0113 0M16 4a3.5 3.5 0 010 7M21.5 20a6.5 6.5 0 00-5-6.3" /></>,
-  homes:     <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 20V9" /></>,
+  properties: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 20V9" /></>,
   rent:      <><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></>,
   repairs:   <path d="M14 6a4 4 0 00-5 5l-6 6 3 3 6-6a4 4 0 005-5l-2 2-2-2 2-2z" />,
   sessions:  <><path d="M4 5h16v11H8l-4 4z" /></>,
@@ -55,7 +55,7 @@ export interface NavItem {
 export const STAFF_NAV: NavItem[] = [
   { href: "/dashboard",   label: "Today",               icon: "today",     mobile: true },
   { href: "/tenants",     label: "People",              icon: "people",    mobile: true },
-  { href: "/homes",       label: "Homes",               icon: "homes",     mobile: true },
+  { href: "/properties",  label: "Properties",          icon: "properties", mobile: true },
   { href: "/ledger",      label: "Rent",                icon: "rent",      mobile: true },
   { href: "/paperwork",   label: "Paperwork",           icon: "paperwork" },
   { href: "/maintenance", label: "Repairs",             icon: "repairs",   mobile: true, short: "Fix" },

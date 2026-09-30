@@ -66,7 +66,7 @@ export default function PaperworkPage() {
         {rows === null ? (
           <div className="li"><p className="muted">Loading…</p></div>
         ) : rows.length === 0 ? (
-          <div className="li"><div className="body"><b>No homes yet</b><p>Add one on the Homes page first.</p></div></div>
+          <div className="li"><div className="body"><b>No properties yet</b><p>Add one on the Properties page first.</p></div></div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
             <thead>

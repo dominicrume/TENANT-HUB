@@ -4,7 +4,7 @@ import { PublicReportSchema } from "@tenant-hub/validation";
 
 /**
  * POST /api/report/[propertyId] — the wall QR poster's own route (BUILD_PLAN
- * C33, Homes' "Print QR" button). Deliberately unauthenticated: whoever
+ * C33, Properties' "Print QR" button). Deliberately unauthenticated: whoever
  * scans the poster has no account and needs none. Rate-limited PER PROPERTY
  * (not per IP — several tenants sharing a house, and a flatmate on the same
  * wifi, must never be mistaken for a spammer) rather than the generic

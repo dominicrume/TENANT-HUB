@@ -1,7 +1,7 @@
 /**
  * People — every tenant, red/orange/green by housing benefit risk, one card
  * per person. Rebuilt onto the console design system (globals.css's card/li/
- * tag classes) so this matches Today, Homes and Rent instead of the
+ * tag classes) so this matches Today, Properties and Rent instead of the
  * inline-styled table it used to be. Filtering and sort logic is unchanged.
  */
 "use client";
