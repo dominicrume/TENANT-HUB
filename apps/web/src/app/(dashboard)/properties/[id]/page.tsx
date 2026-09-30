@@ -13,17 +13,22 @@ import { useTenants } from "../../../../hooks/useTenants";
 import { formatShortDate, formatMoney } from "../../../../lib/format";
 
 interface PropertyDetail {
-  property: { id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null; asset_class: string };
+  property: { id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null; asset_class: string; landlord_id: string | null };
+  landlord: { id: string; name: string; contact_email: string | null; contact_phone: string | null } | null;
   units: Array<{ id: string; reference: string; unit_class: string; status: string; tenancy: { id: string; tenant_id: string; rent_amount: number; rent_frequency: string; tenants?: { full_name?: string } } | null }>;
   certificates: Array<{ id: string; issued_on: string | null; expires_on: string | null; certificate_types?: { name?: string } }>;
   policies: Array<{ id: string; insurer: string | null; policy_reference: string | null; renewal_date: string | null; annual_premium: number | null }>;
 }
+interface LandlordOption { id: string; name: string }
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { activeTenants } = useTenants();
   const [data, setData] = useState<PropertyDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [landlordOptions, setLandlordOptions] = useState<LandlordOption[]>([]);
+  const [landlordBusy, setLandlordBusy] = useState(false);
+  const [landlordError, setLandlordError] = useState<string | null>(null);
 
   const [addingRoom, setAddingRoom] = useState(false);
   const [roomRef, setRoomRef] = useState("");
@@ -44,6 +49,17 @@ export default function PropertyDetailPage() {
     setData(await res.json());
   }, [id]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { fetch("/api/landlords").then((r) => (r.ok ? r.json() : [])).then(setLandlordOptions).catch(() => {}); }, []);
+
+  async function changeLandlord(landlordId: string) {
+    setLandlordBusy(true); setLandlordError(null);
+    const res = await fetch(`/api/properties/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ landlord_id: landlordId || null }),
+    });
+    setLandlordBusy(false);
+    if (!res.ok) { const b = await res.json().catch(() => null); setLandlordError(b?.error ?? "Could not save the landlord"); return; }
+    void load();
+  }
 
   async function addRoom(e: React.FormEvent) {
     e.preventDefault();
@@ -87,6 +103,27 @@ export default function PropertyDetailPage() {
       <p className="muted" style={{ marginTop: 0, marginBottom: 20 }}>
         {[property.address_line1, property.city, property.postcode].filter(Boolean).join(", ") || "No address on file yet"}
       </p>
+
+      <section className="card" style={{ marginBottom: 18 }}>
+        <div className="ch"><h3>Landlord</h3></div>
+        <div className="li" style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
+          <select
+            value={property.landlord_id ?? ""}
+            onChange={(e) => void changeLandlord(e.target.value)}
+            disabled={landlordBusy}
+            style={inp}
+          >
+            <option value="">Not set</option>
+            {landlordOptions.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+          {landlordError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{landlordError}</p>}
+          {data.landlord && (
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+              {[data.landlord.contact_email, data.landlord.contact_phone].filter(Boolean).join(" · ") || "No contact details on file yet"}
+            </p>
+          )}
+        </div>
+      </section>
 
       <section className="card" style={{ marginBottom: 18 }}>
         <div className="ch"><h3>Rooms</h3>

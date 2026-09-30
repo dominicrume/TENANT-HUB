@@ -18,15 +18,18 @@ interface ArrearsRow { tenant_id: string; balance: string | number }
  */
 export const GET = withRouteHandler({ resource: "properties", action: "read" }, async (_req, _ctx, auth) => {
   const sb = auth.supabase;
-  const [props, units, alerts, tenancies, arrears] = await Promise.all([
-    sb.from("properties").select("id, name, address_line1, city, postcode, asset_class, floors, created_at").order("name"),
+  const [props, units, alerts, tenancies, arrears, landlords] = await Promise.all([
+    sb.from("properties").select("id, name, address_line1, city, postcode, asset_class, floors, landlord_id, created_at").order("name"),
     sb.from("units").select("id, property_id, status"),
     sb.from("compliance_alerts").select("property_id").is("resolved_at", null),
     sb.from("tenancies").select("unit_id, tenant_id").eq("status", "active"),
     sb.from("tenancy_arrears").select("tenant_id, balance"),
+    sb.from("landlords").select("id, name"),
   ]);
-  const failed = [props, units, alerts, tenancies, arrears].find((r) => r.error);
+  const failed = [props, units, alerts, tenancies, arrears, landlords].find((r) => r.error);
   if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+
+  const landlordName = new Map((landlords.data ?? []).map((l: { id: string; name: string }) => [l.id, l.name]));
 
   const unitsByProperty = new Map<string, UnitRow[]>();
   for (const u of (units.data ?? []) as UnitRow[]) unitsByProperty.set(u.property_id, [...(unitsByProperty.get(u.property_id) ?? []), u]);
@@ -41,7 +44,11 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
       const tenantId = tenancyByUnit.get(u.id);
       return tenantId && (arrearsByTenant.get(tenantId) ?? 0) > 0;
     }).length;
-    return { ...p, unitsCount: us.length, occupiedCount: us.filter((u) => u.status === "occupied").length, openAlerts: alertsByProperty.get(p.id) ?? 0, arrearsCount };
+    return {
+      ...p, unitsCount: us.length, occupiedCount: us.filter((u) => u.status === "occupied").length,
+      openAlerts: alertsByProperty.get(p.id) ?? 0, arrearsCount,
+      landlordName: p.landlord_id ? (landlordName.get(p.landlord_id) ?? null) : null,
+    };
   });
   return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
 });

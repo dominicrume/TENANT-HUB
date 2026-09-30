@@ -12,6 +12,19 @@ export const TenancyTypeSchema = z.enum(["supported_licence", "licence", "ast", 
 export const RentFrequencySchema = z.enum(["weekly", "fortnightly", "four_weekly", "monthly", "quarterly"]);
 export const TenancyStatusSchema = z.enum(["draft", "active", "ending", "ended"]);
 
+/** Who owns a property (BUILD_PLAN C46) — a real, addable list, not a fixed brand enum. */
+export const LandlordSchema = z.object({
+  id: z.string().uuid(),
+  org_id: z.string().uuid(),
+  name: z.string().min(1).max(120),
+  contact_email: z.string().email().nullable().optional(),
+  contact_phone: z.string().max(30).nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+  created_at: z.string().datetime({ offset: true }).optional(),
+  updated_at: z.string().datetime({ offset: true }).optional(),
+});
+export const LandlordCreateSchema = LandlordSchema.pick({ name: true, contact_email: true, contact_phone: true, notes: true });
+
 export const PropertySchema = z.object({
   id: z.string().uuid(),
   org_id: z.string().uuid(),
@@ -20,6 +33,7 @@ export const PropertySchema = z.object({
   city: z.string().max(80).nullable().optional(),
   postcode: UkPostcodeSchema.nullable().optional(),
   asset_class: AssetClassSchema.default("supported"),
+  landlord_id: z.string().uuid().nullable().optional(),
   floors: z.number().int().nonnegative().nullable().optional(),
   rebuild_value: MoneyGbpSchema.nullable().optional(),
   acquired_on: UkDateSchema.nullable().optional(),
@@ -27,8 +41,8 @@ export const PropertySchema = z.object({
   created_at: z.string().datetime({ offset: true }).optional(),
   updated_at: z.string().datetime({ offset: true }).optional(),
 });
-/** Add a home: three fields, plus the type. */
-export const PropertyCreateSchema = PropertySchema.pick({ name: true, address_line1: true, postcode: true, asset_class: true, city: true });
+/** Add a property: three fields, plus the type and (optionally) its landlord. */
+export const PropertyCreateSchema = PropertySchema.pick({ name: true, address_line1: true, postcode: true, asset_class: true, city: true, landlord_id: true });
 
 export const UnitSchema = z.object({
   id: z.string().uuid(),
@@ -64,6 +78,8 @@ export const TenancyCreateSchema = TenancySchema.pick({ unit_id: true, tenant_id
 export type AssetClass = z.infer<typeof AssetClassSchema>;
 export type UnitClass = z.infer<typeof UnitClassSchema>;
 export type RentFrequency = z.infer<typeof RentFrequencySchema>;
+export type Landlord = z.infer<typeof LandlordSchema>;
+export type LandlordCreate = z.infer<typeof LandlordCreateSchema>;
 export type Property = z.infer<typeof PropertySchema>;
 export type PropertyCreate = z.infer<typeof PropertyCreateSchema>;
 export type Unit = z.infer<typeof UnitSchema>;

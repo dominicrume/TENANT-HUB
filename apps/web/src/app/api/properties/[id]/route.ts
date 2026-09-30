@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { writeWithAudit } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
 
 export const dynamic = "force-dynamic";
@@ -22,16 +23,48 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
   const failed = [units, tenancies, certificates, policies].find((r) => r.error);
   if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
 
+  const landlordId = (property.data as { landlord_id?: string | null }).landlord_id;
+  const landlord = landlordId
+    ? (await sb.from("landlords").select("id, name, contact_email, contact_phone").eq("id", landlordId).maybeSingle()).data
+    : null;
+
   const unitIds = new Set((units.data ?? []).map((u) => u.id));
   const tenancyByUnit = new Map((tenancies.data ?? []).filter((t) => unitIds.has(t.unit_id)).map((t) => [t.unit_id, t]));
 
   return NextResponse.json(
     {
       property: property.data,
+      landlord,
       units: (units.data ?? []).map((u) => ({ ...u, tenancy: tenancyByUnit.get(u.id) ?? null })),
       certificates: certificates.data ?? [],
       policies: policies.data ?? [],
     },
     { headers: { "Cache-Control": "no-store" } },
   );
+});
+
+/**
+ * PATCH /api/properties/[id] — assign (or clear) a property's landlord after
+ * the fact (BUILD_PLAN C46/C47). Deliberately narrow: only landlord_id, not a
+ * general property editor.
+ */
+export const PATCH = withRouteHandler({ resource: "properties", action: "update" }, async (req, { params }: { params: { id: string } }, auth) => {
+  const body = await req.json().catch(() => null);
+  if (!body || !("landlord_id" in body)) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  if (body.landlord_id !== null && typeof body.landlord_id !== "string") {
+    return NextResponse.json({ error: "landlord_id must be a string or null" }, { status: 422 });
+  }
+
+  try {
+    const { data } = await writeWithAudit({
+      table: "properties",
+      record: { id: params.id, landlord_id: body.landlord_id } as Record<string, unknown>,
+      action: "UPDATE",
+      org_id: auth.actor.org_id,
+      ...auth.actor,
+    });
+    return NextResponse.json(data);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+  }
 });
