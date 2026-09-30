@@ -3,6 +3,8 @@
 > hardening rules). This file is the snapshot: what is actually true right now, as of
 > 2026-09-29, in this specific project's real accounts and deployments — not the plan, not
 > the decision history (see DECISIONS.md for that), just where things stand today.
+> Updated 2026-10-01: added the M8 "Properties refinement" track (see below and
+> `docs/PROPERTIES_REFINEMENT.md`) — Homes renamed to Properties, and a real landlords table.
 
 ## Login still runs on Supabase Auth — do not assume otherwise
 BUILD_PLAN C31 (own sessions) is under construction: password hashing, the new tables, and the
@@ -41,6 +43,11 @@ works" with "we have moved off Supabase" — we have not.
   `/jobs` page, and the new Trades panel on Repairs will all fail the same way on production —
   `trades`, `dispatch_jobs`, and `maintenance_tickets`' new columns are migration 036, also not
   on live Supabase yet. Not a new bug, just the same migrations gap reaching further.
+- Same again after C45–C48 (2026-10-01, M8 "Properties refinement" — `docs/PROPERTIES_REFINEMENT.md`):
+  `/properties` (renamed from Homes) will 500 on the new landlord filter/join, because the
+  `landlords` table and `properties.landlord_id` (migration 043) aren't on live Supabase either.
+  `/homes` now bounces to `/properties` via a redirect either way, so old links still resolve —
+  they just hit the same underlying "couldn't load" as before.
 - The eight agents (compliance-watch, rent-reconciliation, arrears-ladder, issue-triage,
   interaction-memory, owner-digest, regulation-watch, insurance-renewal) are **not running**
   against production. The worker that runs them isn't deployed anywhere near Supabase.
@@ -50,10 +57,10 @@ works" with "we have moved off Supabase" — we have not.
   `.railway/railway.ts` (pull the live state again with `railway config pull`).
 - **Postgres service**: all 41 files in `supabase/migrations/` applied and verified (47 tables,
   including everything missing on the live Supabase project; certificate_types seeded, 20 rows).
-  **042 (new this session, C33's RLS fix) is NOT applied here yet** — this environment's
-  sandbox blocks piping a raw credential + connection string through a one-off script, which is
-  the right call; apply it the same way the first 41 were (or however Rume prefers), then it's
-  41 for 41 again.
+  **042 and 043 are NOT applied here yet** (042: C33's contractor-RLS fix; 043: C46's landlords
+  table) — this environment's sandbox blocks piping a raw credential + connection string through
+  a one-off script, which is the right call; apply them the same way the first 41 were (or
+  however Rume prefers), then it's 43 for 43.
   Reachable from outside Railway via a TCP proxy (`railway tcp-proxy list --service Postgres`
   shows the current host:port; the password is `PGPASSWORD` in `railway variables --service
   Postgres`, not written down anywhere in this repo).
@@ -88,9 +95,9 @@ logins, no rollback if rushed) — flag before touching any of them.
   database password — either unlocks step 1 above (get one at
   supabase.com/dashboard/account/tokens, or the DB password under Project Settings → Database).
 - **A decision on the migrations gap**: apply the same migrations (41 verified on Railway, plus
-  042 from this session, not yet applied anywhere) to the *live* Supabase database — safe, every
-  file is additive/idempotent — so Homes, Rent, and now the QR report/Jobs/Trades screens stop
-  showing errors, independent of the bigger Railway cutover.
+  042 and 043, neither applied anywhere yet) to the *live* Supabase database — safe, every
+  file is additive/idempotent — so Homes/Properties, Rent, the QR report/Jobs/Trades screens,
+  and now the landlord filter all stop showing errors, independent of the bigger Railway cutover.
 - **Stripe**: the billing tab's "Manage in Stripe" button fails because the live Supabase
   `organisations` row has no `stripe_customer_id`, *and* `STRIPE_SECRET_KEY` isn't set in
   Vercel at all. Confirmed with Rume that a real Stripe customer already exists; still need the

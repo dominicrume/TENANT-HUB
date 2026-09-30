@@ -154,7 +154,7 @@ just the checklist line. Does not block, and is not blocked by, M6/M7.
 - [x] C29 · [x] C30 · [ ] C31 · [x] C32 · [ ] C33 · [ ] C34 · [ ] C35 · [ ] C36 · [ ] C37 — **M5 gate**
 - [ ] C38 · [ ] C39 · [ ] C40 · [ ] C41 · [ ] C42 — **M6 gate**
 - [ ] C43 · [ ] C44 — **M7 gate**
-- [ ] C45 · [ ] C46 · [ ] C47 · [ ] C48 · [ ] C49 · [ ] C50 · [ ] C51 · [ ] C52 · [ ] C53 — **M8 gate** (parallel track, see `docs/PROPERTIES_REFINEMENT.md`)
+- [x] C45 · [x] C46 · [x] C47 · [x] C48 · [ ] C49 · [ ] C50 · [ ] C51 · [ ] C52 · [ ] C53 — **M8 gate** (parallel track, see `docs/PROPERTIES_REFINEMENT.md`) — C45–C48 built 2026-10-01, not yet live-verified (migration 043 not applied to any real database — same gap noted for 042).
 
 ## 8. Indicative timing
 
