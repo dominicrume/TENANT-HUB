@@ -86,6 +86,7 @@ export default function TenantDetailPage() {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoMsg, setPhotoMsg] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [hbError, setHbError] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<Record<string, string>>({});
   const [latestAudit, setLatestAudit] = useState<{ user_name?: string; blockchain_hash?: string } | null>(null);
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
@@ -260,17 +261,30 @@ export default function TenantDetailPage() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: "220px" }}>
-          <select 
-            value={tenant?.housing_benefit_status || "in_progress"} 
+          <select
+            value={tenant?.housing_benefit_status || "in_progress"}
             onChange={async (e) => {
               const val = e.target.value as "active" | "in_progress" | "suspended";
+              const previous = tenant?.housing_benefit_status ?? "in_progress";
               set("housing_benefit_status", val);
-              // Optimistic UI update
+              setHbError(null);
+              // Optimistic UI update — reverted below if the save actually fails.
               if (tenant) {
                 setTenant({ ...tenant, housing_benefit_status: val });
               }
-              // Silently patch in the background without awaiting load()
-              fetch(`/api/tenants/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ housing_benefit_status: val }) });
+              try {
+                const res = await fetch(`/api/tenants/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ housing_benefit_status: val }) });
+                if (!res.ok) {
+                  const b = await res.json().catch(() => null);
+                  setHbError(b?.error ?? "Didn't save — reverted to the previous status.");
+                  if (tenant) setTenant({ ...tenant, housing_benefit_status: previous });
+                  set("housing_benefit_status", previous);
+                }
+              } catch {
+                setHbError("Could not reach the server — reverted to the previous status.");
+                if (tenant) setTenant({ ...tenant, housing_benefit_status: previous });
+                set("housing_benefit_status", previous);
+              }
             }}
             style={{ 
               padding: "10px", borderRadius: "8px", border: "1px solid #EDE8E1", fontSize: "12px", fontWeight: 700,
@@ -282,6 +296,7 @@ export default function TenantDetailPage() {
             <option value="in_progress">🟠 HB IN PROGRESS (Orange)</option>
             <option value="suspended">🔴 HB SUSPENDED (Red)</option>
           </select>
+          {hbError && <p style={{ color: "#E05252", fontSize: "12px", margin: 0 }}>{hbError}</p>}
 
           <button 
             onClick={() => {

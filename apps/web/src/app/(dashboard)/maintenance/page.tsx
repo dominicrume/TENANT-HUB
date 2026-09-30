@@ -20,6 +20,7 @@ export default function MaintenancePage() {
   const [showModal, setShowModal] = useState(false);
   const [showTrades, setShowTrades] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [boardError, setBoardError] = useState<string | null>(null);
 
   // New ticket state
   const [issueType, setIssueType] = useState("Plumbing");
@@ -109,12 +110,24 @@ export default function MaintenancePage() {
 
   async function updateTicket(id: string, updates: any) {
     setBusy(true);
-    await fetch(`/api/maintenance/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates)
-    });
-    setBusy(false);
+    setBoardError(null);
+    try {
+      const res = await fetch(`/api/maintenance/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates)
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        setBoardError(b?.error ?? "That change didn't save. Nothing was updated — try again.");
+        return;
+      }
+    } catch {
+      setBoardError("Could not reach the server. Nothing was updated — try again.");
+      return;
+    } finally {
+      setBusy(false);
+    }
     void load();
   }
 
@@ -135,6 +148,12 @@ export default function MaintenancePage() {
           </button>
         </div>
       </div>
+
+      {boardError && (
+        <p style={{ color: "var(--brick)", background: "rgba(178,74,49,.08)", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+          {boardError}
+        </p>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", alignItems: "start" }}>
         {["Open", "Assigned", "Resolved"].map(status => (

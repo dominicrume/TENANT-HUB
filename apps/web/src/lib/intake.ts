@@ -36,7 +36,17 @@ export function canonicalSubset(data: Partial<TenantCreate>): Record<string, unk
   const out: Record<string, unknown> = {};
   for (const k of HASHED_FIELDS) {
     const v = (data as Record<string, unknown>)[k];
-    if (v !== undefined && v !== null && v !== "") out[k] = v;
+    if (v === undefined || v === null || v === "") continue;
+    // Stringify every value before hashing. Step 3 (review) computes this hash from
+    // freshly-typed/extracted in-memory values — a number field from OCR extraction
+    // (e.g. benefit_amount: 450) can come back from the database at Step 4 (verify)
+    // as the same value with the same JS type, but a round trip through a text
+    // <input> anywhere in between turns it into a string ("450"). Same value,
+    // different JSON.stringify output, different hash — a false "record changed"
+    // block on a signature nobody actually altered. Hashing the string form of
+    // every value removes that whole class of false mismatch while still catching
+    // any REAL content change (H4's actual job).
+    out[k] = String(v);
   }
   return out;
 }

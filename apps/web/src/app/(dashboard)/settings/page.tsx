@@ -35,6 +35,8 @@ export default function SettingsPage() {
   const [aiExtractionsCount, setAiExtractionsCount] = useState<number>(0);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [billingBusy, setBillingBusy] = useState(false);
+  const [rateError, setRateError] = useState<string | null>(null);
+  const [rateSaved, setRateSaved] = useState(false);
 
   const { brand } = useBrand();
 
@@ -55,8 +57,18 @@ export default function SettingsPage() {
   async function handleSaveRate() {
     if (!settingId) return;
     setSaving(true);
+    setRateError(null);
+    setRateSaved(false);
     try {
-      await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: settingId, service_charge_default: Number(rate) }) });
+      const res = await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: settingId, service_charge_default: Number(rate) }) });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        setRateError(b?.error ?? "Could not save the rate. Try again.");
+        return;
+      }
+      setRateSaved(true);
+    } catch {
+      setRateError("Could not reach the server. The rate was not saved.");
     } finally {
       setSaving(false);
     }
@@ -113,7 +125,9 @@ export default function SettingsPage() {
             <div className="ch"><h3>Service charges</h3></div>
             <div className="li" style={{ display: "grid", gap: 10 }}>
               <label><span className="lbl">Default weekly rate (£)</span>
-                <input value={rate} onChange={(e) => setRate(e.target.value)} type="number" style={inp} /></label>
+                <input value={rate} onChange={(e) => { setRate(e.target.value); setRateSaved(false); }} type="number" style={inp} /></label>
+              {rateError && <p style={{ color: "var(--brick)", margin: 0, fontSize: 13 }}>{rateError}</p>}
+              {rateSaved && !rateError && <p style={{ color: "var(--live)", margin: 0, fontSize: 13 }}>Saved.</p>}
               <div><button type="button" className="rel sm" onClick={handleSaveRate} disabled={saving || !settingId}>{saving ? "Saving…" : "Save rate"}</button></div>
             </div>
           </section>

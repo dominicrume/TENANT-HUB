@@ -14,6 +14,7 @@ export default function LedgerIndexPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [showCharge, setShowCharge] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -28,6 +29,7 @@ export default function LedgerIndexPage() {
   async function handleRecordPayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
+    setFormError(null);
     const fd = new FormData(e.currentTarget);
     const body = {
       tenant_id: fd.get("tenant_id"),
@@ -36,15 +38,27 @@ export default function LedgerIndexPage() {
       payment_date: fd.get("payment_date"),
       reference_note: fd.get("reference_note") || "",
     };
-    await fetch("/api/rent-payments", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
-    });
-    window.location.reload();
+    try {
+      const res = await fetch("/api/rent-payments", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        setFormError(b?.error ?? "Could not record the payment. Nothing was saved.");
+        setBusy(false);
+        return;
+      }
+      window.location.reload(); // full reload is deliberate here: picks up both charges and balances at once
+    } catch {
+      setFormError("Could not reach the server. Nothing was saved.");
+      setBusy(false);
+    }
   }
 
   async function handleAddCharge(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
+    setFormError(null);
     const fd = new FormData(e.currentTarget);
     const body = {
       tenant_id: fd.get("tenant_id"),
@@ -53,10 +67,21 @@ export default function LedgerIndexPage() {
       amount: Number(fd.get("amount")),
       is_paid: false
     };
-    await fetch("/api/service-charges", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
-    });
-    window.location.reload();
+    try {
+      const res = await fetch("/api/service-charges", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        setFormError(b?.error ?? "Could not add the charge. Nothing was saved.");
+        setBusy(false);
+        return;
+      }
+      window.location.reload();
+    } catch {
+      setFormError("Could not reach the server. Nothing was saved.");
+      setBusy(false);
+    }
   }
 
   if (loading) return <div style={{ padding: "32px", fontFamily: "'Sora', sans-serif" }}>Loading ledger...</div>;
@@ -67,8 +92,8 @@ export default function LedgerIndexPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
         <h1 style={{ color: "var(--navy)", margin: 0 }}>Global Ledger</h1>
         <div style={{ display: "flex", gap: "12px" }}>
-          <button onClick={() => setShowCharge(true)} style={{ padding: "8px 16px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", cursor: "pointer", fontWeight: 600, color: "var(--navy)" }}>+ Add Charge</button>
-          <button onClick={() => setShowPayment(true)} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Record Payment</button>
+          <button onClick={() => { setFormError(null); setShowCharge(true); }} style={{ padding: "8px 16px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", cursor: "pointer", fontWeight: 600, color: "var(--navy)" }}>+ Add Charge</button>
+          <button onClick={() => { setFormError(null); setShowPayment(true); }} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Record Payment</button>
         </div>
       </div>
       
@@ -134,16 +159,16 @@ export default function LedgerIndexPage() {
               })}
             </tbody>
           </table>
-          <div className="md:hidden flex flex-col divide-y divide-gray-100">
-             {charges.map(c => {
+          <div className="md:hidden flex flex-col">
+             {charges.map((c, i) => {
                 const tenantName = tenants.find(t => t.id === c.tenant_id)?.full_name ?? "Unknown";
                 return (
-                  <div key={c.id} className="flex flex-col p-4 gap-3">
+                  <div key={c.id} className="flex flex-col p-4 gap-3" style={i > 0 ? { borderTop: "1px solid var(--line)" } : undefined}>
                      <div className="flex justify-between items-start">
                         <Link href={`/tenants/${c.tenant_id}?tab=ledger`} style={{ color: "var(--navy)", fontWeight: 600, textDecoration: "none", fontSize: "15px" }}>
                           {tenantName}
                         </Link>
-                        <span style={{ 
+                        <span style={{
                           padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
                           background: c.is_paid ? "rgba(52,200,122,0.15)" : "rgba(224,82,82,0.15)",
                           color: c.is_paid ? "#2CA162" : "#E05252"
@@ -151,7 +176,7 @@ export default function LedgerIndexPage() {
                           {c.is_paid ? "PAID" : "UNPAID"}
                         </span>
                      </div>
-                     <div className="flex justify-between items-center text-sm text-gray-500">
+                     <div className="flex justify-between items-center" style={{ fontSize: "13px", color: "var(--slate)" }}>
                         <span>{c.due_date} ({c.week_label})</span>
                         <span style={{ fontWeight: 600, color: "var(--navy)" }}>£{c.amount}</span>
                      </div>
@@ -180,9 +205,10 @@ export default function LedgerIndexPage() {
             </select>
             <input name="payment_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} style={{ padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }} />
             <input name="reference_note" placeholder="Reference / Notes" style={{ padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }} />
+            {formError && <p style={{ color: "var(--brick)", margin: 0, fontSize: "13px" }}>{formError}</p>}
             <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px" }}>
               <button type="button" onClick={() => setShowPayment(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "transparent", cursor: "pointer", color: "#7A8499", fontWeight: 600 }}>Cancel</button>
-              <button type="submit" disabled={busy} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Save Payment</button>
+              <button type="submit" disabled={busy} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>{busy ? "Saving…" : "Save Payment"}</button>
             </div>
           </form>
         </div>
@@ -200,9 +226,10 @@ export default function LedgerIndexPage() {
             <input name="week_label" placeholder="Week Label (e.g. Week 42)" required style={{ padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }} />
             <input name="amount" type="number" step="0.01" defaultValue="15.00" required style={{ padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }} />
             <input name="due_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} style={{ padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }} />
+            {formError && <p style={{ color: "var(--brick)", margin: 0, fontSize: "13px" }}>{formError}</p>}
             <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px" }}>
               <button type="button" onClick={() => setShowCharge(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "transparent", cursor: "pointer", color: "#7A8499", fontWeight: 600 }}>Cancel</button>
-              <button type="submit" disabled={busy} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Save Charge</button>
+              <button type="submit" disabled={busy} style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>{busy ? "Saving…" : "Save Charge"}</button>
             </div>
           </form>
         </div>

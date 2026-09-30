@@ -32,41 +32,48 @@ export default function VerifyPage() {
 
   const data = (draft?.machine_state?.extracted as Record<string, unknown>) ?? {};
 
+  const [needsReview, setNeedsReview] = useState(false);
+
   async function confirm() {
     if (!draft) return;
-    
-    // BYPASS: If no signature is drawn, provide a tiny transparent 1x1 base64 png 
-    // to prevent the UI from freezing/blocking the user.
-    const finalSignature = signatureData || "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
-    
+
+    // A signature is required — no blank/invisible sign-off gets written to a
+    // tenant's record. The button is also disabled without one (belt and braces).
+    if (!signatureData) {
+      setError("Please sign before confirming.");
+      return;
+    }
+
     setBusy(true);
     setError(null);
+    setNeedsReview(false);
     try {
-      // PERMANENT FIX: Disable the strict hash check as it blocks legitimate signatures.
-      /*
+      // H4: the record the tenant just read must be byte-for-byte what staff
+      // reviewed at Step 3 — recompute the same canonical hash and refuse to
+      // attach a signature to anything that has since changed.
       const recomputed = await hashRecord(canonicalSubset(data));
       if (recomputed !== draft.canonical_hash) {
-        setError("Record changed since review. Please ask staff to restart.");
+        setError("This record has changed since it was last reviewed, so it can't be signed as-is. Go back and review it again.");
+        setNeedsReview(true);
         setBusy(false);
         return;
       }
-      */
       const res = await fetch(`/api/drafts/${draftId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          machine_state: { ...draft.machine_state, signature: { dataUrl: finalSignature, date } },
+          machine_state: { ...draft.machine_state, signature: { dataUrl: signatureData, date } },
           step: 4,
         }),
       });
-      
+
       if (!res.ok) {
         const b = await res.json().catch(() => null);
         setError(b?.error ?? "Failed to save signature");
         setBusy(false);
         return;
       }
-      
+
       router.push(`/intake/${draftId}/complete`);
     } catch (err: any) {
       setError(err?.message ?? "An unexpected error occurred.");
@@ -97,7 +104,7 @@ export default function VerifyPage() {
         
         <div style={{ maxWidth: "420px", marginBottom: "16px" }}>
           <DigitalSignaturePad
-            label="Draw your signature below to sign"
+            label="Type your full name below to sign"
             value={signatureData}
             onChange={(base64, dt) => {
               setSignatureData(base64);
@@ -106,11 +113,24 @@ export default function VerifyPage() {
           />
         </div>
 
-        {error && <div style={{ color: "#E05252", fontSize: "14px", marginTop: "12px" }}>{error}</div>}
+        {error && (
+          <div style={{ color: "#E05252", fontSize: "14px", marginTop: "12px" }}>
+            {error}
+            {needsReview && (
+              <>
+                {" "}
+                <button onClick={() => router.push(`/intake/${draftId}/review`)}
+                  style={{ border: "none", background: "none", color: "#E05252", fontWeight: 700, textDecoration: "underline", cursor: "pointer", padding: 0, font: "inherit" }}>
+                  Go to review
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="no-print" style={{ display: "flex", gap: "12px", marginTop: "18px", flexWrap: "wrap" }}>
-          <button onClick={confirm} disabled={busy}
-            style={{ flex: "1 1 240px", minHeight: "56px", borderRadius: "8px", border: "none", background: "var(--amber)", color: "var(--navy)", fontWeight: 700, fontSize: "16px", opacity: busy ? 0.5 : 1, cursor: busy ? "not-allowed" : "pointer" }}>
+          <button onClick={confirm} disabled={busy || !signatureData}
+            style={{ flex: "1 1 240px", minHeight: "56px", borderRadius: "8px", border: "none", background: "var(--amber)", color: "var(--navy)", fontWeight: 700, fontSize: "16px", opacity: busy || !signatureData ? 0.5 : 1, cursor: busy || !signatureData ? "not-allowed" : "pointer" }}>
             {busy ? "Processing..." : "✓ Confirm & Sign"}
           </button>
           <button onClick={() => window.print()}
