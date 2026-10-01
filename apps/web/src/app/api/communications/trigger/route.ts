@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { createSupabaseServer } from "../../../../lib/supabase-server";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export async function POST(req: Request) {
   const auth = await getApiAuth();
@@ -59,6 +60,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
     console.error("Communications API Error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 }

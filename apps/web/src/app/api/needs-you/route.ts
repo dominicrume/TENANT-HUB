@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { buildNeedsYou, type TenantRow, type ChargeRow, type TicketRow, type DraftRow, type HandoverRow } from "@tenant-hub/domain";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
   ]);
 
   const failed = [tenants, charges, tickets, drafts, handovers].find((r) => r.error);
-  if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+  if (failed?.error) return NextResponse.json({ error: toSafeErrorMessage(failed.error) }, { status: 500 });
 
   return NextResponse.json(
     buildNeedsYou({

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { complete } from "@tenant-hub/ai";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export async function POST(req: Request) {
   try {
@@ -32,7 +33,7 @@ Do not include subject lines, just the body of the message.`;
   } catch (error: any) {
     console.error("AI Draft Error:", error);
     return NextResponse.json(
-      { error: "Failed to generate draft: " + error.message },
+      { error: toSafeErrorMessage(error, "Failed to generate draft") },
       { status: 500 }
     );
   }

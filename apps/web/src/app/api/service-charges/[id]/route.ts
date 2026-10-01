@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 /**
  * PATCH /api/service-charges/[id] — toggle paid / set paid_date (writeWithAudit).
@@ -21,7 +22,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     .eq("id", params.id)
     .single();
   if (readErr || !existing) {
-    return NextResponse.json({ error: readErr?.message ?? "Not found" }, { status: 404 });
+    return NextResponse.json({ error: toSafeErrorMessage(readErr, "Not found") }, { status: 404 });
   }
 
   const body = await req.json().catch(() => ({}));
@@ -41,7 +42,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     });
     return NextResponse.json(data);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    const message = toSafeErrorMessage(err, "Unknown error");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -64,7 +65,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     .single();
     
   if (readErr || !existing) {
-    return NextResponse.json({ error: readErr?.message ?? "Not found" }, { status: 404 });
+    return NextResponse.json({ error: toSafeErrorMessage(readErr, "Not found") }, { status: 404 });
   }
 
   try {
@@ -79,7 +80,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     // For now, we'll just return success.
     return NextResponse.json({ success: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    const message = toSafeErrorMessage(err, "Unknown error");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

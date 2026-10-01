@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /**
  * GET /api/audit-logs — append-only audit trail (RLS-scoped; managers see all).
@@ -31,6 +32,6 @@ export async function GET(req: Request) {
   if (to) query = query.lte("created_at", to);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? []);
 }

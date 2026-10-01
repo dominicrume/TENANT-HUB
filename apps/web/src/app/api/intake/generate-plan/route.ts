@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { can } from "@tenant-hub/auth";
 import { generateSupportPlan } from "../../../../lib/generate-plan";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 /**
  * POST /api/intake/generate-plan — generates a Reliance Support Plan for a tenant
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, file_url: publicUrl });
   } catch (err) {
     console.error("[generate-plan]", err);
-    const message = err instanceof Error ? err.message : "Generation failed";
+    const message = toSafeErrorMessage(err, "Generation failed");
     // Propagate 400 if no AI provider configured
     if (message === "No AI provider configured") {
       return NextResponse.json({ error: message }, { status: 400 });

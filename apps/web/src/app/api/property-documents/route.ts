@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { PropertyDocumentCreateSchema, PropertyDocumentRequestSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
     .select("*, landlords(name)")
     .eq("property_id", propertyId)
     .order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? [], { headers: { "Cache-Control": "no-store" } });
 });
 
@@ -50,7 +51,8 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
       });
       return NextResponse.json(data, { status: 201 });
     } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+      console.error("[property-documents:POST:request]", err);
+      return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
     }
   }
 
@@ -64,6 +66,7 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
     });
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+    console.error("[property-documents:POST]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 });

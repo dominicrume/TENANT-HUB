@@ -3,6 +3,7 @@ import { writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { InsuranceDecisionSchema } from "@tenant-hub/validation";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 /**
  * POST /api/insurance/decision — a person presses accept, decline or defer
@@ -30,7 +31,10 @@ export async function POST(req: Request) {
     .select("id, status, best_quote_id")
     .eq("id", cycle_id)
     .single();
-  if (readErr || !existing) return NextResponse.json({ error: readErr?.message ?? "Not found" }, { status: 404 });
+  if (readErr || !existing) {
+    if (readErr) console.error("[insurance/decision:POST:lookup]", readErr);
+    return NextResponse.json({ error: readErr ? toSafeErrorMessage(readErr, "Not found") : "Not found" }, { status: 404 });
+  }
   if (existing.status !== "awaiting_decision") {
     return NextResponse.json({ error: existing.status === "decided" ? "Already decided" : "Not yet at the decision card" }, { status: 409 });
   }
@@ -50,7 +54,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(data);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[insurance/decision:POST]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 }

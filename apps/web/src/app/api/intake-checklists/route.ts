@@ -3,6 +3,7 @@ import { writeWithAudit } from "@tenant-hub/db";
 import { CHECKLIST_ITEMS } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 function defaultItems() {
   return Object.fromEntries(CHECKLIST_ITEMS.map((k) => [k, false]));
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? { id: null, tenant_id: tenantId, ...defaultItems() });
 }
 
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    const message = toSafeErrorMessage(err, "Unknown error");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

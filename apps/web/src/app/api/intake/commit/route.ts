@@ -5,6 +5,7 @@ import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { hashRecord } from "../../../../lib/hash";
 import { canonicalSubset, type DraftState } from "../../../../lib/intake";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 /**
  * POST /api/intake/commit — finalize a draft into a tenant record.
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
   if (!draftId) return NextResponse.json({ error: "draftId required" }, { status: 400 });
 
   const { data: draft, error } = await auth.supabase.from("drafts").select("*").eq("id", draftId).maybeSingle();
-  if (error || !draft) return NextResponse.json({ error: error?.message ?? "Draft not found" }, { status: 404 });
+  if (error || !draft) return NextResponse.json({ error: toSafeErrorMessage(error, "Draft not found") }, { status: 404 });
 
   if (draft.step === 5) {
     return NextResponse.json({ error: "This intake has already been completed." }, { status: 409 });
@@ -117,7 +118,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ tenant }, { status: 201 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Commit failed";
+    const message = toSafeErrorMessage(err, "Commit failed");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

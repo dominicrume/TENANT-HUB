@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../../../lib/safe-error";
 
 /**
  * POST /api/rent/unmatched/[id]/resolve — "Is this rent?" answered. A weak
@@ -26,7 +27,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     .select("id, org_id, tenant_id, amount, received_on, external_reference, status")
     .eq("id", params.id)
     .single();
-  if (readErr || !existing) return NextResponse.json({ error: readErr?.message ?? "Not found" }, { status: 404 });
+  if (readErr || !existing) return NextResponse.json({ error: toSafeErrorMessage(readErr, "Not found") }, { status: 404 });
   if (existing.status !== "pending") return NextResponse.json({ error: "Already resolved" }, { status: 409 });
 
   try {
@@ -52,6 +53,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     });
     return NextResponse.json(data);
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(err, "Unknown error") }, { status: 500 });
   }
 }

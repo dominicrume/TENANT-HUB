@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeWithAudit, getPropertyForReport, countRecentQrReports } from "@tenant-hub/db";
 import { PublicReportSchema } from "@tenant-hub/validation";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 /**
  * POST /api/report/[propertyId] — the wall QR poster's own route (BUILD_PLAN
@@ -46,6 +47,6 @@ export async function POST(req: Request, { params }: { params: { propertyId: str
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Could not send the report" }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(err, "Could not send the report") }, { status: 500 });
   }
 }

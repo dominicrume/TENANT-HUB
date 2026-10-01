@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth, latestAuditHash } from "../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /**
  * POST /api/eviction — record that an eviction notice was generated for a
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ ok: true, audit_hash });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to record notice";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[eviction:POST]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err, "Could not record the notice — please try again, or tell support if it keeps happening.") }, { status: 500 });
   }
 }

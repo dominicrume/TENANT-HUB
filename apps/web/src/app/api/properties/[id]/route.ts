@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,9 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
     sb.from("certificates").select("id, certificate_type_id, issued_on, expires_on, certificate_types(name)").eq("property_id", params.id),
     sb.from("insurance_policies").select("id, insurer, policy_reference, renewal_date, annual_premium").eq("property_id", params.id),
   ]);
-  if (property.error) return NextResponse.json({ error: property.error.message }, { status: property.error.code === "PGRST116" ? 404 : 500 });
+  if (property.error) return NextResponse.json({ error: toSafeErrorMessage(property.error) }, { status: property.error.code === "PGRST116" ? 404 : 500 });
   const failed = [units, tenancies, certificates, policies].find((r) => r.error);
-  if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+  if (failed?.error) return NextResponse.json({ error: toSafeErrorMessage(failed.error) }, { status: 500 });
 
   const landlordId = (property.data as { landlord_id?: string | null }).landlord_id;
   const landlord = landlordId
@@ -65,6 +66,7 @@ export const PATCH = withRouteHandler({ resource: "properties", action: "update"
     });
     return NextResponse.json(data);
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+    console.error("[properties/[id]:PATCH]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 });

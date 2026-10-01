@@ -28,22 +28,35 @@ export function EvictionNoticeModal({
   const [reason, setReason] = useState("");
   const [effective, setEffective] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!open) return null;
 
   async function generate() {
     setBusy(true);
-    await fetch("/api/eviction", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tenantId: tenant.id, reason, noticeDays, effective }),
-    });
-    setBusy(false);
-    
-    // Add print isolation class
-    document.body.classList.add("printing-modal");
-    window.print();
-    document.body.classList.remove("printing-modal");
+    setError(null);
+    try {
+      const res = await fetch("/api/eviction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: tenant.id, reason, noticeDays, effective }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        setError(b?.error ?? "Could not record this notice — nothing was printed.");
+        return;
+      }
+      // Only print once the audit record is actually saved — this is a legal
+      // document, so a notice must never be handed to a tenant that was never
+      // recorded.
+      document.body.classList.add("printing-modal");
+      window.print();
+      document.body.classList.remove("printing-modal");
+    } catch {
+      setError("Could not reach the server — nothing was printed.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -91,6 +104,7 @@ export function EvictionNoticeModal({
                 On behalf of {label} — {profile?.full_name || "AUTHORIZED MANAGER"}
               </p>
             </div>
+            {error && <p className="no-print" style={{ color: "#E05252", fontSize: "13px", marginTop: "12px" }}>{error}</p>}
             <div style={{ display: "flex", gap: "10px", marginTop: "18px", justifyContent: "flex-end" }} className="no-print">
               <button onClick={onClose} style={{ minHeight: "44px", padding: "0 16px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", color: "#7A8499", cursor: "pointer" }}>Close</button>
               <button onClick={generate} disabled={busy || !reason.trim()} style={{ minHeight: "44px", padding: "0 16px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: busy || !reason.trim() ? "not-allowed" : "pointer" }}>

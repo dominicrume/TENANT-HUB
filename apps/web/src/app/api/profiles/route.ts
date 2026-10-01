@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /** GET /api/profiles — staff list (managers only; RLS also applies). */
 export async function GET() {
@@ -13,6 +14,6 @@ export async function GET() {
     .select("id, full_name, role, email, created_at")
     .order("created_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? []);
 }

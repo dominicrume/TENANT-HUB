@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { can } from "@tenant-hub/auth";
 import { StampStatus } from "@tenant-hub/blockchain";
+import { toSafeErrorMessage } from "../../../../../lib/safe-error";
 
 /**
  * POST /api/stamps/[id]/retry — manually retry a dead-letter stamp.
@@ -46,7 +47,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     .eq("id", id);
 
   if (updateErr) {
-    return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(updateErr) }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, message: "Stamp enqueued for retry" });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export async function GET(req: Request) {
   const auth = await getApiAuth();
@@ -9,7 +10,7 @@ export async function GET(req: Request) {
     .from("tenants")
     .select("id, full_name, is_archived, housing_benefit_status, benefit_amount")
     
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
 
   let totalActiveTenants = 0;
   let totalPendingHBClaims = 0;

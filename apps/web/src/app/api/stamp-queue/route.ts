@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /** GET /api/stamp-queue — blockchain stamp outbox status (RLS). */
 export async function GET() {
@@ -12,6 +13,6 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? []);
 }

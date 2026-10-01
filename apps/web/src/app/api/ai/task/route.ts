@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateStrictlyGrounded, activeProvider } from "@tenant-hub/ai";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { makeSecureGateway } from "../../../../lib/secure-gateway";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 /**
  * POST /api/ai/task — open agent tasking. { tenantId?, prompt }.
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ response: text, claims, factMap });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "AI request failed";
+    const message = toSafeErrorMessage(err, "AI request failed");
     // 422 if it's a grounding verification failure, else 500
     const status = message.includes("Grounding Verification Failed") ? 422 : 500;
     return NextResponse.json({ error: message }, { status });

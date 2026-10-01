@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export const PATCH = withRouteHandler({ resource: "properties", action: "update"
     });
     return NextResponse.json(data);
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+    console.error("[property-documents/[id]:PATCH]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 });

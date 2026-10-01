@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requiredCertificatesFor, certificateStatus, certBase } from "@tenant-hub/domain";
 import type { AssetClass, UnitClass } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export const GET = withRouteHandler({ resource: "compliance", action: "read" }, 
     sb.from("certificates").select("property_id, certificate_type_id, expires_on, issued_on, certificate_types(name)"),
   ]);
   const failed = [props, units, certTypes, certs].find((r) => r.error);
-  if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+  if (failed?.error) return NextResponse.json({ error: toSafeErrorMessage(failed.error) }, { status: 500 });
 
   const unitClassesByProperty = new Map<string, UnitClass[]>();
   for (const u of (units.data as UnitRow[] | null) ?? []) unitClassesByProperty.set(u.property_id, [...(unitClassesByProperty.get(u.property_id) ?? []), u.unit_class]);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 export async function GET(req: Request) {
   const auth = await getApiAuth();
@@ -14,7 +15,7 @@ export async function GET(req: Request) {
   }, { onConflict: "id" });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

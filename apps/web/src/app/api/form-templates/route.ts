@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../lib/api-auth";
 import { can } from "@tenant-hub/auth";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /** GET /api/form-templates — fetch all templates for org */
 export async function GET() {
@@ -13,7 +14,7 @@ export async function GET() {
     .select("*")
     .order("created_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? []);
 }
 
@@ -44,6 +45,9 @@ export async function POST(req: Request) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[form-templates:POST]", error);
+    return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
+  }
   return NextResponse.json(data, { status: 200 });
 }

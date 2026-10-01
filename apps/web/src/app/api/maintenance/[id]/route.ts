@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { sendMaintenanceResolved } from "../../../../lib/resend";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const auth = await getApiAuth();
@@ -28,7 +29,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
 
   if (updates.status === "Resolved" && data && data.tenant_id) {
     try {

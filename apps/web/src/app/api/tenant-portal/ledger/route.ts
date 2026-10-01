@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export async function GET() {
     .eq("tenant_id", tenantId)
     .order("due_date", { ascending: false });
 
-  if (chargesErr) return NextResponse.json({ error: chargesErr.message }, { status: 500 });
+  if (chargesErr) return NextResponse.json({ error: toSafeErrorMessage(chargesErr) }, { status: 500 });
 
   // Fetch rent payments
   const { data: payments, error: paymentsErr } = await auth.supabase
@@ -49,7 +50,7 @@ export async function GET() {
     .eq("tenant_id", tenantId)
     .order("payment_date", { ascending: false });
 
-  if (paymentsErr) return NextResponse.json({ error: paymentsErr.message }, { status: 500 });
+  if (paymentsErr) return NextResponse.json({ error: toSafeErrorMessage(paymentsErr) }, { status: 500 });
 
   // Fetch balance from the arrears view
   const { data: balanceData } = await auth.supabase

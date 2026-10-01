@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ARREARS_LADDER, stageIndex } from "@tenant-hub/domain";
 import type { UnitClass } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export const GET = withRouteHandler({ resource: "rent", action: "read" }, async 
     sb.from("rent_unmatched").select("id, tenant_id, amount, received_on, external_reference, confidence, is_simulated").eq("status", "pending"),
   ]);
   const failed = [tenants, tenancies, units, cases, arrears, unmatched].find((r) => r.error);
-  if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+  if (failed?.error) return NextResponse.json({ error: toSafeErrorMessage(failed.error) }, { status: 500 });
 
   const tenantById = new Map((tenants.data as TenantRow[] | null ?? []).map((t) => [t.id, t]));
   const unitClassById = new Map((units.data as UnitRow[] | null ?? []).map((u) => [u.id, u.unit_class]));

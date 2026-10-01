@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /**
  * GET /api/jobs — a contractor's own dispatched jobs (BUILD_PLAN C33).
@@ -24,6 +25,6 @@ export async function GET() {
     .select("id, proposed_at, dispatched_at, completed_at, cost, ticket:maintenance_tickets(id, room_number, issue_type, category, severity, description, status, created_at, property_id)")
     .order("proposed_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? []);
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { complete, activeProvider } from "@tenant-hub/ai";
 import { writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 /**
  * POST /api/intake/ocr — extract tenant fields from an uploaded form image.
@@ -60,7 +61,7 @@ Omit keys you cannot find. No commentary.`;
 
     return NextResponse.json({ extracted, confidence });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Extraction failed";
+    const message = toSafeErrorMessage(err, "Extraction failed");
     return NextResponse.json({ extracted: {}, confidence: {}, error: message }, { status: 200 });
   }
 }

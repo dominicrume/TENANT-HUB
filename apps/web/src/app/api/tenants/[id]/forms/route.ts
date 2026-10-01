@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { can } from "@tenant-hub/auth";
+import { toSafeErrorMessage } from "../../../../../lib/safe-error";
 
 interface Params {
   params: { id: string };
@@ -20,7 +21,7 @@ export async function GET(_req: Request, { params }: Params) {
     .select("*, template:form_templates(*)")
     .eq("tenant_id", params.id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? []);
 }
 
@@ -50,6 +51,6 @@ export async function POST(req: Request, { params }: Params) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data, { status: 200 });
 }

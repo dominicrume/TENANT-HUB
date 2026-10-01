@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../../../lib/safe-error";
 
 /**
  * POST /api/arrears/events/[id]/release — a person presses "Read & send".
@@ -27,7 +28,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     .eq("id", params.id)
     .single();
   if (readErr || !existing) {
-    return NextResponse.json({ error: readErr?.message ?? "Not found" }, { status: 404 });
+    return NextResponse.json({ error: toSafeErrorMessage(readErr, "Not found") }, { status: 404 });
   }
   if (existing.released_at) {
     return NextResponse.json({ error: "Already sent" }, { status: 409 });
@@ -44,7 +45,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     });
     return NextResponse.json(data);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    const message = toSafeErrorMessage(err, "Unknown error");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

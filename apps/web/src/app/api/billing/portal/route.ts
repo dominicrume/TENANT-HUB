@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { stripe } from "../../../../lib/stripe";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export async function POST(req: Request) {
   const auth = await getApiAuth();
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: session.url }, { status: 200 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to create billing portal session";
+    const message = toSafeErrorMessage(err, "Failed to create billing portal session");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

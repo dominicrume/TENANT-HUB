@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { UnitCreateSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /** POST /api/units — Add room: three fields (property, reference, class). */
 export const POST = withRouteHandler({ resource: "properties", action: "create" }, async (req, _ctx, auth) => {
@@ -20,6 +21,7 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
     });
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+    console.error("[units:POST]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 });

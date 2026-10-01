@@ -4,6 +4,7 @@ import { PropertyCreateSchema } from "@tenant-hub/validation";
 import type { AssetClass, UnitClass } from "@tenant-hub/validation";
 import { requiredCertificatesFor, certificateStatus, certBase } from "@tenant-hub/domain";
 import { withRouteHandler } from "../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
     sb.from("certificates").select("property_id, certificate_type_id, expires_on, certificate_types(name)"),
   ]);
   const failed = [props, units, alerts, tenancies, arrears, landlords, certs].find((r) => r.error);
-  if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+  if (failed?.error) return NextResponse.json({ error: toSafeErrorMessage(failed.error) }, { status: 500 });
 
   const landlordName = new Map((landlords.data ?? []).map((l: { id: string; name: string }) => [l.id, l.name]));
 
@@ -93,6 +94,7 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
     });
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+    console.error("[properties:POST]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 });

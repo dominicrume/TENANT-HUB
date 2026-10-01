@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateSessionQuestions } from "@tenant-hub/ai";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { makeSecureGateway } from "../../../../lib/secure-gateway";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 /**
  * GET /api/ai/questions?tenantId=[id]
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
     const questions = await generateSessionQuestions(tenantId, makeSecureGateway());
     return NextResponse.json(questions);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    const message = toSafeErrorMessage(err, "Unknown error");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

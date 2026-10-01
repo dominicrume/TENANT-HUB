@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateStrictlyGrounded, activeProvider } from "@tenant-hub/ai";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { makeSecureGateway } from "../../../../lib/secure-gateway";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export async function POST(req: Request) {
   const auth = await getApiAuth();
@@ -52,6 +53,6 @@ export async function POST(req: Request) {
 
   } catch (err: any) {
     console.error("Extract Form API Error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 }

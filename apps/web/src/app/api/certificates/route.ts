@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { CertificateCreateSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /**
  * POST /api/certificates — Add certificate, from the Paperwork matrix's empty
@@ -26,6 +27,7 @@ export const POST = withRouteHandler({ resource: "compliance", action: "create" 
     });
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+    console.error("[certificates:POST]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 });

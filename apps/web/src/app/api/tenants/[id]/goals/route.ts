@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { can } from "@tenant-hub/auth";
+import { toSafeErrorMessage } from "../../../../../lib/safe-error";
 
 interface Params {
   params: { id: string };
@@ -21,7 +22,7 @@ export async function GET(_req: Request, { params }: Params) {
     .eq("tenant_id", params.id)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   
   if (!data || data.length === 0) return NextResponse.json([]);
 
@@ -77,7 +78,7 @@ export async function POST(req: Request, { params }: Params) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
 
   // Add initial update comment if provided
   if (body.initial_comment) {

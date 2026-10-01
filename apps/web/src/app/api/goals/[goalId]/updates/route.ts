@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { can } from "@tenant-hub/auth";
+import { toSafeErrorMessage } from "../../../../../lib/safe-error";
 
 interface Params {
   params: { goalId: string };
@@ -30,7 +31,10 @@ export async function POST(req: Request, { params }: Params) {
     .select("*, entered_by:users!entered_by(full_name, role)")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  
+  if (error) {
+    console.error("[goals/[goalId]/updates:POST]", error);
+    return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
+  }
+
   return NextResponse.json(data, { status: 201 });
 }

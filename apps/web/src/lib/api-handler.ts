@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { can, type Resource, type Action } from "@tenant-hub/auth";
 import { getApiAuth, type ApiAuth } from "./api-auth";
 import { genericRateLimit } from "./rate-limit";
+import { toSafeErrorMessage } from "./safe-error";
 
 type RouteHandler = (
   req: Request,
@@ -38,10 +39,8 @@ export function withRouteHandler(config: RouteConfig, handler: RouteHandler) {
       return await handler(req, context, auth);
     } catch (err) {
       console.error("[API Error]", err);
-      const message = err instanceof Error ? err.message : "Internal Server Error";
-      // Don't leak full DB errors to client
-      const safeMessage = message.includes("duplicate key") ? "Resource already exists" : message;
-      return NextResponse.json({ error: safeMessage }, { status: 500 });
+      // Never leak raw DB/driver errors to the client — see toSafeErrorMessage.
+      return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
     }
   };
 }

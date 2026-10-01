@@ -4,6 +4,7 @@ import { getApiAuth } from "../../../lib/api-auth";
 import type { AuditEntry } from "@tenant-hub/audit";
 
 import { SettingsUpdateSchema } from "@tenant-hub/validation";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 export async function GET(req: Request) {
   const auth = await getApiAuth();
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
   }
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data);
 }
 
@@ -50,6 +51,6 @@ export async function PATCH(req: Request) {
     });
     return NextResponse.json(data);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   }
 }

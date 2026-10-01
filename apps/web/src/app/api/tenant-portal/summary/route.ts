@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export async function GET() {
     .eq("id", tenantId)
     .single();
 
-  if (tenantErr) return NextResponse.json({ error: tenantErr.message }, { status: 500 });
+  if (tenantErr) return NextResponse.json({ error: toSafeErrorMessage(tenantErr) }, { status: 500 });
 
   // Count open maintenance tickets
   const { count: openTickets } = await auth.supabase

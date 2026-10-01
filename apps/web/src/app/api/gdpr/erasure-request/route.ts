@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 /**
  * POST /api/gdpr/erasure-request
@@ -28,7 +29,8 @@ export async function POST(req: Request) {
     .single();
 
   if (error || !tenant) {
-    return NextResponse.json({ error: error?.message ?? "Tenant not found" }, { status: 404 });
+    if (error) console.error("[gdpr/erasure-request:POST:lookup]", error);
+    return NextResponse.json({ error: error ? toSafeErrorMessage(error, "Tenant not found") : "Tenant not found" }, { status: 404 });
   }
 
   try {
@@ -60,7 +62,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, tenant: redactedTenant }, { status: 200 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erasure processing failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[gdpr/erasure-request:POST]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err, "Erasure processing failed — please try again, or tell support if it keeps happening.") }, { status: 500 });
   }
 }

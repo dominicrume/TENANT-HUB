@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "../../../../lib/supabase-server";
 import { sendWelcomeEmail } from "../../../../lib/resend";
 import { headers } from "next/headers";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export async function POST(req: Request) {
   try {
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 400 });
     }
 
     // Try sending welcome email via Resend
@@ -52,6 +53,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, user: data.user }, { status: 201 });
   } catch (err: any) {
     console.error("Signup API Route failed:", err);
-    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(err, "Could not create the account") }, { status: 500 });
   }
 }

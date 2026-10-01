@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withRouteHandler } from "../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,6 @@ export const GET = withRouteHandler({ resource: "interactions", action: "read" }
   if (tenantId) query = query.eq("tenant_id", tenantId);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? [], { headers: { "Cache-Control": "no-store" } });
 });

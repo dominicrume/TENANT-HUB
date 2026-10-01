@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeWithAudit } from "@tenant-hub/db";
 import { TradeCreateSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /**
  * Trades — who a repair actually gets sent to (BUILD_PLAN C33). Grouped
@@ -11,7 +12,7 @@ import { withRouteHandler } from "../../../lib/api-handler";
  */
 export const GET = withRouteHandler({ resource: "maintenance", action: "read" }, async (_req, _ctx, auth) => {
   const { data, error } = await auth.supabase.from("trades").select("*").order("category").order("name");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? []);
 });
 
@@ -31,6 +32,7 @@ export const POST = withRouteHandler({ resource: "maintenance", action: "create"
     });
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+    console.error("[trades:POST]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 });

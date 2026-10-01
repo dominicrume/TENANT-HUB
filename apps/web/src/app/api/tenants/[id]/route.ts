@@ -3,6 +3,7 @@ import { writeWithAudit } from "@tenant-hub/db";
 import { TenantPatchSchema } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth, latestAuditHash } from "../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 interface Params {
   params: { id: string };
@@ -23,7 +24,7 @@ export async function GET(_req: Request, { params }: Params) {
     .eq("id", params.id)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
 
   return NextResponse.json(data);
@@ -129,7 +130,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     return NextResponse.json(data);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    const message = toSafeErrorMessage(err, "Unknown error");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -154,7 +155,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     });
     return NextResponse.json(data);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    const message = toSafeErrorMessage(err, "Unknown error");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

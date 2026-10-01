@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withRouteHandler } from "../../../../lib/api-handler";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,6 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
     .limit(1)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? null, { headers: { "Cache-Control": "no-store" } });
 });

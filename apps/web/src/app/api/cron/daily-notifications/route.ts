@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 import {
   getServiceChargesDueOn,
   getSessionsOn,
@@ -107,6 +108,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: true, report });
   } catch (err: any) {
     console.error("Daily notifications CRON failure:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 }

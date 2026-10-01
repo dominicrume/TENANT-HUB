@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { complete, transcribe, activeProvider } from "@tenant-hub/ai";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 /**
  * POST /api/intake/voice — extract tenant fields from a voice recording.
@@ -51,7 +52,7 @@ TRANSCRIPT:
     
     return NextResponse.json({ extracted, confidence, transcript });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Voice extraction failed";
+    const message = toSafeErrorMessage(err, "Voice extraction failed");
     return NextResponse.json({ extracted: {}, confidence: {}, error: message }, { status: 200 });
   }
 }

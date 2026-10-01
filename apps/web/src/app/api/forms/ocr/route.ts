@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { complete, activeProvider } from "@tenant-hub/ai";
 import { getApiAuth } from "../../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
 export async function POST(req: Request) {
   const auth = await getApiAuth();
@@ -49,7 +50,7 @@ If you cannot find a value for a key, omit it. Do not invent information. Do not
     const extracted = JSON.parse(json) as Record<string, unknown>;
     return NextResponse.json({ extracted });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Extraction failed";
+    const message = toSafeErrorMessage(err, "Extraction failed");
     return NextResponse.json({ extracted: {}, error: message }, { status: 200 });
   }
 }

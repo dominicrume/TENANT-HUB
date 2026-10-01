@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiAuth } from "../../../lib/api-auth";
+import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 export async function GET(req: Request) {
   const auth = await getApiAuth();
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
   }
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
   return NextResponse.json(data ?? []);
 }
 
@@ -44,6 +45,9 @@ export async function POST(req: Request) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[incidents:POST]", error);
+    return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
+  }
   return NextResponse.json(data, { status: 201 });
 }
