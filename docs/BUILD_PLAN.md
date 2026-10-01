@@ -107,7 +107,7 @@ just the checklist line. Does not block, and is not blocked by, M6/M7.
 - **C50** · Two document trees, typed dropdown · property docs vs tenant docs never cross · **done when** a doc's type always comes from the list (+ "Other"), never free text.
 - **C51** · Request a document from the landlord, in-app · **done when** the request and its status are real and visible on the property.
 - **C52** · Room-status overview, colour-coded by landlord · **done when** empty rooms are visible at a glance across every landlord.
-- **C53** · Sessions: Word/PDF export, per-user AI key, Claude as a provider option · **done when** export is a real file and a second provider genuinely runs sessions.
+- **C53** · Sessions: Word/PDF export, per-user AI key, Claude as a provider option · **partial, 2026-10-01:** export done (apps/web/src/lib/session-export.ts — a real downloadable .doc and a print-to-PDF view, per session). Found while scoping the rest: Claude/Anthropic is *already* a fully working provider in `packages/ai/src/provider.ts`'s router — it's just never reachable, because `activeProvider()` picks by a fixed priority order (Azure > OpenAI > Anthropic > ...) and this org's `OPENAI_API_KEY` always wins. Not a missing feature, a missing *choice*. Per-user AI key is genuinely not started — it needs a real decision on safe storage (encryption at rest, who can view/revoke it) before any UI for it gets built; not assumed or guessed at here. · **done when** export is a real file and a second provider genuinely runs sessions.
 
 ### M6 — Move and ship (5 commits)
 
@@ -154,7 +154,7 @@ just the checklist line. Does not block, and is not blocked by, M6/M7.
 - [x] C29 · [x] C30 · [ ] C31 · [x] C32 · [ ] C33 · [ ] C34 · [ ] C35 · [ ] C36 · [ ] C37 — **M5 gate**
 - [ ] C38 · [ ] C39 · [ ] C40 · [ ] C41 · [ ] C42 — **M6 gate**
 - [ ] C43 · [ ] C44 — **M7 gate**
-- [x] C45 · [x] C46 · [x] C47 · [x] C48 · [ ] C49 · [ ] C50 · [ ] C51 · [ ] C52 · [ ] C53 — **M8 gate** (parallel track, see `docs/PROPERTIES_REFINEMENT.md`) — C45–C48 built 2026-10-01, not yet live-verified (migration 043 not applied to any real database — same gap noted for 042).
+- [x] C45 · [x] C46 · [x] C47 · [x] C48 · [x] C49 · [x] C50 · [x] C51 · [x] C52 · [ ] C53 — **M8 gate** (parallel track, see `docs/PROPERTIES_REFINEMENT.md`) — C45–C52 built 2026-10-01, not yet live-verified (migrations 043/044 not applied to any real database — same gap noted for 042). C53 partial: session export done; per-user AI key and an actual provider *choice* still open, see its own line above.
 
 ## 8. Indicative timing
 

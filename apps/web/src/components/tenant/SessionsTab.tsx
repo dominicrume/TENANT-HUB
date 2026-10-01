@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session, SessionType } from "@tenant-hub/validation";
 import { formatShortDate, truncateHash } from "../../lib/format";
+import { downloadSessionAsWord, printSession } from "../../lib/session-export";
 
 const TYPE_BORDER: Record<string, string> = {
   daily: "#E8A84C",
@@ -215,10 +216,14 @@ export function SessionsTab({ tenantId }: { tenantId: string }) {
                   <span style={{ color: "#7A8499" }}>{formatShortDate(s.session_date)}</span>
                   <span style={{ color: "#9AA6BC", fontFamily: "'JetBrains Mono',monospace" }}>Logged by: {s.entered_by_name ?? "—"}</span>
                   {s.blockchain_hash && (
-                    <span style={{ marginLeft: "auto", background: "rgba(124,58,237,0.1)", color: "#7C3AED", borderRadius: "5px", padding: "2px 7px", fontFamily: "'JetBrains Mono',monospace", fontSize: "10px" }}>
+                    <span style={{ background: "rgba(124,58,237,0.1)", color: "#7C3AED", borderRadius: "5px", padding: "2px 7px", fontFamily: "'JetBrains Mono',monospace", fontSize: "10px" }}>
                       ⛓ {truncateHash(s.blockchain_hash)}
                     </span>
                   )}
+                  <span style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+                    <button type="button" onClick={() => downloadSessionAsWord(s)} title="Download as Word" style={{ background: "none", border: "1px solid #EDE8E1", borderRadius: "5px", padding: "2px 8px", fontSize: "11px", color: "#5C6673", cursor: "pointer" }}>Word</button>
+                    <button type="button" onClick={() => printSession(s)} title="Print or save as PDF" style={{ background: "none", border: "1px solid #EDE8E1", borderRadius: "5px", padding: "2px 8px", fontSize: "11px", color: "#5C6673", cursor: "pointer" }}>PDF</button>
+                  </span>
                 </div>
                 <div style={{ fontSize: "13px", color: "#334", whiteSpace: "pre-wrap" }}>{s.notes}</div>
               </div>
