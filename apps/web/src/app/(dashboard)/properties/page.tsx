@@ -12,6 +12,8 @@
  * C48: the search box filters by address/postcode across every landlord.
  * C49: Active/Pending status comes from the API (same required-certificate
  * rule the Paperwork matrix uses, H3) — Pending always says what's missing.
+ * C52: "Room status" view — filled vs empty rooms per property, coloured by
+ * landlord, with totals across every landlord in one place.
  *
  * Governed by docs/ESTATE_OPS_INTEGRATION_PROMPT.md §5#21.
  */
@@ -32,6 +34,13 @@ interface Landlord { id: string; name: string; contact_email: string | null; con
 const TAG_CLASS: Record<Property["asset_class"], string> = { supported: "sup", residential: "res", commercial: "com", mixed: "both" };
 const TAG_LABEL: Record<Property["asset_class"], string> = { supported: "Supported", residential: "Residential", commercial: "Commercial", mixed: "Mixed" };
 
+// A stable colour per landlord (C52). Cycles through the brand palette rather
+// than inventing new hex values — picked by position in the landlord list
+// (already name-sorted by the API), so the same landlord keeps the same
+// colour across a session even as others are added.
+const LANDLORD_PALETTE = ["var(--amber-deep)", "var(--live)", "var(--violet)", "var(--brick)", "var(--navy)", "var(--slate)"];
+const UNASSIGNED_COLOR = "var(--line)";
+
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[] | null>(null);
   const [landlords, setLandlords] = useState<Landlord[]>([]);
@@ -44,6 +53,8 @@ export default function PropertiesPage() {
   const [landlordId, setLandlordId] = useState("");
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [view, setView] = useState<"list" | "rooms">("list");
 
   // Filter + search
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending">("all");
@@ -108,11 +119,30 @@ export default function PropertiesPage() {
   const pendingCount = (properties ?? []).filter((p) => p.status === "pending").length;
   const none = properties !== null && properties.length === 0;
 
+  const landlordColor = useMemo(() => {
+    const m = new Map<string, string>();
+    landlords.forEach((l, i) => m.set(l.id, LANDLORD_PALETTE[i % LANDLORD_PALETTE.length] ?? UNASSIGNED_COLOR));
+    return m;
+  }, [landlords]);
+
+  const roomTotals = useMemo(() => {
+    const totals = new Map<string, { name: string; color: string; filled: number; empty: number }>();
+    for (const p of filtered) {
+      const key = p.landlord_id ?? "unassigned";
+      const cur = totals.get(key) ?? { name: p.landlordName ?? "Unassigned", color: p.landlord_id ? (landlordColor.get(p.landlord_id) ?? UNASSIGNED_COLOR) : UNASSIGNED_COLOR, filled: 0, empty: 0 };
+      cur.filled += p.occupiedCount;
+      cur.empty += p.unitsCount - p.occupiedCount;
+      totals.set(key, cur);
+    }
+    return [...totals.values()];
+  }, [filtered, landlordColor]);
+
   return (
     <div style={{ padding: "1.75rem", maxWidth: 820 }}>
       <div className="ch" style={{ padding: 0, marginBottom: 18, border: "none", flexWrap: "wrap", gap: 10 }}>
         <h1 style={{ margin: 0 }}>Properties</h1>
         <div style={{ display: "flex", gap: 10 }}>
+          <button type="button" className="btn ghost sm" onClick={() => setView((v) => (v === "list" ? "rooms" : "list"))}>{view === "list" ? "Room status" : "Back to list"}</button>
           <button type="button" className="btn ghost sm" onClick={() => setShowAddLandlord((v) => !v)}>{showAddLandlord ? "Cancel" : "Add landlord"}</button>
           <button type="button" className="rel" onClick={() => setAdding((v) => !v)}>{adding ? "Cancel" : "Add property"}</button>
         </div>
@@ -184,6 +214,39 @@ export default function PropertiesPage() {
         </form>
       )}
 
+      {view === "rooms" && properties !== null && properties.length > 0 && (
+        <section className="card" style={{ marginBottom: 18, padding: 18 }}>
+          <h3 style={{ marginTop: 0 }}>Room status</h3>
+          <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Filled vs empty rooms, one bar per property, coloured by landlord. Respects the filters above.</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 18 }}>
+            {roomTotals.map((t) => (
+              <div key={t.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <span style={{ width: 12, height: 12, borderRadius: 3, background: t.color, display: "inline-block" }} />
+                <b>{t.name}</b><span className="muted">· {t.filled} filled, {t.empty} empty</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {filtered.map((p) => {
+              const color = p.landlord_id ? (landlordColor.get(p.landlord_id) ?? UNASSIGNED_COLOR) : UNASSIGNED_COLOR;
+              const pct = p.unitsCount > 0 ? Math.round((p.occupiedCount / p.unitsCount) * 100) : 0;
+              return (
+                <div key={p.id}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                    <span><b>{p.name}</b> <span className="muted">· {p.landlordName ?? "Unassigned"}</span></span>
+                    <span className="muted">{p.occupiedCount} filled, {p.unitsCount - p.occupiedCount} empty</span>
+                  </div>
+                  <div style={{ height: 10, borderRadius: 5, background: "var(--cream)", overflow: "hidden" }}>
+                    <div style={{ width: `${pct}%`, height: "100%", background: color }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {view === "list" && (
       <section className="card">
         {error ? (
           <div className="li"><div className="body"><b>Couldn&apos;t load properties</b><p>{error}</p></div></div>
@@ -216,6 +279,7 @@ export default function PropertiesPage() {
           ))
         )}
       </section>
+      )}
     </div>
   );
 }
