@@ -1,8 +1,12 @@
 /**
- * Property page — rooms, tenancies, certificates, policies for one property.
- * Add room / Add tenancy in three fields each; Print QR links to the
- * printable poster for this property's wall QR report route (BUILD_PLAN C29,
- * the route itself lands at C33). Renamed from "Home" at C45.
+ * Property page — rooms, tenancies, documents, certificates, policies for
+ * one property. Add room / Add tenancy in three fields each; Print QR links
+ * to the printable poster for this property's wall QR report route
+ * (BUILD_PLAN C29, the route itself lands at C33). Renamed from "Home" at C45.
+ *
+ * C50/C51: a "Documents" section, separate from Certificates (the compliance
+ * matrix — untouched) — the property's own lease/invoices/etc, either added
+ * directly or requested from the landlord and attached once it arrives.
  */
 "use client";
 
@@ -11,6 +15,13 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useTenants } from "../../../../hooks/useTenants";
 import { formatShortDate, formatMoney } from "../../../../lib/format";
+import { getSupabaseBrowser } from "../../../../lib/supabase-browser";
+import { PROPERTY_DOCUMENT_TYPES, OTHER_DOCUMENT_TYPE } from "../../../../lib/document-types";
+
+interface PropertyDoc {
+  id: string; document_type: string; file_url: string | null; status: "requested" | "received";
+  created_at: string; landlords?: { name: string } | null;
+}
 
 interface PropertyDetail {
   property: { id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null; asset_class: string; landlord_id: string | null };
@@ -42,6 +53,21 @@ export default function PropertyDetailPage() {
   const [tenancyFrequency, setTenancyFrequency] = useState("weekly");
   const [tenancyBusy, setTenancyBusy] = useState(false);
   const [tenancyError, setTenancyError] = useState<string | null>(null);
+
+  const [docs, setDocs] = useState<PropertyDoc[] | null>(null);
+  const [docMode, setDocMode] = useState<"none" | "add" | "request">("none");
+  const [docType, setDocType] = useState<string>(PROPERTY_DOCUMENT_TYPES[0]);
+  const [docOther, setDocOther] = useState("");
+  const [docLandlord, setDocLandlord] = useState("");
+  const [docBusy, setDocBusy] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [attachingId, setAttachingId] = useState<string | null>(null);
+
+  const loadDocs = useCallback(async () => {
+    const res = await fetch(`/api/property-documents?propertyId=${id}`);
+    if (res.ok) setDocs(await res.json());
+  }, [id]);
+  useEffect(() => { void loadDocs(); }, [loadDocs]);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/properties/${id}`);
@@ -87,6 +113,61 @@ export default function PropertyDetailPage() {
     if (!res.ok) { const b = await res.json().catch(() => null); setTenancyError(b?.error ?? "Could not add the tenancy"); return; }
     setTenancyForUnit(null); setTenancyTenant(""); setTenancyRent("150"); setTenancyFrequency("weekly");
     void load();
+  }
+
+  const resolvedDocType = docType === OTHER_DOCUMENT_TYPE ? docOther.trim() : docType;
+
+  async function addDocument(file: File) {
+    if (!resolvedDocType) { setDocError("Pick what kind of document this is first."); return; }
+    setDocBusy(true); setDocError(null);
+    const supabase = getSupabaseBrowser();
+    const ext = file.name.split(".").pop();
+    const path = `property-${id}-${Date.now()}.${ext}`;
+    const { data: uploaded, error: upErr } = await supabase.storage.from("property-documents").upload(path, file);
+    if (upErr) { setDocBusy(false); setDocError(upErr.message); return; }
+    const res = await fetch("/api/property-documents", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "add", property_id: id, document_type: resolvedDocType, file_url: uploaded.path }),
+    });
+    setDocBusy(false);
+    if (!res.ok) { const b = await res.json().catch(() => null); setDocError(b?.error ?? "Could not save the document"); return; }
+    setDocMode("none"); setDocOther("");
+    void loadDocs();
+  }
+
+  async function requestDocument(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resolvedDocType || !docLandlord) return;
+    setDocBusy(true); setDocError(null);
+    const res = await fetch("/api/property-documents", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "request", property_id: id, document_type: resolvedDocType, requested_from_landlord_id: docLandlord }),
+    });
+    setDocBusy(false);
+    if (!res.ok) { const b = await res.json().catch(() => null); setDocError(b?.error ?? "Could not send the request"); return; }
+    setDocMode("none"); setDocOther(""); setDocLandlord("");
+    void loadDocs();
+  }
+
+  async function attachReceivedFile(docId: string, file: File) {
+    setAttachingId(docId); setDocError(null);
+    const supabase = getSupabaseBrowser();
+    const ext = file.name.split(".").pop();
+    const path = `property-${id}-${Date.now()}.${ext}`;
+    const { data: uploaded, error: upErr } = await supabase.storage.from("property-documents").upload(path, file);
+    if (upErr) { setAttachingId(null); setDocError(upErr.message); return; }
+    const res = await fetch(`/api/property-documents/${docId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file_url: uploaded.path }),
+    });
+    setAttachingId(null);
+    if (!res.ok) { const b = await res.json().catch(() => null); setDocError(b?.error ?? "Could not attach the file"); return; }
+    void loadDocs();
+  }
+
+  async function downloadDocument(fileUrl: string) {
+    const supabase = getSupabaseBrowser();
+    const { data, error: dlErr } = await supabase.storage.from("property-documents").createSignedUrl(fileUrl, 300);
+    if (!dlErr && data?.signedUrl) window.open(data.signedUrl, "_blank");
   }
 
   if (error) return <div style={{ padding: "1.75rem" }}><p style={{ color: "var(--brick)" }}>{error}</p></div>;
@@ -175,6 +256,79 @@ export default function PropertyDetailPage() {
                   {tenancyError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{tenancyError}</p>}
                   <button type="submit" className="rel sm" disabled={tenancyBusy || !tenancyTenant}>{tenancyBusy ? "Adding…" : "Add tenancy"}</button>
                 </form>
+              )}
+            </div>
+          ))
+        )}
+      </section>
+
+      <section className="card" style={{ marginBottom: 18 }}>
+        <div className="ch"><h3>Documents</h3>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn ghost sm" onClick={() => setDocMode(docMode === "request" ? "none" : "request")}>{docMode === "request" ? "Cancel" : "Request from landlord"}</button>
+            <button type="button" className="btn ghost sm" onClick={() => setDocMode(docMode === "add" ? "none" : "add")}>{docMode === "add" ? "Cancel" : "Add document"}</button>
+          </div>
+        </div>
+        <p className="muted" style={{ margin: "0 0 4px", fontSize: 12.5 }}>The lease, invoices and other paperwork for this property — kept separate from a tenant&apos;s own documents.</p>
+
+        {docMode === "add" && (
+          <div className="li" style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <select value={docType} onChange={(e) => setDocType(e.target.value)} style={inp}>
+                {PROPERTY_DOCUMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                <option value={OTHER_DOCUMENT_TYPE}>{OTHER_DOCUMENT_TYPE}</option>
+              </select>
+              {docType === OTHER_DOCUMENT_TYPE && <input value={docOther} onChange={(e) => setDocOther(e.target.value)} placeholder="Describe it" style={inp} />}
+            </div>
+            <input type="file" disabled={docBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void addDocument(f); e.target.value = ""; }} />
+            {docError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{docError}</p>}
+          </div>
+        )}
+
+        {docMode === "request" && (
+          <form onSubmit={requestDocument} className="li" style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <select value={docType} onChange={(e) => setDocType(e.target.value)} style={inp}>
+                {PROPERTY_DOCUMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                <option value={OTHER_DOCUMENT_TYPE}>{OTHER_DOCUMENT_TYPE}</option>
+              </select>
+              {docType === OTHER_DOCUMENT_TYPE && <input value={docOther} onChange={(e) => setDocOther(e.target.value)} placeholder="Describe it" style={inp} />}
+              <select value={docLandlord} onChange={(e) => setDocLandlord(e.target.value)} required style={inp}>
+                <option value="">Which landlord?</option>
+                {landlordOptions.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+            {docError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{docError}</p>}
+            <div><button type="submit" className="rel sm" disabled={docBusy || !docLandlord}>{docBusy ? "Sending…" : "Send request"}</button></div>
+          </form>
+        )}
+
+        {docs === null ? (
+          <div className="li"><p className="muted">Loading…</p></div>
+        ) : docs.length === 0 ? (
+          <div className="li"><p className="muted">No documents yet.</p></div>
+        ) : (
+          docs.map((d) => (
+            <div className="li" key={d.id}>
+              <div className="body">
+                <b>{d.document_type}</b>
+                <p>
+                  {d.status === "received" ? (
+                    <span style={{ color: "var(--live)", fontWeight: 600 }}>Received</span>
+                  ) : (
+                    <span style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Requested{d.landlords?.name ? ` from ${d.landlords.name}` : ""}</span>
+                  )}
+                  {" · "}{formatShortDate(d.created_at)}
+                </p>
+              </div>
+              {d.status === "received" && d.file_url ? (
+                <button type="button" className="btn ghost sm" onClick={() => void downloadDocument(d.file_url!)}>Download</button>
+              ) : (
+                <label className="btn ghost sm" style={{ cursor: attachingId === d.id ? "wait" : "pointer" }}>
+                  {attachingId === d.id ? "Attaching…" : "Attach received file"}
+                  <input type="file" style={{ display: "none" }} disabled={attachingId === d.id}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) void attachReceivedFile(d.id, f); e.target.value = ""; }} />
+                </label>
               )}
             </div>
           ))

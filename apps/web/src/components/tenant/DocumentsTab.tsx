@@ -3,12 +3,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { formatShortDate } from "../../lib/format";
 import { getSupabaseBrowser } from "../../lib/supabase-browser";
+import { TENANT_DOCUMENT_TYPES, OTHER_DOCUMENT_TYPE } from "../../lib/document-types";
 
 export function DocumentsTab({ tenantId }: { tenantId: string }) {
   const [docs, setDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [actioningId, setActioningId] = useState<string | null>(null);
+  const [docType, setDocType] = useState<string>(TENANT_DOCUMENT_TYPES[0]);
+  const [otherType, setOtherType] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,6 +32,8 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const label = docType === OTHER_DOCUMENT_TYPE ? otherType.trim() : docType;
+    if (!label) { alert("Pick what kind of document this is first."); e.target.value = ""; return; }
 
     setUploading(true);
 
@@ -47,13 +52,14 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
         return;
       }
 
-      // 2. Save record to DB
+      // 2. Save record to DB — named from the picked type (BUILD_PLAN C50:
+      // a dropdown, not free typing), not the uploaded file's own filename.
       const res = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tenant_id: tenantId,
-          name: file.name, // Skip prompting the user, use actual file name
+          name: label,
           file_url: uploadData.path
         })
       });
@@ -120,30 +126,46 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
 
   return (
     <div style={{ marginTop: "20px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: 10 }}>
         <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--navy)", margin: 0 }}>Document Vault</h3>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          style={{ display: 'none' }} 
-          onChange={handleFileSelected} 
-        />
-        <button 
-          onClick={() => fileInputRef.current?.click()} 
-          disabled={uploading}
-          style={{ 
-            padding: "8px 16px", 
-            borderRadius: "6px", 
-            border: "none", 
-            background: uploading ? "#ccc" : "var(--amber)", 
-            color: "var(--navy)", 
-            fontWeight: 700, 
-            fontSize: "12px", 
-            cursor: uploading ? "not-allowed" : "pointer" 
-          }}
-        >
-          {uploading ? "⏳ Uploading..." : "+ Upload Document"}
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <select
+            value={docType}
+            onChange={(e) => setDocType(e.target.value)}
+            style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #EDE8E1", fontSize: "12px" }}
+          >
+            {TENANT_DOCUMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            <option value={OTHER_DOCUMENT_TYPE}>{OTHER_DOCUMENT_TYPE}</option>
+          </select>
+          {docType === OTHER_DOCUMENT_TYPE && (
+            <input
+              value={otherType} onChange={(e) => setOtherType(e.target.value)} placeholder="Describe it"
+              style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #EDE8E1", fontSize: "12px", width: 140 }}
+            />
+          )}
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleFileSelected}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || (docType === OTHER_DOCUMENT_TYPE && !otherType.trim())}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "6px",
+              border: "none",
+              background: uploading ? "#ccc" : "var(--amber)",
+              color: "var(--navy)",
+              fontWeight: 700,
+              fontSize: "12px",
+              cursor: uploading ? "not-allowed" : "pointer"
+            }}
+          >
+            {uploading ? "⏳ Uploading..." : "+ Upload Document"}
+          </button>
+        </div>
       </div>
 
       <p style={{ fontSize: "13px", color: "#7A8499", marginBottom: "20px" }}>

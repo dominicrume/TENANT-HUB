@@ -44,6 +44,31 @@ export const PropertySchema = z.object({
 /** Add a property: three fields, plus the type and (optionally) its landlord. */
 export const PropertyCreateSchema = PropertySchema.pick({ name: true, address_line1: true, postcode: true, asset_class: true, city: true, landlord_id: true });
 
+/**
+ * A property's own documents (BUILD_PLAN C50/C51) — separate from a tenant's
+ * (tenant_documents). Either added directly (status "received", file_url set
+ * immediately) or requested from the landlord first (status "requested",
+ * file_url null until it arrives).
+ */
+export const PropertyDocumentStatusSchema = z.enum(["requested", "received"]);
+export const PropertyDocumentSchema = z.object({
+  id: z.string().uuid(),
+  org_id: z.string().uuid(),
+  property_id: z.string().uuid(),
+  document_type: z.string().min(1).max(120),
+  file_url: z.string().nullable().optional(),
+  status: PropertyDocumentStatusSchema.default("received"),
+  requested_from_landlord_id: z.string().uuid().nullable().optional(),
+  requested_at: z.string().datetime({ offset: true }).nullable().optional(),
+  received_at: z.string().datetime({ offset: true }).nullable().optional(),
+  uploaded_by: z.string().nullable().optional(),
+  created_at: z.string().datetime({ offset: true }).optional(),
+});
+/** Add a document that's already in hand. */
+export const PropertyDocumentCreateSchema = PropertyDocumentSchema.pick({ property_id: true, document_type: true, file_url: true, uploaded_by: true });
+/** Ask the landlord for one that isn't in hand yet. */
+export const PropertyDocumentRequestSchema = PropertyDocumentSchema.pick({ property_id: true, document_type: true, requested_from_landlord_id: true });
+
 export const UnitSchema = z.object({
   id: z.string().uuid(),
   org_id: z.string().uuid(),
@@ -80,6 +105,10 @@ export type UnitClass = z.infer<typeof UnitClassSchema>;
 export type RentFrequency = z.infer<typeof RentFrequencySchema>;
 export type Landlord = z.infer<typeof LandlordSchema>;
 export type LandlordCreate = z.infer<typeof LandlordCreateSchema>;
+export type PropertyDocumentStatus = z.infer<typeof PropertyDocumentStatusSchema>;
+export type PropertyDocument = z.infer<typeof PropertyDocumentSchema>;
+export type PropertyDocumentCreate = z.infer<typeof PropertyDocumentCreateSchema>;
+export type PropertyDocumentRequest = z.infer<typeof PropertyDocumentRequestSchema>;
 export type Property = z.infer<typeof PropertySchema>;
 export type PropertyCreate = z.infer<typeof PropertyCreateSchema>;
 export type Unit = z.infer<typeof UnitSchema>;

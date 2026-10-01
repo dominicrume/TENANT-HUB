@@ -58,7 +58,7 @@ describe("RBAC Parity with RLS", () => {
    * single table of the same name, as before.
    */
   const RESOURCE_TABLES: Partial<Record<Resource, string[]>> = {
-    properties:   ["properties", "landlords"],
+    properties:   ["properties", "landlords", "property_documents"],
     tenancies:    ["tenancies"],
     rent:         ["service_charges", "rent_payments", "rent_unmatched"],
     arrears:      ["arrears_cases", "arrears_events"],
