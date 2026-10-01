@@ -10,6 +10,8 @@
  * BrandContext. The landlord dropdown below is built from that real list, so
  * adding a landlord here makes it selectable immediately, with no code change.
  * C48: the search box filters by address/postcode across every landlord.
+ * C49: Active/Pending status comes from the API (same required-certificate
+ * rule the Paperwork matrix uses, H3) — Pending always says what's missing.
  *
  * Governed by docs/ESTATE_OPS_INTEGRATION_PROMPT.md §5#21.
  */
@@ -23,6 +25,7 @@ interface Property {
   asset_class: "supported" | "residential" | "commercial" | "mixed";
   landlord_id: string | null; landlordName: string | null;
   unitsCount: number; occupiedCount: number; openAlerts: number; arrearsCount: number;
+  status: "active" | "pending"; pendingReasons: string[];
 }
 interface Landlord { id: string; name: string; contact_email: string | null; contact_phone: string | null }
 
@@ -43,6 +46,7 @@ export default function PropertiesPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Filter + search
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending">("all");
   const [landlordFilter, setLandlordFilter] = useState("all");
   const [search, setSearch] = useState("");
 
@@ -92,13 +96,16 @@ export default function PropertiesPage() {
 
   const filtered = useMemo(() => {
     let list = properties ?? [];
+    if (statusFilter !== "all") list = list.filter((p) => p.status === statusFilter);
     if (landlordFilter === "unassigned") list = list.filter((p) => !p.landlord_id);
     else if (landlordFilter !== "all") list = list.filter((p) => p.landlord_id === landlordFilter);
     const q = search.trim().toLowerCase();
     if (q) list = list.filter((p) => [p.name, p.address_line1, p.city, p.postcode].filter(Boolean).join(" ").toLowerCase().includes(q));
     return list;
-  }, [properties, landlordFilter, search]);
+  }, [properties, statusFilter, landlordFilter, search]);
 
+  const activeCount = (properties ?? []).filter((p) => p.status === "active").length;
+  const pendingCount = (properties ?? []).filter((p) => p.status === "pending").length;
   const none = properties !== null && properties.length === 0;
 
   return (
@@ -112,14 +119,26 @@ export default function PropertiesPage() {
       </div>
 
       {properties !== null && properties.length > 0 && (
-        <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
-          <select value={landlordFilter} onChange={(e) => setLandlordFilter(e.target.value)} style={{ ...inp, width: "auto", minWidth: 180 }}>
-            <option value="all">All landlords</option>
-            <option value="unassigned">Unassigned</option>
-            {landlords.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by address or postcode…" style={{ ...inp, flex: 1, minWidth: 220 }} />
-        </div>
+        <>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            {(["all", "active", "pending"] as const).map((s) => (
+              <button
+                key={s} type="button" onClick={() => setStatusFilter(s)}
+                className={statusFilter === s ? "rel sm" : "btn ghost sm"}
+              >
+                {s === "all" ? `All (${properties.length})` : s === "active" ? `Active (${activeCount})` : `Pending (${pendingCount})`}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+            <select value={landlordFilter} onChange={(e) => setLandlordFilter(e.target.value)} style={{ ...inp, width: "auto", minWidth: 180 }}>
+              <option value="all">All landlords</option>
+              <option value="unassigned">Unassigned</option>
+              {landlords.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by address or postcode…" style={{ ...inp, flex: 1, minWidth: 220 }} />
+          </div>
+        </>
       )}
 
       {showAddLandlord && (
@@ -187,6 +206,11 @@ export default function PropertiesPage() {
                   {p.arrearsCount > 0 ? ` · ${p.arrearsCount} tenanc${p.arrearsCount === 1 ? "y" : "ies"} behind` : ""}
                   {p.landlordName ? ` · ${p.landlordName}` : " · Landlord not set"}
                 </p>
+                {p.status === "pending" && (
+                  <p style={{ color: "var(--amber-deep)", fontWeight: 600, margin: "2px 0 0" }}>
+                    Pending · {p.pendingReasons.join(", ")}
+                  </p>
+                )}
               </div>
             </Link>
           ))
