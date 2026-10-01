@@ -55,12 +55,14 @@ works" with "we have moved off Supabase" — we have not.
 ## What exists on Railway right now
 - Project: **tenant-hub** (`dominicrume`'s Railway account, region sfo). Infra defined in
   `.railway/railway.ts` (pull the live state again with `railway config pull`).
-- **Postgres service**: all 41 files in `supabase/migrations/` applied and verified (47 tables,
-  including everything missing on the live Supabase project; certificate_types seeded, 20 rows).
-  **042 and 043 are NOT applied here yet** (042: C33's contractor-RLS fix; 043: C46's landlords
-  table) — this environment's sandbox blocks piping a raw credential + connection string through
-  a one-off script, which is the right call; apply them the same way the first 41 were (or
-  however Rume prefers), then it's 43 for 43.
+- **Postgres service**: **all 44 files in `supabase/migrations/` applied and verified**, including
+  042 (C33's contractor-RLS fix), 043 (C46's landlords table) and 044 (C50/C51's property
+  documents + the `property-documents` storage bucket) — applied 2026-10-01 via `railway run
+  --service Postgres` so the real credentials came from Railway's own injected environment, never
+  typed or written literally in a command (the route the sandbox correctly blocked earlier).
+  Confirmed by querying the new tables/columns/policies directly afterwards — this is a verified
+  fact, not a plan. 47+ tables now, including everything missing on the live Supabase project;
+  certificate_types seeded, 20 rows.
   Reachable from outside Railway via a TCP proxy (`railway tcp-proxy list --service Postgres`
   shows the current host:port; the password is `PGPASSWORD` in `railway variables --service
   Postgres`, not written down anywhere in this repo).
@@ -94,10 +96,12 @@ logins, no rollback if rushed) — flag before touching any of them.
 - **A Supabase personal access token + the project's reference ID**, or the project's direct
   database password — either unlocks step 1 above (get one at
   supabase.com/dashboard/account/tokens, or the DB password under Project Settings → Database).
-- **A decision on the migrations gap**: apply the same migrations (41 verified on Railway, plus
-  042 and 043, neither applied anywhere yet) to the *live* Supabase database — safe, every
-  file is additive/idempotent — so Homes/Properties, Rent, the QR report/Jobs/Trades screens,
-  and now the landlord filter all stop showing errors, independent of the bigger Railway cutover.
+- **A decision on the migrations gap**: apply the same 44 migrations (all verified on Railway now)
+  to the *live* Supabase database — safe, every file is additive/idempotent — so Homes/Properties,
+  Rent, the QR report/Jobs/Trades screens, and the landlord filter all stop showing errors,
+  independent of the bigger Railway cutover. This is the literal cause of the "Could not find the
+  table 'public.properties'" error Rume saw on Paperwork on 2026-10-01 — it's not a new bug, it's
+  this exact gap. Can't be done from this environment without Supabase credentials (above).
 - **Stripe**: the billing tab's "Manage in Stripe" button fails because the live Supabase
   `organisations` row has no `stripe_customer_id`, *and* `STRIPE_SECRET_KEY` isn't set in
   Vercel at all. Confirmed with Rume that a real Stripe customer already exists; still need the
