@@ -5,6 +5,43 @@ Newest first.
 
 ---
 
+## D27 — Supabase is scrapped as a target state, effective now. Railway is the only database going forward (2026-10-04)
+**Directive, from Rume, explicit and unambiguous:** "ignore scrap Supabase as a tech stack all database should go
+to Railway now from now [on]." This supersedes the earlier "keep both running in parallel for 1-2 weeks" framing
+from 2026-10-01 — there is no more dual-running plan. Supabase is being switched off, not phased out slowly.
+
+**What this changes immediately:**
+- No more Supabase-side fixes proposed as *the* solution to anything — not applying migrations there, not asking
+  for a Supabase token/password as a way to patch the live app. That line of work is retired.
+- `docs/PLATFORM_CONSOLIDATION.md`'s M6/M7 plan is now the live plan, not a someday-plan.
+
+**What this does NOT change — the sequencing is physics, not a preference, and holds regardless of urgency:**
+Real tenant data (NINos, addresses, support plans — everything staff have entered using the app for real) exists
+*only* on Supabase. Railway's database has the correct, verified schema (44/44 migrations) but zero real data.
+"Scrap Supabase" and "don't lose the data" are both true at once, which means, unavoidably:
+1. The real data has to move from Supabase to Railway before Supabase can be switched off. This is the one step
+   that still needs something from Rume — either a Supabase DB password/access token for a one-time export, or
+   Rume exports it himself (Supabase dashboard → Database → Backups, or a per-table CSV export) and hands it over.
+   No code change substitutes for this. Asking for it is not stalling; it is the literal first domino.
+2. Only after real data exists on Railway is it safe to point production's `DATABASE_URL` at it — flipping that
+   switch earlier, against an empty database, would 500 every write that references a real org/tenant id that
+   doesn't exist yet on Railway. This would break the live app for real users, immediately.
+3. Only after that can apps/web's reads be moved off the Supabase JS client (`auth.supabase.from(...)`, ~36 files)
+   onto `packages/db` — mechanical, large, but doesn't need anything further from Rume once step 1 is done.
+4. Auth itself (C31, already built and tested, not yet wired in — see D26) replaces Supabase Auth last, because
+   middleware's Edge runtime constraint (D26) needs a considered call, not a rushed one, and login is the one
+   thing that locks every real user out if it's wrong.
+5. File storage (Supabase Storage buckets: tenant-documents, maintenance-photos, property-documents) needs a
+   replacement (BUILD_PLAN C34 already scopes this — R2 was the original candidate) before Supabase can be
+   switched off entirely, not just the database.
+
+**Why this isn't being compressed into one sprint under pressure:** steps 2-5 touch real logins and real tenant
+data with real consequences (CLAUDE.md's "Problem This Solves" — exactly the class of failure this whole rebuild
+exists to prevent) and no rollback if rushed. The urgency is real and accepted; the order isn't negotiable, only
+the speed through it is.
+
+---
+
 ## D26 — C31's own-session system built and tested, deliberately not cut over to the live login yet (2026-09-28)
 **Context:** BUILD_PLAN C31 replaces Supabase Auth with the app's own sessions. This is the highest-stakes single
 piece of work in the whole engagement so far: every real user's ability to log in depends on it, there is no

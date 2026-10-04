@@ -5,6 +5,12 @@
 > the decision history (see DECISIONS.md for that), just where things stand today.
 > Updated 2026-10-01: added the M8 "Properties refinement" track (see below and
 > `docs/PROPERTIES_REFINEMENT.md`) — Homes renamed to Properties, and a real landlords table.
+> Updated 2026-10-04: Rume gave an explicit, unambiguous directive — Supabase is scrapped,
+> Railway is the only database from now on. Full detail in DECISIONS.md D27. The one thing
+> this doesn't change: real tenant data still only exists on Supabase, so it still has to move
+> to Railway before Supabase can actually switch off — that's the one step still blocked on
+> Rume (a DB password/token, or his own export). Don't propose a Supabase-side fix for
+> anything live — that line of work is retired as of D27.
 
 ## Login still runs on Supabase Auth — do not assume otherwise
 BUILD_PLAN C31 (own sessions) is under construction: password hashing, the new tables, and the
