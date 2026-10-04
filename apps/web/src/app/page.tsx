@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { createSupabaseServer } from "../lib/supabase-server";
+import { db, hasDatabaseUrl, findSessionByTokenHash } from "@tenant-hub/db";
+import { hashToken } from "@tenant-hub/auth";
+import { readSessionToken } from "../lib/session-cookie";
 
 /**
  * Landing page. Rebuilt on the real design tokens (navy/amber/cream, Sora) —
@@ -9,10 +11,24 @@ import { createSupabaseServer } from "../lib/supabase-server";
  * looked like a different product from the rest of the app. Client feedback,
  * 2026-09-27. Copy also dropped generic SaaS language ("Enterprise DBMS",
  * "Deploy Premium") for plain words about what the product actually does.
+ *
+ * "Already signed in?" check moved off Supabase Auth onto the app's own
+ * sessions (DECISIONS D27) — found crashing a deployment with no Supabase
+ * configured at all: this ran at request time (this page is force-dynamic,
+ * same as everywhere else — see the root layout) and threw before ever
+ * reaching the JSX below. A page with no session system configured
+ * (!hasDatabaseUrl()) just shows the signed-out state, same as a genuine
+ * signed-out visitor — never a crash.
  */
 export default async function LandingPage() {
-  const supabase = createSupabaseServer();
-  const { data: { session } } = await supabase.auth.getSession();
+  let session: { id: string } | null = null;
+  if (hasDatabaseUrl()) {
+    const token = readSessionToken();
+    if (token) {
+      const found = await findSessionByTokenHash(db(), hashToken(token)).catch(() => null);
+      if (found) session = { id: found.profileId };
+    }
+  }
 
   return (
     <main style={{ minHeight: "100vh", background: "#F8F4EF", color: "#16202E", fontFamily: "'Sora', sans-serif" }}>
