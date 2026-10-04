@@ -29,7 +29,17 @@ interface VerifiedUser { id: string; email: string; role: string; orgId: string 
  */
 async function getUser(req: NextRequest): Promise<VerifiedUser | null> {
   try {
-    const res = await fetch(new URL("/api/auth/verify", req.url), {
+    // Same fix as the CSRF same-origin check (DECISIONS D27 deploy):
+    // req.url's host can reflect internal reverse-proxy plumbing rather than
+    // the public hostname, so this fetch would silently fail behind Railway
+    // and fall into the catch below — which, correctly, fails closed and
+    // treats a verified session as "not signed in". Build the URL from the
+    // Host/X-Forwarded-Host header instead, the one thing every reverse
+    // proxy is obligated to forward correctly.
+    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+    const proto = req.headers.get("x-forwarded-proto") ?? "https";
+    const verifyUrl = host ? `${proto}://${host}/api/auth/verify` : new URL("/api/auth/verify", req.url).toString();
+    const res = await fetch(verifyUrl, {
       headers: { cookie: req.headers.get("cookie") ?? "" },
     });
     if (!res.ok) return null;
