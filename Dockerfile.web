@@ -1,0 +1,51 @@
+# apps/web's Railway deployment — a test/parallel deployment alongside the
+# existing Vercel one (DECISIONS D27: moving the whole app to Railway,
+# starting with this). A dedicated Dockerfile for the same reason
+# Dockerfile.worker exists: Railway's auto-detected build (Railpack) tries
+# to build everything in the workspace and gets confused by the monorepo;
+# a Dockerfile keeps this predictable.
+#
+# NEXT_PUBLIC_* vars are baked into the client bundle at build time, so they
+# arrive as build ARGs (Railway passes a service's variables through as build
+# args automatically) rather than only being read at container start like
+# every other env var here.
+FROM node:20-slim AS build
+
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@9.1.4 --activate
+
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/adapters/package.json packages/adapters/package.json
+COPY packages/ai/package.json packages/ai/package.json
+COPY packages/audit/package.json packages/audit/package.json
+COPY packages/auth/package.json packages/auth/package.json
+COPY packages/blockchain/package.json packages/blockchain/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/domain/package.json packages/domain/package.json
+COPY packages/env/package.json packages/env/package.json
+COPY packages/intake-core/package.json packages/intake-core/package.json
+COPY packages/kya/package.json packages/kya/package.json
+COPY packages/ports/package.json packages/ports/package.json
+COPY packages/telemetry/package.json packages/telemetry/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/validation/package.json packages/validation/package.json
+
+RUN pnpm install --frozen-lockfile --filter @tenant-hub/web...
+
+COPY apps/web apps/web
+COPY packages packages
+
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG DATABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV DATABASE_URL=$DATABASE_URL
+ENV SKIP_ENV_VALIDATION=1
+ENV NODE_ENV=production
+
+RUN pnpm --filter @tenant-hub/web build
+
+# next start honours Railway's own PORT env var automatically.
+CMD ["pnpm", "--filter", "@tenant-hub/web", "start"]
