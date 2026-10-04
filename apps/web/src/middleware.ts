@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseMiddleware } from "./lib/supabase-middleware";
 import { authRateLimit, aiRateLimit, genericRateLimit } from "./lib/rate-limit";
+
 const PUBLIC_PREFIXES = [
   "/login",
   "/signup",
@@ -17,20 +17,37 @@ const PUBLIC_PREFIXES = [
   "/api/report",
 ];
 
+interface VerifiedUser { id: string; email: string; role: string; orgId: string | null; tenantId: string | null; fullName: string }
+
+/**
+ * Who's signed in, per Tenant Hub's own sessions (BUILD_PLAN C31, cut over
+ * 2026-10, DECISIONS D27). Middleware runs on the Edge runtime and can't hold
+ * a raw Postgres connection itself, so it asks /api/auth/verify — an
+ * ordinary Node-runtime route — and trusts its answer (D26's recommended
+ * shape). The incoming request's own cookie header is forwarded so that
+ * route sees the same session cookie middleware itself was just handed.
+ */
+async function getUser(req: NextRequest): Promise<VerifiedUser | null> {
+  try {
+    const res = await fetch(new URL("/api/auth/verify", req.url), {
+      headers: { cookie: req.headers.get("cookie") ?? "" },
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { user: VerifiedUser | null };
+    return body.user;
+  } catch {
+    // Fails closed: a verify-call failure is treated as "not signed in",
+    // never as "let them through".
+    return null;
+  }
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const hostname = req.headers.get("host") || "";
+  const res = NextResponse.next();
 
-  const { supabase, res } = createSupabaseMiddleware(req);
-
-  // Helper to preserve cookies on redirect
-  const redirectWithCookies = (url: URL) => {
-    const redirectRes = NextResponse.redirect(url);
-    res.cookies.getAll().forEach((cookie) => {
-      redirectRes.cookies.set(cookie.name, cookie.value, cookie);
-    });
-    return redirectRes;
-  };
+  const redirectWithCookies = (url: URL) => NextResponse.redirect(url);
 
   // Rate limiting for API routes
   if (pathname.startsWith("/api/")) {
@@ -44,7 +61,7 @@ export async function middleware(req: NextRequest) {
       } else {
         limitResult = await genericRateLimit.limit(ip);
       }
-      
+
       if (!limitResult.success) {
         return new NextResponse("Too many requests", { status: 429 });
       }
@@ -53,11 +70,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // getUser() validates the JWT with Supabase (getSession only decodes locally).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getUser(req);
   const isPublic = pathname === "/" || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 
   // No session on a protected route → explicit redirect for HTML pages, 401 for API requests.
@@ -70,14 +83,7 @@ export async function middleware(req: NextRequest) {
 
   // Signed-in user hitting an auth page → send to the appropriate home.
   if (user && (pathname.startsWith("/login") || pathname.startsWith("/signup"))) {
-    // Peek at role to decide where to send them (avoid an extra query below).
-    const { data: p } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    const r = (p?.role as string) ?? "tenant";
-    if (r === "tenant") {
+    if (user.role === "tenant") {
       return redirectWithCookies(new URL("/my-home", req.url));
     }
     return redirectWithCookies(new URL("/dashboard", req.url));
@@ -85,27 +91,20 @@ export async function middleware(req: NextRequest) {
 
   // Attach the role so downstream RBAC checks don't re-query (parity with RLS).
   if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, tenant_id")
-      .eq("id", user.id)
-      .single();
-    
-    const role = (profile?.role as string) ?? "tenant";
-    const tenantId = (profile as Record<string, unknown> | null)?.tenant_id as string | null;
-    res.headers.set("x-user-role", role);
+    res.headers.set("x-user-role", user.role);
     res.headers.set("x-user-id", user.id);
-    if (tenantId) res.headers.set("x-tenant-id", tenantId);
+    if (user.tenantId) res.headers.set("x-tenant-id", user.tenantId);
+    if (user.orgId) res.headers.set("x-org-id", user.orgId);
 
     // Contractor routing enforcement
-    if (role === "contractor") {
+    if (user.role === "contractor") {
       if (pathname === "/dashboard" || pathname.startsWith("/tenants")) {
         return redirectWithCookies(new URL("/jobs", req.url));
       }
     }
 
     // Tenant routing enforcement — confine to the tenant portal pages.
-    if (role === "tenant") {
+    if (user.role === "tenant") {
       // "/report" included so a tenant already signed in on their phone can still
       // use the wall-QR poster without being bounced back to /my-home (BUILD_PLAN C33).
       const TENANT_ALLOWED = ["/my-home", "/my-ledger", "/report-issue", "/report"];
@@ -121,13 +120,10 @@ export async function middleware(req: NextRequest) {
 
   // Multi-tenant domain logic
   if (hostname) {
-    // If it's a subdomain like mattysplace.tenanthope.co.uk or mattysplace.localhost:3000
     const parts = hostname.split(".");
     if (parts.length >= 3 || (parts.length >= 2 && hostname.includes("localhost"))) {
       const subdomain = parts[0]?.toLowerCase();
       if (subdomain && subdomain !== "www" && subdomain !== "app") {
-        // We set x-brand header so the application can read it
-        // A real app would do a DB lookup here. We just pass it down for now.
         res.headers.set("x-brand", subdomain);
       }
     }

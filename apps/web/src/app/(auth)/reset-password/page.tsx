@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { getSupabaseBrowser } from "../../../lib/supabase-browser";
 import * as s from "../_authStyles";
 
 export default function ResetPasswordPage() {
@@ -15,17 +14,21 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const supabase = getSupabaseBrowser();
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo:
-        typeof window !== "undefined" ? `${window.location.origin}/auth/callback?type=recovery` : undefined,
-    });
-    setLoading(false);
-    if (err) {
-      setError(err.message);
-      return;
+    try {
+      const res = await fetch("/api/auth/password/reset-request", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        setError(b?.error ?? "Could not send the reset link.");
+        return;
+      }
+      setSent(true);
+    } catch {
+      setError("Could not reach the server. Try again.");
+    } finally {
+      setLoading(false);
     }
-    setSent(true);
   }
 
   return (

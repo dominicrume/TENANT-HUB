@@ -1,8 +1,12 @@
 /**
  * AuthContext — current user + profile, exposed to the client app.
- * Backed by Supabase onAuthStateChange. Includes a 3s loading watchdog so the
- * UI is NEVER stuck on a spinner (a prototype failure mode): if the profile
- * fetch hangs, we resolve to a signed-out state and let the route guards act.
+ * Backed by Tenant Hub's own sessions (BUILD_PLAN C31, cut over 2026-10,
+ * DECISIONS D27) — /api/auth/verify reads the httpOnly session cookie
+ * server-side and returns who's signed in; there's no client SDK session
+ * object to subscribe to, so this fetches once on mount. Includes a 3s
+ * loading watchdog so the UI is NEVER stuck on a spinner (a prototype
+ * failure mode): if the fetch hangs, we resolve to a signed-out state and
+ * let the route guards act.
  */
 "use client";
 
@@ -14,9 +18,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { User } from "@supabase/supabase-js";
 import type { UserRole } from "@tenant-hub/auth";
-import { getSupabaseBrowser } from "../lib/supabase-browser";
 
 export interface Profile {
   id: string;
@@ -26,7 +28,6 @@ export interface Profile {
 }
 
 interface AuthValue {
-  user: User | null;
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -35,105 +36,42 @@ interface AuthValue {
 const AuthContext = createContext<AuthValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const settled = useRef(false);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowser();
-
-    // Watchdog — never leave the app stuck loading.
     const watchdog = setTimeout(() => {
       if (!settled.current) setLoading(false);
     }, 3000);
 
-    async function loadProfile(u: User | null) {
-      if (!u) {
-        setProfile(null);
-        return null;
-      }
-      // Populate immediately from metadata to avoid showing empty values/dashes during load
-      const metaName = u.user_metadata?.full_name || u.user_metadata?.name || "";
-      const metaRole = u.user_metadata?.role || "support_worker";
-      const initialProfile = {
-        id: u.id,
-        full_name: metaName,
-        role: metaRole as any,
-        email: u.email ?? null
-      };
-      setProfile(initialProfile);
+    fetch("/api/auth/verify")
+      .then((r) => (r.ok ? r.json() : { user: null }))
+      .then((body: { user: { id: string; email: string; role: string; fullName: string } | null }) => {
+        const u = body.user;
+        setProfile(u ? { id: u.id, full_name: u.fullName, role: u.role as UserRole, email: u.email } : null);
+      })
+      .catch(() => setProfile(null))
+      .finally(() => {
+        settled.current = true;
+        setLoading(false);
+      });
 
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("id, full_name, role, email")
-          .eq("id", u.id)
-          .single();
-        if (error) {
-          console.error("AuthContext: loadProfile DB error:", error.message);
-          // Keep the initial metadata-based profile if DB read fails
-          return initialProfile;
-        }
-        const p = (data as Profile) ?? null;
-        if (p) {
-          setProfile(p);
-        }
-        return p;
-      } catch (err) {
-        console.error("AuthContext: loadProfile exception:", err);
-        return initialProfile;
-      }
-    }
-
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        setLoading(true);
-        await loadProfile(u);
-      } else {
-        setProfile(null);
-      }
-      settled.current = true;
-      setLoading(false);
-    });
-
-    return () => {
-      clearTimeout(watchdog);
-      sub.subscription.unsubscribe();
-    };
+    return () => clearTimeout(watchdog);
   }, []);
 
   async function signOut() {
-    // 1. Clear local react state immediately
-    setUser(null);
     setProfile(null);
-
-    // 2. Fire-and-forget background cleanup tasks
-    Promise.allSettled([
-      fetch("/auth/signout", { method: "POST" }),
-      getSupabaseBrowser().auth.signOut({ scope: "local" })
-    ]).catch((err) => console.error("Background signout error:", err));
-
-    // 3. Nuke local cookies and storage synchronously
     try {
-      document.cookie.split(";").forEach((c) => {
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-      });
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith("sb-")) localStorage.removeItem(key);
-      });
+      await fetch("/api/auth/logout", { method: "POST" });
     } catch (e) {
-      console.error(e);
+      console.error("Sign out request failed:", e);
     }
-
-    // 4. Instant redirect
     window.location.replace("/login");
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
+    <AuthContext.Provider value={{ profile, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
