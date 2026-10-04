@@ -64,7 +64,15 @@ export async function middleware(req: NextRequest) {
     const ip = req.ip ?? req.headers.get("x-forwarded-for") ?? "127.0.0.1";
     try {
       let limitResult;
-      if (pathname.startsWith("/api/auth/")) {
+      // /api/auth/verify isn't credential-guessable — it only reads a session
+      // cookie the caller already holds — but getUser() below calls it on
+      // EVERY protected page load, as a real HTTP request that re-enters
+      // this same middleware. Counting it against the 10/min login-throttle
+      // bucket meant for brute-force defence was a self-inflicted lockout:
+      // found live on Railway, normal navigation started failing closed
+      // (valid sessions bounced to /login) after about ten page views/min
+      // sitewide exhausted the shared bucket. Generic limit applies instead.
+      if (pathname.startsWith("/api/auth/") && pathname !== "/api/auth/verify") {
         limitResult = await authRateLimit.limit(ip);
       } else if (pathname.startsWith("/api/ai/")) {
         limitResult = await aiRateLimit.limit(ip);
