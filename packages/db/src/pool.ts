@@ -25,6 +25,14 @@ export interface DbClient extends Queryable {
 /** Statement timeout for every connection: a stuck query never holds the request. */
 export const STATEMENT_TIMEOUT_MS = 30_000;
 export const POOL_MAX = 10;
+// node-postgres's own default is 0 — wait forever for a pool slot. Found
+// live on Railway: a handful of connection attempts that stalled (not
+// slow queries — Postgres's own logs showed nothing wrong) never timed
+// out and never released, and since the pool is a shared process-wide
+// singleton capped at POOL_MAX, that was enough to wedge it permanently —
+// every subsequent request on the whole service hung forever waiting for
+// a slot that was never coming back, /api/health included.
+export const POOL_CONNECTION_TIMEOUT_MS = 10_000;
 
 /* ── pg adapter ──────────────────────────────────────────────────────────── */
 export function createPgClient(pool: Pool): DbClient {
@@ -60,6 +68,7 @@ export function createPool(connectionString: string): Pool {
     connectionString,
     max: POOL_MAX,
     statement_timeout: STATEMENT_TIMEOUT_MS,
+    connectionTimeoutMillis: POOL_CONNECTION_TIMEOUT_MS,
     ssl: local ? undefined : { rejectUnauthorized: false },
   });
 }
