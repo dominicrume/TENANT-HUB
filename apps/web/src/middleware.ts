@@ -153,6 +153,15 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Skip Next internals, the health check, and static assets.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health).*)"],
+  // Skip Next internals, the health check, static assets, and
+  // api/auth/verify. That last one is load-bearing, not cosmetic: getUser()
+  // above calls /api/auth/verify as a real HTTP request on every protected
+  // page load, and without this exclusion THAT request would re-enter this
+  // same middleware, call getUser() again, fetch /api/auth/verify again,
+  // and so on — an unbounded server-side recursive loop with no base case.
+  // Found live on Railway as what looked like total service hangs
+  // (login, dashboard, even unrelated pages, all timing out with zero
+  // server-side errors): this is what every one of those requests was
+  // actually stuck in.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health|api/auth/verify).*)"],
 };
