@@ -17,13 +17,11 @@ export interface CompleteOptions {
   provider?: AIBrainProvider;
 }
 
+// OpenAI only, for now (Rume, 2026-10-05) — other provider keys (Azure,
+// Anthropic, Gemini, xAI, Runcrate) may exist in the environment but are
+// deliberately ignored here rather than used as fallbacks.
 export function activeProvider(): string {
-  if (process.env["AZURE_API_KEY"]) return "azure";
   if (process.env["OPENAI_API_KEY"]) return "openai";
-  if (process.env["ANTHROPIC_API_KEY"]) return "anthropic";
-  if (process.env["GEMINI_API_KEY"]) return "gemini";
-  if (process.env["XAI_API_KEY"]) return "xai";
-  if (process.env["RUNCRATE_API_KEY"]) return "runcrate";
   return "none";
 }
 
