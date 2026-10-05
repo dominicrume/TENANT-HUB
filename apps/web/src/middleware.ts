@@ -42,16 +42,12 @@ async function getUser(req: NextRequest): Promise<VerifiedUser | null> {
     const res = await fetch(verifyUrl, {
       headers: { cookie: req.headers.get("cookie") ?? "" },
     });
-    if (!res.ok) {
-      console.warn(`[getUser] verify fetch not ok: ${res.status} ${res.statusText} url=${verifyUrl}`);
-      return null;
-    }
+    if (!res.ok) return null;
     const body = (await res.json()) as { user: VerifiedUser | null };
     return body.user;
-  } catch (err) {
+  } catch {
     // Fails closed: a verify-call failure is treated as "not signed in",
     // never as "let them through".
-    console.warn(`[getUser] verify fetch threw: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -63,20 +59,22 @@ export async function middleware(req: NextRequest) {
 
   const redirectWithCookies = (url: URL) => NextResponse.redirect(url);
 
-  // Rate limiting for API routes
-  if (pathname.startsWith("/api/")) {
+  // Rate limiting for API routes. /api/auth/verify is deliberately exempt:
+  // it isn't credential-guessable (it only reads a session cookie the
+  // caller already holds), but getUser() below calls it on EVERY protected
+  // page load, as a real HTTP request that re-enters this same middleware.
+  // Moving it from the 10/min login-throttle bucket to the 200/min generic
+  // one (first fix) only raised the ceiling, it didn't remove it — found
+  // live on Railway, this container's own repeated internal self-calls
+  // exhausted even that within one test session, self-rate-limiting every
+  // page in the app back to /login with a perfectly valid session. Its
+  // load scales with legitimate traffic, not attacker behaviour, so it
+  // skips rate limiting entirely rather than sharing a bucket with anything.
+  if (pathname.startsWith("/api/") && pathname !== "/api/auth/verify") {
     const ip = req.ip ?? req.headers.get("x-forwarded-for") ?? "127.0.0.1";
     try {
       let limitResult;
-      // /api/auth/verify isn't credential-guessable — it only reads a session
-      // cookie the caller already holds — but getUser() below calls it on
-      // EVERY protected page load, as a real HTTP request that re-enters
-      // this same middleware. Counting it against the 10/min login-throttle
-      // bucket meant for brute-force defence was a self-inflicted lockout:
-      // found live on Railway, normal navigation started failing closed
-      // (valid sessions bounced to /login) after about ten page views/min
-      // sitewide exhausted the shared bucket. Generic limit applies instead.
-      if (pathname.startsWith("/api/auth/") && pathname !== "/api/auth/verify") {
+      if (pathname.startsWith("/api/auth/")) {
         limitResult = await authRateLimit.limit(ip);
       } else if (pathname.startsWith("/api/ai/")) {
         limitResult = await aiRateLimit.limit(ip);
