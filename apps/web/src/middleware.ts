@@ -42,12 +42,16 @@ async function getUser(req: NextRequest): Promise<VerifiedUser | null> {
     const res = await fetch(verifyUrl, {
       headers: { cookie: req.headers.get("cookie") ?? "" },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[getUser] verify fetch not ok: ${res.status} ${res.statusText} url=${verifyUrl}`);
+      return null;
+    }
     const body = (await res.json()) as { user: VerifiedUser | null };
     return body.user;
-  } catch {
+  } catch (err) {
     // Fails closed: a verify-call failure is treated as "not signed in",
     // never as "let them through".
+    console.warn(`[getUser] verify fetch threw: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
