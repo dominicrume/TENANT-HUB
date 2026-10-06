@@ -42,19 +42,19 @@ export async function createSession(client: Queryable, i: CreateSessionInput): P
   return { id: row.id, expiresAt: row.expires_at };
 }
 
-export interface SessionProfile { profileId: string; email: string; role: string; orgId: string | null; tenantId: string | null; fullName: string }
+export interface SessionProfile { profileId: string; email: string; role: string; orgId: string | null; tenantId: string | null; fullName: string; brand: string }
 
 /** Looks up a live (unexpired) session and touches last_seen_at. Returns null for an expired or unknown token — the caller treats both the same: not signed in. */
 export async function findSessionByTokenHash(client: Queryable, tokenHash: string): Promise<SessionProfile | null> {
-  const r = await client.query<{ profile_id: string; email: string; role: string; org_id: string | null; tenant_id: string | null; full_name: string }>(
+  const r = await client.query<{ profile_id: string; email: string; role: string; org_id: string | null; tenant_id: string | null; full_name: string; brand: string }>(
     `UPDATE user_sessions s SET last_seen_at = NOW()
      FROM profiles p
      WHERE s.token_hash = $1 AND s.profile_id = p.id AND s.expires_at > NOW()
-     RETURNING p.id AS profile_id, p.email, p.role, p.org_id, p.tenant_id, p.full_name`,
+     RETURNING p.id AS profile_id, p.email, p.role, p.org_id, p.tenant_id, p.full_name, p.brand`,
     [tokenHash]);
   const row = r.rows[0];
   if (!row) return null;
-  return { profileId: row.profile_id, email: row.email, role: row.role, orgId: row.org_id, tenantId: row.tenant_id, fullName: row.full_name };
+  return { profileId: row.profile_id, email: row.email, role: row.role, orgId: row.org_id, tenantId: row.tenant_id, fullName: row.full_name, brand: row.brand };
 }
 
 export async function deleteSession(client: Queryable, tokenHash: string): Promise<void> {

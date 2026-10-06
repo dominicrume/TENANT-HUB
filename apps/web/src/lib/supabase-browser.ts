@@ -11,6 +11,18 @@ import { createBrowserClient } from "@supabase/ssr";
 
 let cached: ReturnType<typeof createBrowserClient> | null = null;
 
+/**
+ * True when a Supabase project is actually configured in this environment.
+ * Check this before getSupabaseBrowser() anywhere the caller isn't willing
+ * to crash — createBrowserClient() throws synchronously with no URL/key
+ * (DECISIONS D27: Railway deployments run with none at all), and unlike a
+ * failed fetch, a throw during render takes the whole component tree down
+ * with it, not just the one feature that needed Supabase.
+ */
+export function hasSupabaseBrowser(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
 export function getSupabaseBrowser() {
   if (cached) return cached;
   cached = createBrowserClient(

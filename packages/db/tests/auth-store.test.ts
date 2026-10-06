@@ -15,7 +15,7 @@ CREATE SCHEMA IF NOT EXISTS auth; CREATE OR REPLACE FUNCTION auth.uid() RETURNS 
 CREATE TYPE user_role AS ENUM ('manager','support_worker','tenant','admin');
 CREATE TABLE organisations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
 CREATE TABLE tenants (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID);
-CREATE TABLE profiles (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID, role user_role NOT NULL DEFAULT 'support_worker', tenant_id UUID, email TEXT, full_name TEXT);
+CREATE TABLE profiles (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID, role user_role NOT NULL DEFAULT 'support_worker', tenant_id UUID, email TEXT, full_name TEXT, brand TEXT NOT NULL DEFAULT 'mattys_place');
 CREATE TABLE pending_invites (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email TEXT NOT NULL, role user_role NOT NULL, org_id UUID, tenant_id UUID, full_name TEXT, brand TEXT NOT NULL DEFAULT 'mattys_place', invited_by UUID, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '14 days', consumed_at TIMESTAMPTZ);
 `;
 

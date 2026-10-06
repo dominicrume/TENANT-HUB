@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { TradeCreateSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
@@ -11,9 +11,14 @@ import { toSafeErrorMessage } from "../../../lib/safe-error";
  * staff already have create/update here and a contractor has none.
  */
 export const GET = withRouteHandler({ resource: "maintenance", action: "read" }, async (_req, _ctx, auth) => {
-  const { data, error } = await auth.supabase.from("trades").select("*").order("category").order("name");
-  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
-  return NextResponse.json(data ?? []);
+  if (!auth.actor.org_id) return NextResponse.json([]);
+  try {
+    const r = await db().query(
+      "SELECT * FROM trades WHERE org_id = $1 ORDER BY category, name", [auth.actor.org_id]);
+    return NextResponse.json(r.rows);
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
 });
 
 export const POST = withRouteHandler({ resource: "maintenance", action: "create" }, async (req, _ctx, auth) => {

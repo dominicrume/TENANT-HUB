@@ -1,10 +1,23 @@
 /**
  * API auth helper — resolves the authenticated actor for route handlers.
- * Returns the RLS-respecting server client (for reads) plus the actor context
- * that writeWithAudit needs. Routes treat a null return as 401 (never silent).
+ * Own-session (BUILD_PLAN C31/D27), not Supabase Auth: the th_session cookie
+ * is the only source of truth for "who is this", via the same
+ * findSessionByTokenHash() path middleware and /api/auth/verify already use.
+ * Routes treat a null return as 401 (never silent).
+ *
+ * `supabase` is kept on the returned shape for the routes not yet migrated
+ * off direct Supabase table queries (packages/db is THE write path per
+ * CLAUDE.md, but plenty of reads still go through @supabase/ssr). Its
+ * construction is wrapped in try/catch: with no Supabase project configured
+ * (DECISIONS D27, Railway-only), `createSupabaseServer()` throws, and that
+ * must not take authentication down with it — a route that doesn't touch
+ * `.supabase` (or that's been migrated to packages/db) has no reason to 500
+ * just because an unrelated client failed to construct.
  */
+import { db, hasDatabaseUrl, findSessionByTokenHash } from "@tenant-hub/db";
+import { hashToken, type UserRole } from "@tenant-hub/auth";
+import { readSessionToken } from "./session-cookie";
 import { createSupabaseServer } from "./supabase-server";
-import type { UserRole } from "@tenant-hub/auth";
 
 export interface Actor {
   user_id: string;
@@ -20,26 +33,35 @@ export interface ApiAuth {
 }
 
 export async function getApiAuth(): Promise<ApiAuth | null> {
-  const supabase = createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!hasDatabaseUrl()) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role, brand, org_id")
-    .eq("id", user.id)
-    .single();
+  const token = readSessionToken();
+  if (!token) return null;
+
+  const session = await findSessionByTokenHash(db(), hashToken(token)).catch(() => null);
+  if (!session) return null;
+
+  // Typed as non-null to match the ~30 existing callers that destructure
+  // `auth.supabase` without a null check (most not yet migrated off it).
+  // When it fails to construct, those specific callers still 500 on first
+  // use exactly as they did before this change — no regression — while
+  // every OTHER route, including the ones that no longer touch `.supabase`
+  // at all, gets a correctly authenticated actor regardless.
+  let supabase: ReturnType<typeof createSupabaseServer>;
+  try {
+    supabase = createSupabaseServer();
+  } catch {
+    supabase = null as unknown as ReturnType<typeof createSupabaseServer>;
+  }
 
   return {
     supabase,
     actor: {
-      user_id: user.id,
-      user_name: (profile?.full_name as string | undefined) ?? user.email ?? user.id,
-      user_role: (profile?.role as UserRole | undefined) ?? "tenant",
-      brand: (profile?.brand as string | undefined) ?? "mattys_place",
-      org_id: profile?.org_id as string | undefined,
+      user_id: session.profileId,
+      user_name: session.fullName || session.email,
+      user_role: session.role as UserRole,
+      brand: session.brand,
+      org_id: session.orgId ?? undefined,
     },
   };
 }
