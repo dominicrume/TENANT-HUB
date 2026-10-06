@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
@@ -12,36 +12,48 @@ export const dynamic = "force-dynamic";
  * five small reads, joined in memory.
  */
 export const GET = withRouteHandler({ resource: "properties", action: "read" }, async (_req, { params }: { params: { id: string } }, auth) => {
-  const sb = auth.supabase;
-  const [property, units, tenancies, certificates, policies] = await Promise.all([
-    sb.from("properties").select("*").eq("id", params.id).single(),
-    sb.from("units").select("id, reference, unit_class, floor, bedrooms, status").eq("property_id", params.id).order("reference"),
-    sb.from("tenancies").select("id, unit_id, tenant_id, rent_amount, rent_frequency, status, start_date, tenants(full_name)").eq("status", "active"),
-    sb.from("certificates").select("id, certificate_type_id, issued_on, expires_on, certificate_types(name)").eq("property_id", params.id),
-    sb.from("insurance_policies").select("id, insurer, policy_reference, renewal_date, annual_premium").eq("property_id", params.id),
-  ]);
-  if (property.error) return NextResponse.json({ error: toSafeErrorMessage(property.error) }, { status: property.error.code === "PGRST116" ? 404 : 500 });
-  const failed = [units, tenancies, certificates, policies].find((r) => r.error);
-  if (failed?.error) return NextResponse.json({ error: toSafeErrorMessage(failed.error) }, { status: 500 });
+  if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
+  const orgId = auth.actor.org_id;
 
-  const landlordId = (property.data as { landlord_id?: string | null }).landlord_id;
-  const landlord = landlordId
-    ? (await sb.from("landlords").select("id, name, contact_email, contact_phone").eq("id", landlordId).maybeSingle()).data
-    : null;
+  try {
+    const propertyR = await db().query("SELECT * FROM properties WHERE id = $1 AND org_id = $2", [params.id, orgId]);
+    const property = propertyR.rows[0];
+    if (!property) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const unitIds = new Set((units.data ?? []).map((u) => u.id));
-  const tenancyByUnit = new Map((tenancies.data ?? []).filter((t) => unitIds.has(t.unit_id)).map((t) => [t.unit_id, t]));
+    const [units, tenancies, certificates, policies] = await Promise.all([
+      db().query<{ id: string; reference: string; unit_class: string; floor: number | null; bedrooms: number | null; status: string }>(
+        "SELECT id, reference, unit_class, floor, bedrooms, status FROM units WHERE property_id = $1 AND org_id = $2 ORDER BY reference", [params.id, orgId]),
+      db().query<{ id: string; unit_id: string; tenant_id: string; rent_amount: string; rent_frequency: string; status: string; start_date: string | null; full_name: string }>(
+        `SELECT t.id, t.unit_id, t.tenant_id, t.rent_amount, t.rent_frequency, t.status, t.start_date, tn.full_name
+         FROM tenancies t JOIN tenants tn ON tn.id = t.tenant_id
+         WHERE t.org_id = $2 AND t.status = 'active' AND t.unit_id IN (SELECT id FROM units WHERE property_id = $1)`, [params.id, orgId]),
+      db().query<{ id: string; certificate_type_id: string; issued_on: string | null; expires_on: string | null; name: string }>(
+        `SELECT c.id, c.certificate_type_id, c.issued_on, c.expires_on, ct.name
+         FROM certificates c JOIN certificate_types ct ON ct.id = c.certificate_type_id
+         WHERE c.property_id = $1 AND c.org_id = $2`, [params.id, orgId]),
+      db().query("SELECT id, insurer, policy_reference, renewal_date, annual_premium FROM insurance_policies WHERE property_id = $1 AND org_id = $2", [params.id, orgId]),
+    ]);
 
-  return NextResponse.json(
-    {
-      property: property.data,
-      landlord,
-      units: (units.data ?? []).map((u) => ({ ...u, tenancy: tenancyByUnit.get(u.id) ?? null })),
-      certificates: certificates.data ?? [],
-      policies: policies.data ?? [],
-    },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+    const landlordId = property["landlord_id"] as string | null;
+    const landlord = landlordId
+      ? (await db().query("SELECT id, name, contact_email, contact_phone FROM landlords WHERE id = $1 AND org_id = $2", [landlordId, orgId])).rows[0] ?? null
+      : null;
+
+    const tenancyByUnit = new Map(tenancies.rows.map((t) => [t.unit_id, { ...t, tenants: { full_name: t.full_name } }]));
+
+    return NextResponse.json(
+      {
+        property,
+        landlord,
+        units: units.rows.map((u) => ({ ...u, tenancy: tenancyByUnit.get(u.id) ?? null })),
+        certificates: certificates.rows.map((c) => ({ id: c.id, certificate_type_id: c.certificate_type_id, issued_on: c.issued_on, expires_on: c.expires_on, certificate_types: { name: c.name } })),
+        policies: policies.rows,
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
 });
 
 /**

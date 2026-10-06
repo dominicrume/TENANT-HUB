@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { LandlordCreateSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
@@ -12,9 +12,13 @@ export const dynamic = "force-dynamic";
  * RESOURCE_TABLES), same as the properties table itself.
  */
 export const GET = withRouteHandler({ resource: "properties", action: "read" }, async (_req, _ctx, auth) => {
-  const { data, error } = await auth.supabase.from("landlords").select("*").order("name");
-  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
-  return NextResponse.json(data ?? [], { headers: { "Cache-Control": "no-store" } });
+  if (!auth.actor.org_id) return NextResponse.json([], { headers: { "Cache-Control": "no-store" } });
+  try {
+    const r = await db().query("SELECT * FROM landlords WHERE org_id = $1 ORDER BY name", [auth.actor.org_id]);
+    return NextResponse.json(r.rows, { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
 });
 
 export const POST = withRouteHandler({ resource: "properties", action: "create" }, async (req, _ctx, auth) => {

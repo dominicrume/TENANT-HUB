@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { PropertyCreateSchema } from "@tenant-hub/validation";
 import type { AssetClass, UnitClass } from "@tenant-hub/validation";
 import { requiredCertificatesFor, certificateStatus, certBase } from "@tenant-hub/domain";
@@ -23,31 +23,38 @@ interface CertRow { property_id: string; certificate_type_id: string; name: stri
  * that screen can never disagree about what's actually missing (H3).
  */
 export const GET = withRouteHandler({ resource: "properties", action: "read" }, async (_req, _ctx, auth) => {
-  const sb = auth.supabase;
-  const [props, units, alerts, tenancies, arrears, landlords, certs] = await Promise.all([
-    sb.from("properties").select("id, name, address_line1, city, postcode, asset_class, floors, landlord_id, created_at").order("name"),
-    sb.from("units").select("id, property_id, status, unit_class"),
-    sb.from("compliance_alerts").select("property_id").is("resolved_at", null),
-    sb.from("tenancies").select("unit_id, tenant_id").eq("status", "active"),
-    sb.from("tenancy_arrears").select("tenant_id, balance"),
-    sb.from("landlords").select("id, name"),
-    sb.from("certificates").select("property_id, certificate_type_id, expires_on, certificate_types(name)"),
-  ]);
-  const failed = [props, units, alerts, tenancies, arrears, landlords, certs].find((r) => r.error);
-  if (failed?.error) return NextResponse.json({ error: toSafeErrorMessage(failed.error) }, { status: 500 });
+  if (!auth.actor.org_id) return NextResponse.json([], { headers: { "Cache-Control": "no-store" } });
+  const orgId = auth.actor.org_id;
 
-  const landlordName = new Map((landlords.data ?? []).map((l: { id: string; name: string }) => [l.id, l.name]));
+  interface PropertyRow { id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null; asset_class: AssetClass; floors: number | null; landlord_id: string | null; created_at: string }
+
+  let props, units, alerts, tenancies, arrears, landlords, certs;
+  try {
+    [props, units, alerts, tenancies, arrears, landlords, certs] = await Promise.all([
+      db().query<PropertyRow>("SELECT id, name, address_line1, city, postcode, asset_class, floors, landlord_id, created_at FROM properties WHERE org_id = $1 ORDER BY name", [orgId]),
+      db().query<UnitRow>("SELECT id, property_id, status, unit_class FROM units WHERE org_id = $1", [orgId]),
+      db().query<{ property_id: string }>("SELECT property_id FROM compliance_alerts WHERE org_id = $1 AND resolved_at IS NULL", [orgId]),
+      db().query<TenancyRow>("SELECT unit_id, tenant_id FROM tenancies WHERE org_id = $1 AND status = 'active'", [orgId]),
+      db().query<ArrearsRow>("SELECT tenant_id, balance FROM tenancy_arrears WHERE org_id = $1", [orgId]),
+      db().query<{ id: string; name: string }>("SELECT id, name FROM landlords WHERE org_id = $1", [orgId]),
+      db().query<{ property_id: string; certificate_type_id: string; expires_on: string | null; name: string }>(
+        "SELECT c.property_id, c.certificate_type_id, c.expires_on, ct.name FROM certificates c JOIN certificate_types ct ON ct.id = c.certificate_type_id WHERE c.org_id = $1", [orgId]),
+    ]);
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
+
+  const landlordName = new Map(landlords.rows.map((l) => [l.id, l.name]));
 
   const unitsByProperty = new Map<string, UnitRow[]>();
-  for (const u of (units.data ?? []) as UnitRow[]) unitsByProperty.set(u.property_id, [...(unitsByProperty.get(u.property_id) ?? []), u]);
+  for (const u of units.rows) unitsByProperty.set(u.property_id, [...(unitsByProperty.get(u.property_id) ?? []), u]);
   const alertsByProperty = new Map<string, number>();
-  for (const a of (alerts.data ?? []) as { property_id: string }[]) alertsByProperty.set(a.property_id, (alertsByProperty.get(a.property_id) ?? 0) + 1);
-  const arrearsByTenant = new Map((arrears.data as ArrearsRow[] | null ?? []).map((a) => [a.tenant_id, Number(a.balance)]));
-  const tenancyByUnit = new Map((tenancies.data as TenancyRow[] | null ?? []).map((t) => [t.unit_id, t.tenant_id]));
-  const certRows = ((certs.data as unknown as Array<{ property_id: string; certificate_type_id: string; expires_on: string | null; certificate_types: { name: string } | null }>) ?? [])
-    .map((c) => ({ property_id: c.property_id, certificate_type_id: c.certificate_type_id, name: c.certificate_types?.name ?? "", expires_on: c.expires_on }) satisfies CertRow);
+  for (const a of alerts.rows) alertsByProperty.set(a.property_id, (alertsByProperty.get(a.property_id) ?? 0) + 1);
+  const arrearsByTenant = new Map(arrears.rows.map((a) => [a.tenant_id, Number(a.balance)]));
+  const tenancyByUnit = new Map(tenancies.rows.map((t) => [t.unit_id, t.tenant_id]));
+  const certRows: CertRow[] = certs.rows.map((c) => ({ property_id: c.property_id, certificate_type_id: c.certificate_type_id, name: c.name ?? "", expires_on: c.expires_on }));
 
-  const result = (props.data ?? []).map((p) => {
+  const result = props.rows.map((p) => {
     const us = unitsByProperty.get(p.id) ?? [];
     const arrearsCount = us.filter((u) => {
       const tenantId = tenancyByUnit.get(u.id);
