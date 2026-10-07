@@ -28,6 +28,7 @@ export async function GET(_req: Request, { params }: Params) {
     if (!data) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
     return NextResponse.json(data);
   } catch (err) {
+    console.error("[tenants/[id]:GET]", err);
     return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 }
@@ -137,6 +138,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     return NextResponse.json(data);
   } catch (err) {
+    console.error("[tenants/[id]:PATCH]", err);
     const message = toSafeErrorMessage(err, "Unknown error");
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -166,6 +168,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     });
     return NextResponse.json(data);
   } catch (err) {
+    console.error("[tenants/[id]:DELETE]", err);
     const message = toSafeErrorMessage(err, "Unknown error");
     return NextResponse.json({ error: message }, { status: 500 });
   }

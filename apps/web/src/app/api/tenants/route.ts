@@ -30,6 +30,7 @@ export async function GET() {
     );
     return NextResponse.json(r.rows);
   } catch (err) {
+    console.error("[tenants:GET]", err);
     return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 }
