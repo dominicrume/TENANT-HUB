@@ -20,7 +20,7 @@ export type NeedsYouKind = "repairs" | "housing_benefit" | "money" | "signoffs" 
 
 export interface NeedsYouItem {
   kind: NeedsYouKind;
-  /** Plain words. "Housing benefit suspended — Amina K, Room 4" */
+  /** Plain words. "Housing benefit suspended: Amina K, Room 4" */
   title: string;
   /** One line of detail. Why it is here and what happens next. */
   detail: string;

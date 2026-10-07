@@ -90,9 +90,9 @@ describe("owner-digest", () => {
     const doc = await latestDigest();
     expect(doc!.title).toMatch(/^Morning summary/);
     expect(doc!.body).toMatch(/Repairs/);
-    expect(doc!.body).toMatch(/Plumbing repair waiting — Room 4/);
+    expect(doc!.body).toMatch(/Plumbing repair waiting · Room 4/);
     expect(doc!.body).toMatch(/Housing benefit/);
-    expect(doc!.body).toMatch(/Housing benefit suspended — Amina Khan, Room 4/);
+    expect(doc!.body).toMatch(/Housing benefit suspended: Amina Khan, Room 4/);
   });
 
   it("is badged simulated — no live notify adapter is keyed in this environment", async () => {

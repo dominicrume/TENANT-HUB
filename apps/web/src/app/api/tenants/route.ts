@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       [auth.actor.org_id, parsed.data.room_number],
     );
     if (Number(rows[0]?.count ?? 0) > 0) {
-      return NextResponse.json({ error: `Room ${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
+      return NextResponse.json({ error: `${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
     }
   }
 

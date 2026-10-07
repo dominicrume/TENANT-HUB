@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       "SELECT id FROM tenants WHERE org_id = $1 AND room_number = $2 AND is_archived = false AND is_active = true",
       [auth.actor.org_id, parsed.data.room_number]);
     if (r.rows.length > 0) {
-      return NextResponse.json({ error: `Room ${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
+      return NextResponse.json({ error: `${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
     }
   }
 
