@@ -35,8 +35,11 @@ export const tokens = {
     chain:   "#7C3AED",
   },
   fonts: {
-    sans: ["Sora", "system-ui", "sans-serif"],
-    mono: ["JetBrains Mono", "Consolas", "monospace"],
+    // var(--font-sora)/var(--font-jetbrains-mono) are set by next/font in
+    // apps/web/src/app/layout.tsx — the literal family names are the
+    // fallback for anywhere (print, email) that isn't inside that provider.
+    sans: ["var(--font-sora)", "Sora", "system-ui", "sans-serif"],
+    mono: ["var(--font-jetbrains-mono)", "JetBrains Mono", "Consolas", "monospace"],
   },
   spacing: {
     touchMin:  "56px",   // tablet intake: minimum touch target

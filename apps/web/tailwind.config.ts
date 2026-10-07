@@ -8,10 +8,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        navy:    tokens.colors.navy,
-        amber:   tokens.colors.amber,
-        cream:   tokens.colors.cream,
-        surface: tokens.colors.surface,
+        navy:       tokens.colors.navy,
+        ink:        tokens.colors.ink,
+        amber:      tokens.colors.amber,
+        "amber-deep": tokens.colors.amberDeep,
+        cream:      tokens.colors.cream,
+        surface:    tokens.colors.surface,
+        line:       tokens.colors.line,
+        "line-soft": tokens.colors.lineSoft,
+        slate:      tokens.colors.slate,
+        "slate-2":  tokens.colors.slate2,
+        live:       tokens.colors.live,
+        brick:      tokens.colors.brick,
+        violet:     tokens.colors.violet,
         success: tokens.colors.success,
         danger:  tokens.colors.danger,
         muted:   tokens.colors.muted,

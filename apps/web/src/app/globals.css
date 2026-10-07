@@ -2,7 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Sora/JetBrains Mono are loaded by next/font (apps/web/src/app/layout.tsx),
+   not a CSS @import — that was a render-blocking network request on top of
+   everything else first paint already waits on. */
 
 :root {
   color-scheme: light;
@@ -24,9 +26,13 @@
   --r: 14px;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html, body {
   background: var(--cream);
-  font-family: 'Sora', system-ui, sans-serif;
+  font-family: var(--font-sora), 'Sora', system-ui, sans-serif;
   color: #1A1A2E;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
@@ -77,8 +83,8 @@ html, body {
 
   .print-page-break { page-break-after: always; }
 
-  h1, h2, h3 { font-family: 'Sora', sans-serif; }
-  .mono, [data-mono] { font-family: 'JetBrains Mono', monospace; }
+  h1, h2, h3 { font-family: var(--font-sora), 'Sora', sans-serif; }
+  .mono, [data-mono] { font-family: var(--font-jetbrains-mono), 'JetBrains Mono', monospace; }
 
   /* Force background colors to print for logos/stamps */
   * {
