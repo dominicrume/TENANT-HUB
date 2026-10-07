@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { formatShortDate } from "../../lib/format";
-import { getSupabaseBrowser } from "../../lib/supabase-browser";
 import { TENANT_DOCUMENT_TYPES, OTHER_DOCUMENT_TYPE } from "../../lib/document-types";
 
 export function DocumentsTab({ tenantId }: { tenantId: string }) {
@@ -38,35 +37,20 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
     setUploading(true);
 
     try {
-      const supabase = getSupabaseBrowser();
-      const ext = file.name.split('.').pop();
-      const fileName = `tenant-${tenantId}-${Date.now()}.${ext}`;
+      // Named from the picked type (BUILD_PLAN C50: a dropdown, not free
+      // typing), not the uploaded file's own filename. The file goes
+      // straight to our own API, which stores its bytes in Postgres
+      // (document_blobs, migration 045) — no separate storage service.
+      const form = new FormData();
+      form.append("tenant_id", tenantId);
+      form.append("name", label);
+      form.append("file", file);
 
-      // 1. Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("tenant-documents")
-        .upload(fileName, file);
-
-      if (uploadError) {
-        alert("Document upload failed: " + uploadError.message);
-        return;
-      }
-
-      // 2. Save record to DB — named from the picked type (BUILD_PLAN C50:
-      // a dropdown, not free typing), not the uploaded file's own filename.
-      const res = await fetch("/api/documents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          name: label,
-          file_url: uploadData.path
-        })
-      });
+      const res = await fetch("/api/documents", { method: "POST", body: form });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
-        alert("Failed to save document record: " + (errData?.error || "Unknown error"));
+        alert("Failed to upload document: " + (errData?.error || "Unknown error"));
       }
     } catch (err: any) {
       alert("An error occurred during upload: " + err.message);
@@ -77,27 +61,8 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
     }
   }
 
-  async function handleDownload(id: string, fileUrl: string) {
-    setActioningId(id);
-    try {
-      const supabase = getSupabaseBrowser();
-      const { data, error } = await supabase.storage
-        .from("tenant-documents")
-        .createSignedUrl(fileUrl, 300); // URL valid for 5 minutes
-
-      if (error) {
-        alert("Error generating download link: " + error.message);
-        return;
-      }
-
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, "_blank");
-      }
-    } catch (err: any) {
-      alert("Failed to open file: " + err.message);
-    } finally {
-      setActioningId(null);
-    }
+  function handleDownload(id: string) {
+    window.open(`/api/documents/${id}/file`, "_blank");
   }
 
   async function handleDelete(e: React.MouseEvent, id: string) {
@@ -182,7 +147,7 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
           {docs.map(d => (
             <div 
               key={d.id} 
-              onClick={() => handleDownload(d.id, d.file_url)}
+              onClick={() => handleDownload(d.id)}
               style={{ 
                 border: "1px solid #EDE8E1", 
                 borderRadius: "8px", 

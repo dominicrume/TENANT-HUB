@@ -15,11 +15,10 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useTenants } from "../../../../hooks/useTenants";
 import { formatShortDate, formatMoney } from "../../../../lib/format";
-import { getSupabaseBrowser } from "../../../../lib/supabase-browser";
 import { PROPERTY_DOCUMENT_TYPES, OTHER_DOCUMENT_TYPE } from "../../../../lib/document-types";
 
 interface PropertyDoc {
-  id: string; document_type: string; file_url: string | null; status: "requested" | "received";
+  id: string; document_type: string; blob_id: string | null; status: "requested" | "received";
   created_at: string; landlords?: { name: string } | null;
 }
 
@@ -120,15 +119,12 @@ export default function PropertyDetailPage() {
   async function addDocument(file: File) {
     if (!resolvedDocType) { setDocError("Pick what kind of document this is first."); return; }
     setDocBusy(true); setDocError(null);
-    const supabase = getSupabaseBrowser();
-    const ext = file.name.split(".").pop();
-    const path = `property-${id}-${Date.now()}.${ext}`;
-    const { data: uploaded, error: upErr } = await supabase.storage.from("property-documents").upload(path, file);
-    if (upErr) { setDocBusy(false); setDocError(upErr.message); return; }
-    const res = await fetch("/api/property-documents", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "add", property_id: id, document_type: resolvedDocType, file_url: uploaded.path }),
-    });
+    const form = new FormData();
+    form.append("action", "add");
+    form.append("property_id", String(id));
+    form.append("document_type", resolvedDocType);
+    form.append("file", file);
+    const res = await fetch("/api/property-documents", { method: "POST", body: form });
     setDocBusy(false);
     if (!res.ok) { const b = await res.json().catch(() => null); setDocError(b?.error ?? "Could not save the document"); return; }
     setDocMode("none"); setDocOther("");
@@ -151,23 +147,16 @@ export default function PropertyDetailPage() {
 
   async function attachReceivedFile(docId: string, file: File) {
     setAttachingId(docId); setDocError(null);
-    const supabase = getSupabaseBrowser();
-    const ext = file.name.split(".").pop();
-    const path = `property-${id}-${Date.now()}.${ext}`;
-    const { data: uploaded, error: upErr } = await supabase.storage.from("property-documents").upload(path, file);
-    if (upErr) { setAttachingId(null); setDocError(upErr.message); return; }
-    const res = await fetch(`/api/property-documents/${docId}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file_url: uploaded.path }),
-    });
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/property-documents/${docId}`, { method: "PATCH", body: form });
     setAttachingId(null);
     if (!res.ok) { const b = await res.json().catch(() => null); setDocError(b?.error ?? "Could not attach the file"); return; }
     void loadDocs();
   }
 
-  async function downloadDocument(fileUrl: string) {
-    const supabase = getSupabaseBrowser();
-    const { data, error: dlErr } = await supabase.storage.from("property-documents").createSignedUrl(fileUrl, 300);
-    if (!dlErr && data?.signedUrl) window.open(data.signedUrl, "_blank");
+  function downloadDocument(docId: string) {
+    window.open(`/api/property-documents/${docId}/file`, "_blank");
   }
 
   if (error) return <div style={{ padding: "1.75rem" }}><p style={{ color: "var(--brick)" }}>{error}</p></div>;
@@ -321,8 +310,8 @@ export default function PropertyDetailPage() {
                   {" · "}{formatShortDate(d.created_at)}
                 </p>
               </div>
-              {d.status === "received" && d.file_url ? (
-                <button type="button" className="btn ghost sm" onClick={() => void downloadDocument(d.file_url!)}>Download</button>
+              {d.status === "received" && d.blob_id ? (
+                <button type="button" className="btn ghost sm" onClick={() => downloadDocument(d.id)}>Download</button>
               ) : (
                 <label className="btn ghost sm" style={{ cursor: attachingId === d.id ? "wait" : "pointer" }}>
                   {attachingId === d.id ? "Attaching…" : "Attach received file"}

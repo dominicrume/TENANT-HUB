@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit, insertDocumentBlob, deleteDocumentBlob, MAX_DOCUMENT_BYTES } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 
@@ -7,7 +7,7 @@ interface TenantDocRow {
   id: string;
   tenant_id: string;
   name: string;
-  file_url: string;
+  blob_id: string | null;
   uploaded_by: string;
   created_at: string;
 }
@@ -25,9 +25,10 @@ export async function GET(req: Request) {
     // tenant_documents has no org_id column of its own (supabase/migrations/014);
     // Supabase RLS scoped it via tenant_id -> tenants.org_id, so that join
     // replaces it here, and also doubles as the "does this tenant belong to
-    // my org" check for the tenantId the caller supplied.
+    // my org" check for the tenantId the caller supplied. Bytes are never
+    // selected here — only the metadata list.
     const r = await db().query<TenantDocRow>(
-      `SELECT td.* FROM tenant_documents td
+      `SELECT td.id, td.tenant_id, td.name, td.blob_id, td.uploaded_by, td.created_at FROM tenant_documents td
        JOIN tenants t ON t.id = td.tenant_id
        WHERE td.tenant_id = $1 AND t.org_id = $2
        ORDER BY td.created_at DESC`,
@@ -39,34 +40,48 @@ export async function GET(req: Request) {
   }
 }
 
+/** POST multipart/form-data: tenant_id, name, file. The file's bytes live in document_blobs (045); this row only ever carries metadata. */
 export async function POST(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
 
-  const body = await req.json().catch(() => null);
-  if (!body || !body.tenant_id || !body.name || !body.file_url) {
+  const form = await req.formData().catch(() => null);
+  const tenantId = form?.get("tenant_id");
+  const name = form?.get("name");
+  const file = form?.get("file");
+  if (typeof tenantId !== "string" || typeof name !== "string" || !name.trim() || !(file instanceof File)) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
   }
+  if (file.size === 0) return NextResponse.json({ error: "That file is empty" }, { status: 422 });
+  if (file.size > MAX_DOCUMENT_BYTES) return NextResponse.json({ error: `File is too large (max ${MAX_DOCUMENT_BYTES / 1024 / 1024}MB)` }, { status: 413 });
 
   try {
     const owned = await db().query<{ id: string }>(
       "SELECT id FROM tenants WHERE id = $1 AND org_id = $2",
-      [body.tenant_id, auth.actor.org_id],
+      [tenantId, auth.actor.org_id],
     );
     if (!owned.rows[0]) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const blobId = await insertDocumentBlob(db(), {
+      orgId: auth.actor.org_id,
+      fileName: file.name || name,
+      mimeType: file.type || "application/octet-stream",
+      data: buffer,
+    });
 
     const { data } = await writeWithAudit({
       table: "tenant_documents",
       record: {
-        tenant_id: body.tenant_id,
-        name: body.name,
-        file_url: body.file_url,
+        tenant_id: tenantId,
+        name,
+        blob_id: blobId,
         uploaded_by: auth.actor.user_name,
       } as Record<string, unknown>,
       action: "CREATE",
       org_id: auth.actor.org_id,
-      tenant_id: body.tenant_id,
+      tenant_id: tenantId,
       user_id: auth.actor.user_id,
       user_name: auth.actor.user_name,
       user_role: auth.actor.user_role,
@@ -88,9 +103,8 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ error: "Missing document id" }, { status: 400 });
 
   try {
-    // 1. Fetch file_url to clean up storage, verifying org ownership via tenants.org_id.
-    const docR = await db().query<{ file_url: string }>(
-      `SELECT td.file_url FROM tenant_documents td
+    const docR = await db().query<{ blob_id: string | null }>(
+      `SELECT td.blob_id FROM tenant_documents td
        JOIN tenants t ON t.id = td.tenant_id
        WHERE td.id = $1 AND t.org_id = $2`,
       [id, auth.actor.org_id],
@@ -98,24 +112,15 @@ export async function DELETE(req: Request) {
     const doc = docR.rows[0];
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    if (doc.file_url && auth.supabase) {
-      try {
-        await auth.supabase.storage.from("tenant-documents").remove([doc.file_url]);
-      } catch (storageErr) {
-        console.error("[documents:DELETE] storage cleanup skipped:", storageErr);
-      }
-    }
-
-    // 2. Delete the database record. Note: this is a genuine hard delete, not
-    // routed through writeWithAudit — tenant_documents has no soft-delete
-    // column and writeWithAudit only upserts, it never removes a row. This
-    // matches the pre-existing behaviour (the original Supabase version also
-    // deleted with no audit row); it is a known H1 gap on this one route, not
-    // something introduced here.
+    // Hard delete — tenant_documents has no soft-delete column and
+    // writeWithAudit only upserts, it never removes a row (pre-existing H1
+    // gap on this one route, not introduced here).
     await db().query(
-      `DELETE FROM tenant_documents WHERE id = $1 AND tenant_id IN (SELECT id FROM tenants WHERE org_id = $2)`,
+      "DELETE FROM tenant_documents WHERE id = $1 AND tenant_id IN (SELECT id FROM tenants WHERE org_id = $2)",
       [id, auth.actor.org_id],
     );
+    if (doc.blob_id) await deleteDocumentBlob(db(), { id: doc.blob_id, orgId: auth.actor.org_id });
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[documents:DELETE]", err);
