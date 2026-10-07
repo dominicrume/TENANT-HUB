@@ -27,6 +27,16 @@ import { readSessionToken } from "../lib/session-cookie";
  * reaching the JSX below. A page with no session system configured
  * (!hasDatabaseUrl()) just shows the signed-out state, same as a genuine
  * signed-out visitor — never a crash.
+ *
+ * No self-serve account creation, anywhere (Rume, 2026-10): /signup,
+ * /onboarding and /onboarding/subscription are gone — they ran on dead
+ * Supabase Auth code and, worse, would have let anyone on the internet
+ * register themselves as a Manager for an existing organisation with no
+ * invitation at all once Supabase was ever reconnected. This is bespoke
+ * software for named housing associations (Ash Shahada, Reliance), not an
+ * open SaaS product — the only way into the system is a manager-issued
+ * invite (/api/auth/invite → /invite/[token]), already on the own-session
+ * system. Every CTA here goes to /login accordingly.
  */
 export default async function LandingPage() {
   let session: { id: string } | null = null;
@@ -45,14 +55,9 @@ export default async function LandingPage() {
           <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-navy text-lg font-extrabold text-amber">M</span>
           <span className="text-lg font-bold text-navy">Matty&apos;s Place</span>
         </Link>
-        {session ? (
-          <Link href="/dashboard" className={PRIMARY_BTN}>Open the console</Link>
-        ) : (
-          <div className="flex items-center gap-2.5">
-            <Link href="/login" className={GHOST_BTN}>Log in</Link>
-            <Link href="/onboarding/subscription" className={PRIMARY_BTN}>Start free trial</Link>
-          </div>
-        )}
+        <Link href={session ? "/dashboard" : "/login"} className={PRIMARY_BTN}>
+          {session ? "Open the console" : "Log in"}
+        </Link>
       </nav>
 
       <section className="relative overflow-hidden px-5 pb-14 pt-14 text-center sm:pt-24">
@@ -93,17 +98,17 @@ export default async function LandingPage() {
             <PlanCard
               name="Starter" price={49} tagline="For a small home just getting started."
               features={["Up to 10 active tenants", "Basic AI intake extraction", "Standard reporting", "Email support"]}
-              href="/signup?plan=starter" cta="Choose starter"
+              href="/login" cta="Log in"
             />
             <PlanCard
               name="Professional" price={99} tagline="For a growing service with real compliance needs."
               features={["Up to 50 tenants", "Advanced form generation", "API access", "Standard support"]}
-              href="/onboarding/subscription?plan=professional" cta="Choose professional" featured
+              href="/login" cta="Log in" featured
             />
             <PlanCard
               name="Enterprise" price={300} tagline="For an association running several HMOs at scale."
               features={["Unlimited tenants and properties", "Full agent automation", "White-label tenant portal", "Priority support"]}
-              href="/onboarding/subscription?plan=premium" cta="Talk to us"
+              href="/login" cta="Log in"
             />
           </div>
         </div>

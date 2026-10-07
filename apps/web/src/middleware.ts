@@ -3,7 +3,6 @@ import { authRateLimit, aiRateLimit, genericRateLimit } from "./lib/rate-limit";
 
 const PUBLIC_PREFIXES = [
   "/login",
-  "/signup",
   "/reset-password",
   "/update-password",
   "/invite",
@@ -101,8 +100,8 @@ export async function middleware(req: NextRequest) {
     return redirectWithCookies(new URL("/login", req.url));
   }
 
-  // Signed-in user hitting an auth page → send to the appropriate home.
-  if (user && (pathname.startsWith("/login") || pathname.startsWith("/signup"))) {
+  // Signed-in user hitting the login page → send to the appropriate home.
+  if (user && pathname.startsWith("/login")) {
     if (user.role === "tenant") {
       return redirectWithCookies(new URL("/my-home", req.url));
     }
