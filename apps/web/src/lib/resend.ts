@@ -182,7 +182,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
   await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: "Welcome to Matty's Place — Your Account is Ready",
+    subject: "Welcome to Matty's Place: Your Account is Ready",
     html,
   });
 }
@@ -204,7 +204,7 @@ export async function sendSubscriptionEmail(to: string, name: string, plan: stri
   await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `Matty's Place — ${planLabel} Subscription Confirmed`,
+    subject: `Matty's Place: ${planLabel} Subscription Confirmed`,
     html,
   });
 }
@@ -225,7 +225,7 @@ export async function sendTenantInviteEmail(to: string, tenantName: string, invi
   await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: "Access Your Tenant Portal — Matty's Place",
+    subject: "Access Your Tenant Portal: Matty's Place",
     html,
   });
 }

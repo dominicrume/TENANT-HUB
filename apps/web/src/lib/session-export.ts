@@ -18,7 +18,7 @@ import type { Session } from "@tenant-hub/validation";
 import { formatShortDate } from "./format";
 
 function sessionTitle(s: Session): string {
-  return `${s.session_type.charAt(0).toUpperCase()}${s.session_type.slice(1)} session — ${formatShortDate(s.session_date)}`;
+  return `${s.session_type.charAt(0).toUpperCase()}${s.session_type.slice(1)} session, ${formatShortDate(s.session_date)}`;
 }
 
 function sessionBodyHtml(s: Session, tenantName?: string): string {

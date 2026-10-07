@@ -36,6 +36,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, audit_hash });
   } catch (err) {
     console.error("[eviction:POST]", err);
-    return NextResponse.json({ error: toSafeErrorMessage(err, "Could not record the notice — please try again, or tell support if it keeps happening.") }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(err, "Could not record the notice. Please try again, or tell support if it keeps happening.") }, { status: 500 });
   }
 }

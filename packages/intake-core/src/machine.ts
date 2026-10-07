@@ -97,7 +97,7 @@ export const intakeMachine = createMachine(
             },
             {
               target: "tenant_verify",
-              actions: assign({ error: () => "Signature mismatch — record may have changed. Please restart." }),
+              actions: assign({ error: () => "Signature mismatch. Record may have changed. Please restart." }),
             },
           ],
           BACK: "staff_review",

@@ -45,14 +45,14 @@ describe("buildNeedsYou", () => {
     expect(titles).not.toContain("Cara Lee");
     expect(titles).not.toContain("Electrical");
     expect(r.items.filter((i) => i.kind === "signoffs")).toHaveLength(1);
-    expect(r.items.find((i) => i.kind === "signoffs")?.title).toBe("Signature needed — New Person");
+    expect(r.items.find((i) => i.kind === "signoffs")?.title).toBe("Signature needed: New Person");
   });
 
   it("only counts arrears at two or more overdue weeks and never counts future charges", () => {
     const r = buildNeedsYou(base());
     const money = r.items.filter((i) => i.kind === "money");
     expect(money).toHaveLength(1);
-    expect(money[0]!.title).toBe("2 weeks behind — Amina Khan, Room 4");
+    expect(money[0]!.title).toBe("2 weeks behind: Amina Khan, Room 4");
     expect(r.stats.moneyOwed).toBe(450); // a:300 + b:150 overdue; b's future charge excluded
   });
 

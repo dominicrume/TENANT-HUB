@@ -80,7 +80,7 @@ export default function ContractorJobsPage() {
                 <p style={{ fontSize: 14, color: "var(--navy)", fontWeight: 600, margin: "8px 0 4px" }}>{t?.description ?? "No description given"}</p>
                 <p style={{ fontSize: 12.5, color: "var(--slate)", margin: 0 }}>Room: <strong>{t?.room_number ?? "—"}</strong></p>
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line)", fontSize: 12.5, color: done ? "var(--live)" : "var(--slate)", fontWeight: 600 }}>
-                  {done ? `Marked complete ${formatShortDate(job.completed_at!)}` : job.dispatched_at ? "Confirmed — not yet marked done" : "Proposed — awaiting confirmation"}
+                  {done ? `Marked complete ${formatShortDate(job.completed_at!)}` : job.dispatched_at ? "Confirmed, not yet marked done" : "Proposed, awaiting confirmation"}
                 </div>
               </div>
             );

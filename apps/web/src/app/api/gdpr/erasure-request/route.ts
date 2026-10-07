@@ -63,6 +63,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, tenant: redactedTenant }, { status: 200 });
   } catch (err) {
     console.error("[gdpr/erasure-request:POST]", err);
-    return NextResponse.json({ error: toSafeErrorMessage(err, "Erasure processing failed — please try again, or tell support if it keeps happening.") }, { status: 500 });
+    return NextResponse.json({ error: toSafeErrorMessage(err, "Erasure processing failed. Please try again, or tell support if it keeps happening.") }, { status: 500 });
   }
 }

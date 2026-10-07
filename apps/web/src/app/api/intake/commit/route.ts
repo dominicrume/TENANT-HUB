@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   const recomputed = await hashRecord(canonicalSubset(state.extracted));
   if (recomputed !== draft.canonical_hash) {
     return NextResponse.json(
-      { error: "Record changed since review — restart intake (H4)" },
+      { error: "Record changed since review. Restart intake (H4)" },
       { status: 409 },
     );
   }

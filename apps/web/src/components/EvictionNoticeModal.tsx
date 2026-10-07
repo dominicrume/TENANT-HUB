@@ -43,7 +43,7 @@ export function EvictionNoticeModal({
       });
       if (!res.ok) {
         const b = await res.json().catch(() => null);
-        setError(b?.error ?? "Could not record this notice — nothing was printed.");
+        setError(b?.error ?? "Could not record this notice. Nothing was printed.");
         return;
       }
       // Only print once the audit record is actually saved — this is a legal
@@ -53,7 +53,7 @@ export function EvictionNoticeModal({
       window.print();
       document.body.classList.remove("printing-modal");
     } catch {
-      setError("Could not reach the server — nothing was printed.");
+      setError("Could not reach the server. Nothing was printed.");
     } finally {
       setBusy(false);
     }
@@ -101,7 +101,7 @@ export function EvictionNoticeModal({
               <p className="print-only" style={{ display: "none" }}>Reason: {reason || "—"}</p>
               <p style={{ marginTop: "16px" }}>You are required to give up possession after the notice period stated above.</p>
               <p style={{ marginTop: "24px", fontWeight: 600, color: "var(--navy)", textTransform: "uppercase" }}>
-                On behalf of {label} — {profile?.full_name || "AUTHORIZED MANAGER"}
+                On behalf of {label}: {profile?.full_name || "AUTHORIZED MANAGER"}
               </p>
             </div>
             {error && <p className="no-print" style={{ color: "#E05252", fontSize: "13px", marginTop: "12px" }}>{error}</p>}

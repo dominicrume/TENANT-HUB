@@ -59,7 +59,7 @@ export function RentLaddersPanel() {
                     }} />
                   ))}
                 </div>
-                <p><b style={{ color: "var(--brick)" }}>{l.rungs[l.stageIndex]?.label ?? l.stage}</b> — {l.why}</p>
+                <p><b style={{ color: "var(--brick)" }}>{l.rungs[l.stageIndex]?.label ?? l.stage}</b>: {l.why}</p>
               </div>
               <Link className="btn ghost sm" href={`/tenants/${l.tenantId}?tab=ledger`}>Open ledger</Link>
             </div>

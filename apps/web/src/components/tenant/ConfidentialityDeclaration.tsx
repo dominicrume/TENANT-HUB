@@ -65,11 +65,11 @@ export function ConfidentialityDeclaration({ tenantId, tenantName }: { tenantId:
         <input type="checkbox" checked={signed} disabled={busy} onChange={() => void toggle()} style={{ width: 18, height: 18 }} />
         <span>
           <b>{tenantName || "This tenant"}</b> has signed this declaration
-          {signed && signedAt ? ` — confirmed ${formatDateTime(signedAt)}` : ""}
+          {signed && signedAt ? ` · confirmed ${formatDateTime(signedAt)}` : ""}
         </span>
       </label>
       <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--navy)", fontWeight: 600 }}>
-        On behalf of Ash Shahada Housing Association Ltd — AHSAN REHMAN
+        On behalf of Ash Shahada Housing Association Ltd: AHSAN REHMAN
       </div>
     </section>
   );

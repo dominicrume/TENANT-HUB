@@ -236,7 +236,7 @@ export default function MyLedgerPage() {
                 <div style={styles.rowTop}>
                   <div style={styles.rowDesc}>
                     Payment received
-                    {p.method ? ` — ${p.method}` : ""}
+                    {p.method ? ` · ${p.method}` : ""}
                   </div>
                   <div style={{ ...styles.rowAmount, color: "#3DBB7A" }}>
                     £{p.amount.toFixed(2)}

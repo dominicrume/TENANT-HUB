@@ -32,7 +32,7 @@ export default function MorningSummaryPage() {
           <div className="ch">
             <h3>{digest.title}</h3>
             {digest.is_simulated && (
-              <span className="tag" style={{ background: "rgba(232,168,76,.15)", color: "var(--amber-deep)" }}>Practice mode — no email actually sent</span>
+              <span className="tag" style={{ background: "rgba(232,168,76,.15)", color: "var(--amber-deep)" }}>Practice mode: no email actually sent</span>
             )}
           </div>
           <div className="li"><div className="body">

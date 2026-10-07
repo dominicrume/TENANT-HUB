@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     const base = env.server.APP_URL ?? new URL(req.url).origin;
     await notifier().send({
       to: profile.email, channel: "email", subject: "Reset your Tenant Hub password",
-      body: `Follow this link within the hour to set a new password:\n\n${base}/reset-password/${token}\n\nIf you didn't ask for this, you can ignore it — nothing changes until the link is used.`,
+      body: `Follow this link within the hour to set a new password:\n\n${base}/reset-password/${token}\n\nIf you didn't ask for this, you can ignore it. Nothing changes until the link is used.`,
     });
   }
 

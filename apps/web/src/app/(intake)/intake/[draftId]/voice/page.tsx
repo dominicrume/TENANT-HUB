@@ -133,7 +133,7 @@ export default function VoiceExtractPage() {
     <div>
       <h1 style={{ fontSize: "20px", fontWeight: 700, color: "var(--navy)", marginBottom: "6px" }}>Voice intake</h1>
       <p style={{ fontSize: 14, color: "#5C6673", marginBottom: 20, maxWidth: 480 }}>
-        Just talk — say the tenant&apos;s name, date of birth, address, and anything else you know.
+        Just talk. Say the tenant&apos;s name, date of birth, address, and anything else you know.
         Stop when you&apos;re done, and it fills in the form below for you to check.
       </p>
 
@@ -196,7 +196,7 @@ export default function VoiceExtractPage() {
         <div style={{ flex: "2 1 380px" }}>
           {hasResult ? (
             <>
-              <h4 style={{ fontSize: "12px", textTransform: "uppercase", color: "var(--slate)", marginBottom: "10px" }}>Check these — edit anything that&apos;s wrong</h4>
+              <h4 style={{ fontSize: "12px", textTransform: "uppercase", color: "var(--slate)", marginBottom: "10px" }}>Check these, edit anything that&apos;s wrong</h4>
               <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} />
             </>
           ) : (

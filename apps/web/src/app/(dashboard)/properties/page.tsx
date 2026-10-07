@@ -253,7 +253,7 @@ export default function PropertiesPage() {
         ) : properties === null ? (
           <div className="li"><p className="muted">Loading…</p></div>
         ) : none ? (
-          <div className="li"><div className="body"><b>No properties yet</b><p>Add the first one above — three fields is all it takes.</p></div></div>
+          <div className="li"><div className="body"><b>No properties yet</b><p>Add the first one above. Three fields is all it takes.</p></div></div>
         ) : filtered.length === 0 ? (
           <div className="li"><div className="body"><b>Nothing matches</b><p>Try a different landlord or search term.</p></div></div>
         ) : (

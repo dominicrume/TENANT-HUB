@@ -117,11 +117,11 @@ export default function MaintenancePage() {
       });
       if (!res.ok) {
         const b = await res.json().catch(() => null);
-        setBoardError(b?.error ?? "That change didn't save. Nothing was updated — try again.");
+        setBoardError(b?.error ?? "That change didn't save. Nothing was updated. Try again.");
         return;
       }
     } catch {
-      setBoardError("Could not reach the server. Nothing was updated — try again.");
+      setBoardError("Could not reach the server. Nothing was updated. Try again.");
       return;
     } finally {
       setBusy(false);
@@ -256,7 +256,7 @@ export default function MaintenancePage() {
               {hasSupabaseBrowser() ? (
                 <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] || null)} style={{ fontSize: "12px" }} />
               ) : (
-                <p style={{ fontSize: "12px", color: "#7A8499", fontStyle: "italic", margin: 0 }}>Photo attachments aren&apos;t available on this environment yet — the ticket still saves without one.</p>
+                <p style={{ fontSize: "12px", color: "#7A8499", fontStyle: "italic", margin: 0 }}>Photo attachments aren&apos;t available on this environment yet. The ticket still saves without one.</p>
               )}
             </div>
 
@@ -282,7 +282,7 @@ export default function MaintenancePage() {
             <p style={{ fontSize: "12px", color: "#7A8499", margin: 0 }}>Who a repair gets sent to. issue-triage picks one of these by category, or &quot;general&quot; as a fallback.</p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {trades.length === 0 && <p style={{ fontSize: "12px", color: "#7A8499", fontStyle: "italic" }}>No trades yet — add the first one below.</p>}
+              {trades.length === 0 && <p style={{ fontSize: "12px", color: "#7A8499", fontStyle: "italic" }}>No trades yet. Add the first one below.</p>}
               {trades.map((t) => (
                 <div key={t.id} style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid #EDE8E1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
@@ -310,7 +310,7 @@ export default function MaintenancePage() {
               </div>
               <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--navy)" }}>
                 <input type="checkbox" checked={tradeEmergency} onChange={(e) => setTradeEmergency(e.target.checked)} />
-                24/7 — may take an emergency straight away
+                24/7, may take an emergency straight away
               </label>
               {tradeError && <p style={{ color: "var(--brick)", margin: 0, fontSize: "12.5px" }}>{tradeError}</p>}
               <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>

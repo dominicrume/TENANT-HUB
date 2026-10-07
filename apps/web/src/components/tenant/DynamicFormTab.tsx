@@ -66,7 +66,7 @@ export function DynamicFormTab({ tenantId, tenant, template }: { tenantId: strin
       setSaveMsg("✗ Save failed");
       return;
     }
-    setSaveMsg(`✓ Saved — ${new Date().toLocaleTimeString("en-GB")}`);
+    setSaveMsg(`✓ Saved at ${new Date().toLocaleTimeString("en-GB")}`);
   }
 
   function set(field: string, value: any) {

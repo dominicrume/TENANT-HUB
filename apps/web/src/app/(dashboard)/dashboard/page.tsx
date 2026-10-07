@@ -38,7 +38,7 @@ export default function TodayPage() {
       </div>
 
       <section className="needs" aria-live="polite">
-        <div className="hd"><h2>Needs you today</h2><span>The system proposes — you decide</span></div>
+        <div className="hd"><h2>Needs you today</h2><span>The system proposes, you decide</span></div>
         {error && !data ? (
           <div className="decision due">
             <div className="ic" aria-hidden="true">!</div>

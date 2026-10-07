@@ -53,7 +53,7 @@ export default function AuditLogPage() {
   return (
     <div style={{ padding: "1.75rem", fontFamily: "'Sora', sans-serif" }}>
       <div style={{ background: "var(--navy)", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
-        <h1 style={{ color: "#fff", fontSize: "18px", fontWeight: 700 }}>Audit Trail — Tamper-Proof Record</h1>
+        <h1 style={{ color: "#fff", fontSize: "18px", fontWeight: 700 }}>Audit Trail: Tamper-Proof Record</h1>
         <p style={{ color: "#9AA6BC", fontSize: "12px", marginTop: "4px" }}>Every mutation is cryptographically hashed. This log cannot be edited or deleted.</p>
       </div>
 

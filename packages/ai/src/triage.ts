@@ -44,10 +44,10 @@ export function triageByRules(text: string): Triage {
   for (const [s, re] of SEVERITY_PATTERNS) { const m = t.match(re); if (m) { severity = s; hit = m[0]; break; } }
   const category = CATEGORY_PATTERNS.find(([, re]) => re.test(t))?.[0] ?? "general";
   const reasoning =
-    severity === "emergency" ? `"${hit}" signals risk to people or the building — treated as an emergency` :
-    severity === "urgent" ? `"${hit}" affects daily living — needs a trade soon, not immediately` :
-    severity === "cosmetic" ? `"${hit}" is appearance only — can wait for a convenient visit` :
-    "nothing in the report suggests risk — routine visit";
+    severity === "emergency" ? `"${hit}" signals risk to people or the building, treated as an emergency` :
+    severity === "urgent" ? `"${hit}" affects daily living, needs a trade soon, not immediately` :
+    severity === "cosmetic" ? `"${hit}" is appearance only, can wait for a convenient visit` :
+    "nothing in the report suggests risk, routine visit";
   return { category, severity, reasoning };
 }
 

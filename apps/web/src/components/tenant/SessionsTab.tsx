@@ -121,7 +121,7 @@ export function SessionsTab({ tenantId }: { tenantId: string }) {
       {/* AI BRAIN */}
       <div style={{ ...card, border: "1px solid var(--amber)", background: "#FFFBF4" }}>
         <h3 style={{ color: "var(--navy)", fontSize: "14px", fontWeight: 700, marginBottom: "8px" }}>
-          ✨ AI Brain — questions from the last session
+          ✨ AI Brain: questions from the last session
         </h3>
         {questions === null ? (
           <div style={{ color: "#7A8499", fontSize: "13px" }}>Thinking…</div>

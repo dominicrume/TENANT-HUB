@@ -269,7 +269,7 @@ export default function PropertyDetailPage() {
             <button type="button" className="btn ghost sm" onClick={() => setDocMode(docMode === "add" ? "none" : "add")}>{docMode === "add" ? "Cancel" : "Add document"}</button>
           </div>
         </div>
-        <p className="muted" style={{ margin: "0 0 4px", fontSize: 12.5 }}>The lease, invoices and other paperwork for this property — kept separate from a tenant&apos;s own documents.</p>
+        <p className="muted" style={{ margin: "0 0 4px", fontSize: 12.5 }}>The lease, invoices and other paperwork for this property, kept separate from a tenant&apos;s own documents.</p>
 
         {docMode === "add" && (
           <div className="li" style={{ display: "grid", gap: 10 }}>

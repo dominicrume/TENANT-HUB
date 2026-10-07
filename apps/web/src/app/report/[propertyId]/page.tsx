@@ -28,7 +28,7 @@ export default function PublicReportPage() {
     });
     const body = await res.json().catch(() => null);
     setLoading(false);
-    if (!res.ok) { setError(body?.error ?? "Could not send that — please try again."); return; }
+    if (!res.ok) { setError(body?.error ?? "Could not send that. Please try again."); return; }
     setSent(true);
   }
 
@@ -36,7 +36,7 @@ export default function PublicReportPage() {
     return (
       <main style={s.page}>
         <div style={s.card}>
-          <h1 style={s.heading}>Thanks — that&apos;s been sent</h1>
+          <h1 style={s.heading}>Thanks, that&apos;s been sent</h1>
           <p style={{ fontSize: "14px", color: "var(--slate)", lineHeight: 1.5 }}>
             Someone will look at this and be in touch if we need more from you. No need to call.
           </p>
@@ -49,7 +49,7 @@ export default function PublicReportPage() {
     <main style={s.page}>
       <div style={s.card}>
         <h1 style={s.heading}>Report a repair</h1>
-        <p style={s.subBrands}>Tell us what&apos;s wrong. Be as clear as you like — there&apos;s no wrong way to say it.</p>
+        <p style={s.subBrands}>Tell us what&apos;s wrong. Be as clear as you like. There&apos;s no wrong way to say it.</p>
         <form onSubmit={onSubmit}>
           <label style={s.label} htmlFor="raw">What&apos;s the problem?</label>
           <textarea id="raw" required minLength={3} maxLength={2000} rows={5} style={{ ...s.input, minHeight: "110px", resize: "vertical" }}

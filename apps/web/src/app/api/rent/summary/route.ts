@@ -14,7 +14,7 @@ interface ArrearsRow { tenant_id: string; balance: string | number; oldest_unpai
 interface UnmatchedRow { id: string; tenant_id: string | null; amount: string | number; received_on: string; external_reference: string | null; confidence: string | number; is_simulated: boolean }
 
 const HB_LINE: Record<string, string> = {
-  suspended: "housing benefit is suspended — rent is not coming in",
+  suspended: "housing benefit is suspended, rent is not coming in",
   in_progress: "housing benefit is still pending",
   active: "housing benefit is active",
 };

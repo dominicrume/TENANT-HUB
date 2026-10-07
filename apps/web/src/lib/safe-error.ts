@@ -13,9 +13,9 @@
  */
 
 export const DEFAULT_SAVE_ERROR =
-  "Could not save — please try again, or tell support if it keeps happening.";
+  "Could not save. Please try again, or tell support if it keeps happening.";
 
-const ALREADY_EXISTS_ERROR = "That already exists — please check and try again.";
+const ALREADY_EXISTS_ERROR = "That already exists. Please check and try again.";
 
 const DUPLICATE_PATTERN = /duplicate key value|violates[\s\S]*unique constraint/i;
 

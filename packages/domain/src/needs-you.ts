@@ -96,7 +96,7 @@ export function buildNeedsYou(input: NeedsYouInput): NeedsYouResponse {
     const d = daysAgo(t.created_at, now) ?? 0;
     items.push({
       kind: "repairs", tone: d >= 2 ? "due" : "warn",
-      title: `${t.issue_type} repair waiting${t.room_number ? ` — Room ${t.room_number}` : ""}`,
+      title: `${t.issue_type} repair waiting${t.room_number ? ` · Room ${t.room_number}` : ""}`,
       detail: `Reported ${d === 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`}${t.reported_by ? ` by ${t.reported_by}` : ""} · nobody is on it yet`,
       href: `/maintenance#ticket-${t.id}`, cta: "Assign someone",
     });
@@ -107,7 +107,7 @@ export function buildNeedsYou(input: NeedsYouInput): NeedsYouResponse {
     if (t.housing_benefit_status === "suspended") {
       items.push({
         kind: "housing_benefit", tone: "due",
-        title: `Housing benefit suspended — ${who(t)}`,
+        title: `Housing benefit suspended: ${who(t)}`,
         detail: "Rent is not coming in. Call the council, then note what they said on the record.",
         href: `/tenants/${t.id}?tab=housing-benefit`, cta: "Chase the council",
       });
@@ -116,7 +116,7 @@ export function buildNeedsYou(input: NeedsYouInput): NeedsYouResponse {
       if (since !== null && since >= HB_PENDING_DAYS) {
         items.push({
           kind: "housing_benefit", tone: "warn",
-          title: `Housing benefit still pending — ${who(t)}`,
+          title: `Housing benefit still pending: ${who(t)}`,
           detail: `${t.hb_claim_date ? "Claimed" : "Moved in"} ${since} days ago and nothing has been paid yet · a call usually moves it`,
           href: `/tenants/${t.id}?tab=housing-benefit`, cta: "Chase the council",
         });
@@ -139,7 +139,7 @@ export function buildNeedsYou(input: NeedsYouInput): NeedsYouResponse {
     if (!t || o.weeks < ARREARS_WEEKS) continue;
     items.push({
       kind: "money", tone: "due",
-      title: `${o.weeks} weeks behind — ${who(t)}`,
+      title: `${o.weeks} weeks behind: ${who(t)}`,
       detail: `${money(o.total)} of service charge unpaid · ${t.housing_benefit_status === "active" ? "housing benefit is active, so this is a conversation" : "check the housing benefit first"}`,
       href: `/tenants/${t.id}?tab=ledger`, cta: "Open the ledger",
     });
@@ -152,7 +152,7 @@ export function buildNeedsYou(input: NeedsYouInput): NeedsYouResponse {
     const name = d.machine_state?.extracted?.full_name;
     items.push({
       kind: "signoffs", tone: "warn",
-      title: `Signature needed — ${name ?? "new tenant"}`,
+      title: `Signature needed: ${name ?? "new tenant"}`,
       detail: "Details are confirmed. Hand the tablet to the tenant to read and sign.",
       href: `/intake/${d.id}/verify`, cta: "Get the signature",
     });

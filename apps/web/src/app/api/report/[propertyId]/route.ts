@@ -28,7 +28,7 @@ export async function POST(req: Request, { params }: { params: { propertyId: str
 
   const recent = await countRecentQrReports(params.propertyId, RATE_LIMIT.windowMs);
   if (recent >= RATE_LIMIT.max) {
-    return NextResponse.json({ error: "A few reports have already come in from this home in the last hour — a person will be in touch." }, { status: 429 });
+    return NextResponse.json({ error: "A few reports have already come in from this home in the last hour. A person will be in touch." }, { status: 429 });
   }
 
   try {

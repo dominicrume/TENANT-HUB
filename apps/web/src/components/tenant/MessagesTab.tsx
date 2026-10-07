@@ -37,7 +37,7 @@ export function MessagesTab({ tenantId, tenantName }: { tenantId: string; tenant
     });
     setBusy(false);
     if (res.ok) { setContent(""); void load(); }
-    else setError((await res.json().catch(() => null))?.error ?? "Couldn't send. Nothing was lost — try again.");
+    else setError((await res.json().catch(() => null))?.error ?? "Couldn't send. Nothing was lost. Try again.");
   }
 
   async function draft() {

@@ -170,7 +170,7 @@ export default function TenantDetailPage() {
       }
       return;
     }
-    setSaveMsg(`✓ Saved — ${new Date().toLocaleTimeString("en-GB")}`);
+    setSaveMsg(`✓ Saved at ${new Date().toLocaleTimeString("en-GB")}`);
     await load();
     void refetch(); // H8 — keep the list live
   }
@@ -224,7 +224,7 @@ export default function TenantDetailPage() {
                   const b = await res.json().catch(() => null);
                   throw new Error(b?.error ?? `${res.status} ${res.statusText}`);
                 }
-                setPhotoMsg(`✓ Photo saved — ${new Date().toLocaleTimeString("en-GB")}`);
+                setPhotoMsg(`✓ Photo saved at ${new Date().toLocaleTimeString("en-GB")}`);
               } catch (err) {
                 setTenant(prev => prev ? { ...prev, photo_url: previousPhoto } : null);
                 setPhotoMsg(`✗ ${err instanceof Error ? err.message : "Photo did not save"}`);
@@ -276,12 +276,12 @@ export default function TenantDetailPage() {
                 const res = await fetch(`/api/tenants/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ housing_benefit_status: val }) });
                 if (!res.ok) {
                   const b = await res.json().catch(() => null);
-                  setHbError(b?.error ?? "Didn't save — reverted to the previous status.");
+                  setHbError(b?.error ?? "Didn't save. Reverted to the previous status.");
                   if (tenant) setTenant({ ...tenant, housing_benefit_status: previous });
                   set("housing_benefit_status", previous);
                 }
               } catch {
-                setHbError("Could not reach the server — reverted to the previous status.");
+                setHbError("Could not reach the server. Reverted to the previous status.");
                 if (tenant) setTenant({ ...tenant, housing_benefit_status: previous });
                 set("housing_benefit_status", previous);
               }

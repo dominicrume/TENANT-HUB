@@ -111,7 +111,7 @@ export function certificateStatus(expiresOn: string | Date | null | undefined, t
 
 /* ── Drafted documents (H14: informational only, never advice) ──────────── */
 
-export const NOT_ADVICE = "Informational only — not legal advice. Confirm with your solicitor.";
+export const NOT_ADVICE = "Informational only. Not legal advice. Confirm with your solicitor.";
 
 export interface DraftInput {
   stage: string;
@@ -134,27 +134,27 @@ export function draftArrearsDocument(i: DraftInput): { title: string; body: stri
   const where = `${i.unitRef}, ${i.propertyName}`;
   const lease = i.cls === "commercial" ? "lease" : i.cls === "supported" ? "licence agreement" : "tenancy agreement";
   const head = `${i.brand}\n${date}\n\n`;
-  const foot = `\n\n— Drafted by ${i.brand} for review. ${NOT_ADVICE}`;
+  const foot = `\n\nDrafted by ${i.brand} for review. ${NOT_ADVICE}`;
 
   switch (i.stage) {
     /* ── supported ────────────────────────────────────────────────────── */
     case "check_in":
       return {
-        title: `Check in — ${where}`,
+        title: `Check in: ${where}`,
         body: head +
-          `Internal note for the support worker.\n\n${i.tenantName}'s service charge is ${i.daysOverdue} days behind (${money}). No letter goes to ${i.tenantName} at this stage — please check in with them directly and note anything relevant on their record.` +
+          `Internal note for the support worker.\n\n${i.tenantName}'s service charge is ${i.daysOverdue} days behind (${money}). No letter goes to ${i.tenantName} at this stage. Please check in with them directly and note anything relevant on their record.` +
           foot,
       };
     case "hb_chase":
       return {
-        title: `Housing benefit query — ${where}`,
+        title: `Housing benefit query: ${where}`,
         body: head +
           `To: the local authority Housing Benefit team\n\nRe: ${i.tenantName}, ${where}\n\nWe would be grateful for an update on the status of this resident's Housing Benefit or Universal Credit housing element. ${money} of service charge has not been received while the claim appears to be in progress (${i.daysOverdue} days). Please let us know what stage the claim has reached and when payment is expected.` +
           foot,
       };
     case "support_plan":
       return {
-        title: `Support plan review — ${where}`,
+        title: `Support plan review: ${where}`,
         body: head +
           `Internal note for the support worker and manager.\n\n${i.tenantName} has been ${i.daysOverdue} days behind on their service charge (${money}), and the housing benefit query at day 14 has not resolved it. Please review their support plan: is there a non-financial factor contributing, and is there support that could help before this needs a formal letter?` +
           foot,
@@ -162,21 +162,21 @@ export function draftArrearsDocument(i: DraftInput): { title: string; body: stri
     case "formal_letter":
       if (i.cls === "supported") {
         return {
-          title: `Formal letter — ${where}`,
+          title: `Formal letter: ${where}`,
           body: head +
             `Dear ${i.tenantName},\n\nWe wanted to write to you directly about your service charge account for ${where}. Our records show ${money} is outstanding and it has now been ${i.daysOverdue} days since it was due, under your ${lease}.\n\nWe know this can happen when a benefit claim is slow, and we would much rather talk it through with you than let it become a bigger problem. Please speak to your support worker, or contact us, so we can agree a way forward together.` +
             foot,
         };
       }
       return {
-        title: `Formal rent arrears letter — ${where}`,
+        title: `Formal rent arrears letter: ${where}`,
         body: head +
           `Dear ${i.tenantName},\n\nRe: ${where}\n\nOur records show rent of ${money} is outstanding and is now ${i.daysOverdue} days overdue under the ${lease}. A reminder was sent earlier.\n\nPlease pay the outstanding amount within 7 days, or contact us to agree a plan. We would much rather talk than escalate.\n\nIf payment is not received, we may have to take further steps under the ${lease}.\n\nYours sincerely,\n${i.brand}` +
           foot,
       };
     case "manager_review":
       return {
-        title: `Manager review — ${where}`,
+        title: `Manager review: ${where}`,
         body: head +
           `INTERNAL BRIEF (draft for the manager's review)\n\n${i.tenantName} at ${where} has reached day ${i.daysOverdue} of arrears (${money}) despite a check-in, a housing benefit query and a support plan review. Please decide the next step. This system does not draft or serve any notice for a supported licence.` +
           foot,
@@ -185,40 +185,40 @@ export function draftArrearsDocument(i: DraftInput): { title: string; body: stri
     /* ── residential / commercial (shared reminder) ─────────────────────── */
     case "reminder":
       return {
-        title: `Rent reminder — ${where}`,
+        title: `Rent reminder: ${where}`,
         body: head +
-          `Dear ${i.tenantName},\n\nA friendly reminder that ${money} of rent for ${where} is now ${i.daysOverdue} days overdue.\n\nIf you have already paid, thank you — please ignore this note. If something has changed, reply and we will work it out together.\n\nKind regards,\n${i.brand}` +
+          `Dear ${i.tenantName},\n\nA friendly reminder that ${money} of rent for ${where} is now ${i.daysOverdue} days overdue.\n\nIf you have already paid, thank you. Please ignore this note. If something has changed, reply and we will work it out together.\n\nKind regards,\n${i.brand}` +
           foot,
       };
     case "solicitor":
       return {
-        title: `Solicitor instruction brief — ${where}`,
+        title: `Solicitor instruction brief: ${where}`,
         body: head +
           `INSTRUCTION BRIEF (draft for the owner's review before sending)\n\nMatter: rent arrears at ${where} (${i.cls} ${lease}).\nTenant: ${i.tenantName}\nArrears: ${money}, ${i.daysOverdue} days overdue. Rent: £${i.rentAmount.toFixed(2)} per period.\nSteps taken: reminder and formal letter issued; no resolution.\n\nPlease advise on the appropriate next step and prepare any correspondence.` +
           foot,
       };
     case "notice":
       return {
-        title: `Notice preparation request — ${where}`,
+        title: `Notice preparation request: ${where}`,
         body: head +
           `REQUEST TO SOLICITOR (draft for the owner's review)\n\nPlease prepare the appropriate notice in respect of ${where}, tenant ${i.tenantName}, arrears ${money} (${i.daysOverdue} days). This system does not serve notices; any notice must be prepared and served by the appropriate professional.` +
           foot,
       };
     case "forfeiture":
       return {
-        title: `Forfeiture review request — ${where}`,
+        title: `Forfeiture review request: ${where}`,
         body: head +
           `REQUEST TO SOLICITOR (draft for the owner's review)\n\nCommercial lease at ${where}, tenant ${i.tenantName}. Arrears ${money}, ${i.daysOverdue} days overdue. Please review the lease's forfeiture provisions and advise on options and risks before any action is taken. Nothing is to be actioned without the owner's written instruction.` +
           foot,
       };
     case "bailiff":
       return {
-        title: `Enforcement brief — ${where}`,
+        title: `Enforcement brief: ${where}`,
         body: head +
           `REQUEST TO SOLICITOR / ENFORCEMENT AGENT (draft for the owner's review)\n\nCommercial premises at ${where}, tenant ${i.tenantName}. Arrears ${money}, ${i.daysOverdue} days overdue. Please advise on lawful enforcement options (e.g. CRAR eligibility) and the required notices. The owner will instruct in writing before any step is taken.` +
           foot,
       };
     default:
-      return { title: `Arrears note — ${where}`, body: head + `Arrears of ${money} at ${where}, ${i.daysOverdue} days overdue.` + foot };
+      return { title: `Arrears note: ${where}`, body: head + `Arrears of ${money} at ${where}, ${i.daysOverdue} days overdue.` + foot };
   }
 }

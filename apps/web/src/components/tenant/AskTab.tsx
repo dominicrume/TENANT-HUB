@@ -62,7 +62,7 @@ export function AskTab({ tenantId }: { tenantId: string }) {
                 <h4>Where each claim comes from</h4>
                 <ul>{claims.map((c, i) => (
                   <li key={i}>&ldquo;{c.claim}&rdquo; <span className="mono" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "var(--violet)" }}>{c.factHash}</span>
-                    {factMap[c.factHash] ? <> — from &ldquo;{factMap[c.factHash]}&rdquo;</> : " — source not found"}</li>))}</ul>
+                    {factMap[c.factHash] ? <> (from &ldquo;{factMap[c.factHash]}&rdquo;)</> : " (source not found)"}</li>))}</ul>
               </div>
             )}
           </div>
