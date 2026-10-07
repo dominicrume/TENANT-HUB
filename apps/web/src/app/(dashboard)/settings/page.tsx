@@ -8,6 +8,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useBrand, BRAND_LABELS } from "../../../contexts/BrandContext";
 import { formatDateTime, truncateHash } from "../../../lib/format";
 
@@ -50,6 +51,7 @@ export default function SettingsPage() {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSentTo, setInviteSentTo] = useState<string | null>(null);
+  const [orgCount, setOrgCount] = useState(0);
 
   const { brand } = useBrand();
 
@@ -89,6 +91,9 @@ export default function SettingsPage() {
     fetch("/api/stamp-queue").then((r) => (r.ok ? r.json() : [])).then((d) => setStamps(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/tenants").then((r) => (r.ok ? r.json() : [])).then((d) => setActiveTenantsCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
     fetch("/api/drafts").then((r) => (r.ok ? r.json() : [])).then((d) => setAiExtractionsCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
+    // Migration 046: only worth showing a "switch workspace" link at all if
+    // this account actually has more than one to switch between.
+    fetch("/api/organisations/mine").then((r) => (r.ok ? r.json() : [])).then((d) => setOrgCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -149,6 +154,11 @@ export default function SettingsPage() {
             {t.label}
           </button>
         ))}
+        {orgCount > 1 && (
+          <Link href="/choose-workspace" className="btn ghost sm" style={{ textAlign: "left", marginTop: 8 }}>
+            Switch workspace
+          </Link>
+        )}
       </nav>
 
       <div style={{ flex: 1, minWidth: 280 }}>

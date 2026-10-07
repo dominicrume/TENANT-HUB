@@ -35,8 +35,13 @@ export default function LoginPage() {
         return;
       }
       const role = body?.role ?? "tenant";
+      // Multi-org access (migration 046) is a manager-level concept —
+      // /choose-workspace itself skips straight to /dashboard for the
+      // common case (exactly one organisation), so this adds no extra
+      // click for anyone who doesn't actually have a choice to make.
       if (role === "tenant") router.push("/my-home");
       else if (role === "contractor") router.push("/jobs");
+      else if (role === "manager" || role === "admin") router.push("/choose-workspace");
       else router.push("/dashboard");
       router.refresh();
     } catch {

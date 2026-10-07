@@ -27,6 +27,7 @@ describe("auth-store on 040_own_sessions", () => {
     db = await createPgliteClient();
     await db.raw.exec(PREREQ);
     await db.raw.exec(migration("040_own_sessions.sql"));
+    await db.raw.exec(migration("046_multi_org_access.sql"));
     org = (await db.query<{ id: string }>("INSERT INTO organisations (name) VALUES ('Matty''s Place') RETURNING id")).rows[0]!.id;
     profileId = (await db.query<{ id: string }>(
       "INSERT INTO profiles (org_id, role, email, full_name) VALUES ($1, 'manager', 'manager@example.com', 'Manager One') RETURNING id", [org])).rows[0]!.id;

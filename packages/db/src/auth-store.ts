@@ -44,17 +44,51 @@ export async function createSession(client: Queryable, i: CreateSessionInput): P
 
 export interface SessionProfile { profileId: string; email: string; role: string; orgId: string | null; tenantId: string | null; fullName: string; brand: string }
 
-/** Looks up a live (unexpired) session and touches last_seen_at. Returns null for an expired or unknown token — the caller treats both the same: not signed in. */
+/**
+ * Looks up a live (unexpired) session and touches last_seen_at. Returns
+ * null for an expired or unknown token — the caller treats both the same:
+ * not signed in.
+ *
+ * orgId here is the session's ACTIVE org (migration 046) — COALESCE'd
+ * server-side so every existing caller (getApiAuth, /api/auth/verify,
+ * page.tsx) just keeps working unchanged: a profile that never switches
+ * (almost everyone) gets their own org_id exactly as before; a multi-org
+ * manager who has switched gets whichever org they're currently in.
+ */
 export async function findSessionByTokenHash(client: Queryable, tokenHash: string): Promise<SessionProfile | null> {
   const r = await client.query<{ profile_id: string; email: string; role: string; org_id: string | null; tenant_id: string | null; full_name: string; brand: string }>(
     `UPDATE user_sessions s SET last_seen_at = NOW()
      FROM profiles p
      WHERE s.token_hash = $1 AND s.profile_id = p.id AND s.expires_at > NOW()
-     RETURNING p.id AS profile_id, p.email, p.role, p.org_id, p.tenant_id, p.full_name, p.brand`,
+     RETURNING p.id AS profile_id, p.email, p.role, COALESCE(s.active_org_id, p.org_id) AS org_id, p.tenant_id, p.full_name, p.brand`,
     [tokenHash]);
   const row = r.rows[0];
   if (!row) return null;
   return { profileId: row.profile_id, email: row.email, role: row.role, orgId: row.org_id, tenantId: row.tenant_id, fullName: row.full_name, brand: row.brand };
+}
+
+export interface OrganisationOption { id: string; name: string }
+
+/** Every organisation this profile can work in — their own (profiles.org_id) plus any explicit extra grants. */
+export async function organisationsForProfile(client: Queryable, profileId: string): Promise<OrganisationOption[]> {
+  const r = await client.query<OrganisationOption>(
+    `SELECT DISTINCT o.id, o.name FROM organisations o
+     WHERE o.id = (SELECT org_id FROM profiles WHERE id = $1)
+        OR o.id IN (SELECT org_id FROM profile_organisations WHERE profile_id = $1)
+     ORDER BY o.name`,
+    [profileId]);
+  return r.rows;
+}
+
+/** Switches which org this SESSION is active in — verifies membership first; false means "not a member, nothing changed." */
+export async function switchActiveOrg(client: Queryable, i: { tokenHash: string; profileId: string; orgId: string }): Promise<boolean> {
+  const allowed = await client.query(
+    `SELECT 1 FROM profiles WHERE id = $1 AND org_id = $2
+     UNION SELECT 1 FROM profile_organisations WHERE profile_id = $1 AND org_id = $2`,
+    [i.profileId, i.orgId]);
+  if (!allowed.rows[0]) return false;
+  await client.query("UPDATE user_sessions SET active_org_id = $2 WHERE token_hash = $1", [i.tokenHash, i.orgId]);
+  return true;
 }
 
 export async function deleteSession(client: Queryable, tokenHash: string): Promise<void> {
