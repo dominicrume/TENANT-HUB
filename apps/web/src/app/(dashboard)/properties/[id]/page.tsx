@@ -155,6 +155,10 @@ export default function PropertyDetailPage() {
     void loadDocs();
   }
 
+  function viewDocument(docId: string) {
+    window.open(`/api/property-documents/${docId}/file`, "_blank");
+  }
+
   function downloadDocument(docId: string) {
     window.open(`/api/property-documents/${docId}/file?download=1`, "_blank");
   }
@@ -311,7 +315,10 @@ export default function PropertyDetailPage() {
                 </p>
               </div>
               {d.status === "received" && d.blob_id ? (
-                <button type="button" className="btn ghost sm" onClick={() => downloadDocument(d.id)}>Download</button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button type="button" className="btn ghost sm" onClick={() => viewDocument(d.id)}>View</button>
+                  <button type="button" className="btn ghost sm" onClick={() => downloadDocument(d.id)}>Download</button>
+                </div>
               ) : (
                 <label className="btn ghost sm" style={{ cursor: attachingId === d.id ? "wait" : "pointer" }}>
                   {attachingId === d.id ? "Attaching…" : "Attach received file"}

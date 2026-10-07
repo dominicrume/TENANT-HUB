@@ -61,12 +61,21 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
     }
   }
 
+  function handleView(id: string) {
+    window.open(`/api/documents/${id}/file`, "_blank");
+  }
+
   function handleDownload(id: string) {
     window.open(`/api/documents/${id}/file?download=1`, "_blank");
   }
 
+  function handleDownloadClick(e: React.MouseEvent, id: string) {
+    e.stopPropagation(); // Prevent card click (triggering view)
+    handleDownload(id);
+  }
+
   async function handleDelete(e: React.MouseEvent, id: string) {
-    e.stopPropagation(); // Prevent card click (triggering download)
+    e.stopPropagation(); // Prevent card click (triggering view)
     if (!window.confirm("Are you sure you want to permanently delete this document?")) return;
 
     setActioningId(id);
@@ -145,10 +154,11 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "16px" }}>
           {docs.map(d => (
-            <div 
-              key={d.id} 
-              onClick={() => handleDownload(d.id)}
-              style={{ 
+            <div
+              key={d.id}
+              onClick={() => handleView(d.id)}
+              title="Click to view"
+              style={{
                 border: "1px solid #EDE8E1", 
                 borderRadius: "8px", 
                 padding: "16px", 
@@ -172,23 +182,59 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <span style={{ fontSize: "24px" }}>📄</span>
-                <button 
-                  onClick={(e) => handleDelete(e, d.id)}
-                  title="Delete Document"
-                  style={{ 
-                    background: "transparent", 
-                    border: "none", 
-                    color: "#E05252", 
-                    fontSize: "16px", 
-                    cursor: "pointer", 
-                    padding: "4px",
-                    borderRadius: "4px"
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "#FEE2E2"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                >
-                  🗑️
-                </button>
+                <div style={{ display: "flex", gap: "2px" }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleView(d.id); }}
+                    title="View Document"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "#7A8499",
+                      fontSize: "16px",
+                      cursor: "pointer",
+                      padding: "4px",
+                      borderRadius: "4px"
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "#F8F4EF"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
+                    👁️
+                  </button>
+                  <button
+                    onClick={(e) => handleDownloadClick(e, d.id)}
+                    title="Download Document"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "#7A8499",
+                      fontSize: "16px",
+                      cursor: "pointer",
+                      padding: "4px",
+                      borderRadius: "4px"
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "#F8F4EF"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
+                    ⬇️
+                  </button>
+                  <button
+                    onClick={(e) => handleDelete(e, d.id)}
+                    title="Delete Document"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "#E05252",
+                      fontSize: "16px",
+                      cursor: "pointer",
+                      padding: "4px",
+                      borderRadius: "4px"
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "#FEE2E2"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
 
               <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--navy)", wordBreak: "break-all", marginTop: "4px" }}>
