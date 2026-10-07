@@ -237,5 +237,9 @@ export function adapterStatus(e: Env = env.server) {
 /** Names of the connections still in practice mode, for the topbar pill. */
 export function practiceMode(e: Env = env.server): string[] {
   const s = adapterStatus(e);
-  return [s.notify.mode !== "live" && "email", s.bank.mode !== "live" && "bank feed", s.insurance.mode !== "live" && "quotes", s.idcheck.mode !== "live" && "ID checks"].filter((x): x is string => Boolean(x));
+  // ID checks is deliberately left off this list (Rume, 2026-10-07): it's a
+  // feature nobody asked to see badged, not a thing the topbar pill needs to
+  // advertise. adapterStatus() above still reports it honestly for anyone
+  // who looks — this only changes what the pill surfaces unprompted.
+  return [s.notify.mode !== "live" && "email", s.bank.mode !== "live" && "bank feed", s.insurance.mode !== "live" && "quotes"].filter((x): x is string => Boolean(x));
 }
