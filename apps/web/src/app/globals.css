@@ -149,10 +149,18 @@ img.mark { object-fit: cover; }
 .foothint { margin-top: 26px; font-size: 12px; color: var(--slate-2); }
 .muted { color: var(--slate-2); font-size: 12.5px; }
 
-/* ── Buttons (console) ── */
-.act, .cta, .rel, .btn { font-family: inherit; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+/* ── Buttons (console) ──
+   Every button in the dashboard goes through one of these four classes, so
+   the press/hover feedback added here (transition + :active scale) is
+   app-wide, not per-page — found missing entirely (client feedback: tabs
+   and buttons feel unresponsive, no confirmation a click registered). */
+.act, .cta, .rel, .btn {
+  font-family: inherit; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  transition: filter 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 100ms ease, opacity 150ms ease;
+}
 .act { background: var(--amber); color: var(--navy); border: none; font-weight: 600; font-size: 13px; padding: 9px 15px; border-radius: 9px; }
 .act.ghost { background: transparent; color: #B9C4D2; border: 1px solid rgba(255,255,255,.16); }
+.act.ghost:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.3); }
 .act.topact { min-height: 38px; padding: 7px 14px; }
 .btn { background: var(--navy); color: #fff; border: none; font-weight: 600; font-size: 13.5px; padding: 10px 16px; border-radius: 10px; }
 .btn.ghost { background: var(--surface); color: var(--navy); border: 1.5px solid #C9C0B0; }
@@ -163,7 +171,16 @@ img.mark { object-fit: cover; }
 .cta { width: 100%; background: var(--amber); color: var(--navy); border: none; font-weight: 600; font-size: 15px; padding: 13px; border-radius: 11px; margin-top: 18px; }
 .cta.sec { background: transparent; color: #B9C4D2; border: 1.5px solid rgba(255,255,255,.18); margin-top: 9px; font-weight: 500; font-size: 13.5px; padding: 11px; }
 .act:hover, .cta:hover, .btn:hover { filter: brightness(1.05); }
+.act:active:not(:disabled), .cta:active:not(:disabled), .rel:active:not(:disabled), .btn:active:not(:disabled) { transform: scale(.96); filter: brightness(.97); }
+.act:disabled, .cta:disabled, .rel:disabled, .btn:disabled { opacity: .55; cursor: not-allowed; filter: none; transform: none; }
+.act:focus-visible, .cta:focus-visible, .rel:focus-visible, .btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* For a button whose color is computed inline (state-dependent) rather than
+   from .btn/.act/.rel — still gets the same transition + press feedback. */
+.btn-dyn { transition: filter 150ms ease, transform 100ms ease, opacity 150ms ease; }
+.btn-dyn:active:not(:disabled) { transform: scale(.96); filter: brightness(.97); }
+.btn-dyn:disabled { opacity: .55; cursor: not-allowed; }
 
 /* ── Needs you today ── */
 .how { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 0 0 18px; }

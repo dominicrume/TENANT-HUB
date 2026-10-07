@@ -62,7 +62,7 @@ export function DocumentsTab({ tenantId }: { tenantId: string }) {
   }
 
   function handleDownload(id: string) {
-    window.open(`/api/documents/${id}/file`, "_blank");
+    window.open(`/api/documents/${id}/file?download=1`, "_blank");
   }
 
   async function handleDelete(e: React.MouseEvent, id: string) {

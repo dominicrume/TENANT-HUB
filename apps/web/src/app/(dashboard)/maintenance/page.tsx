@@ -137,13 +137,9 @@ export default function MaintenancePage() {
         <h1 style={{ color: "var(--navy)", fontSize: "22px", fontWeight: 700, margin: 0 }}>
           Maintenance & Repairs
         </h1>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button onClick={() => setShowTrades(true)} style={{ padding: "10px 20px", borderRadius: "8px", border: "1px solid var(--navy)", background: "transparent", color: "var(--navy)", cursor: "pointer", fontWeight: 600 }}>
-            Trades
-          </button>
-          <button onClick={() => setShowModal(true)} style={{ padding: "10px 20px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
-            + New Ticket
-          </button>
+        <div className="btns">
+          <button type="button" className="btn ghost" onClick={() => setShowTrades(true)}>Trades</button>
+          <button type="button" className="btn" onClick={() => setShowModal(true)}>+ New Ticket</button>
         </div>
       </div>
 
@@ -207,7 +203,9 @@ export default function MaintenancePage() {
                     </select>
 
                     <div style={{ display: "flex", gap: "8px" }}>
-                      <button 
+                      <button
+                        type="button"
+                        className="btn-dyn"
                         onClick={() => updateTicket(ticket.id, { status: "Resolved" })}
                         disabled={busy || ticket.status === "Resolved"}
                         style={{ flex: 1, padding: "6px", fontSize: "12px", background: ticket.status === "Resolved" ? "#1E7F4F" : "#fff", color: ticket.status === "Resolved" ? "#fff" : "#1E7F4F", border: "1px solid #1E7F4F", borderRadius: "4px", cursor: "pointer", fontWeight: 600 }}
@@ -215,7 +213,9 @@ export default function MaintenancePage() {
                         {ticket.status === "Resolved" ? "Resolved" : "Mark Resolved"}
                       </button>
                       {ticket.status === "Resolved" && (
-                        <button 
+                        <button
+                          type="button"
+                          className="btn-dyn"
                           onClick={() => updateTicket(ticket.id, { status: ticket.assigned_to ? "Assigned" : "Open" })}
                           disabled={busy}
                           style={{ padding: "6px", fontSize: "12px", background: "#fff", color: "#7A8499", border: "1px solid #EDE8E1", borderRadius: "4px", cursor: "pointer" }}

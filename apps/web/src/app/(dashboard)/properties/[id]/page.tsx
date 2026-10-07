@@ -156,7 +156,7 @@ export default function PropertyDetailPage() {
   }
 
   function downloadDocument(docId: string) {
-    window.open(`/api/property-documents/${docId}/file`, "_blank");
+    window.open(`/api/property-documents/${docId}/file?download=1`, "_blank");
   }
 
   if (error) return <div style={{ padding: "1.75rem" }}><p style={{ color: "var(--brick)" }}>{error}</p></div>;
