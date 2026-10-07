@@ -66,7 +66,15 @@ export async function middleware(req: NextRequest) {
   // page in the app back to /login with a perfectly valid session. Its
   // load scales with legitimate traffic, not attacker behaviour, so it
   // skips rate limiting entirely rather than sharing a bucket with anything.
-  if (pathname.startsWith("/api/") && pathname !== "/api/auth/verify") {
+  // /api/auth/switch-org and /api/auth/logout aren't credential-guessable either
+  // (same reasoning as /api/auth/verify above): both require an already-valid
+  // session, so there's nothing to brute-force. Sharing the 10/min login bucket
+  // with them means one manager clicking between two workspaces, or an office
+  // of staff behind one shared IP, can burn through it on ordinary use and get
+  // locked out of switching organisations — found live via exactly that
+  // symptom ("Could not switch workspace. Try again." with no real cause).
+  const AUTH_RATE_LIMIT_EXEMPT = ["/api/auth/verify", "/api/auth/switch-org", "/api/auth/logout"];
+  if (pathname.startsWith("/api/") && !AUTH_RATE_LIMIT_EXEMPT.includes(pathname)) {
     const ip = req.ip ?? req.headers.get("x-forwarded-for") ?? "127.0.0.1";
     try {
       let limitResult;
@@ -79,7 +87,11 @@ export async function middleware(req: NextRequest) {
       }
 
       if (!limitResult.success) {
-        return new NextResponse("Too many requests", { status: 429 });
+        // Plain text here broke every caller's `res.json()` parsing, which is
+        // why a rate limit anywhere showed a generic, unhelpful fallback
+        // message instead of a real "too many requests, wait a bit" — found
+        // alongside the switch-org bug above.
+        return NextResponse.json({ error: "Too many requests. Wait a moment and try again." }, { status: 429 });
       }
     } catch (e) {
       console.warn("Ratelimit error", e);
