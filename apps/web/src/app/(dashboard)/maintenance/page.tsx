@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { formatShortDate } from "../../../lib/format";
-import { getSupabaseBrowser, hasSupabaseBrowser } from "../../../lib/supabase-browser";
 
 const SEVERITY_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   emergency: { bg: "rgba(178,74,49,.14)", color: "var(--brick)", label: "Emergency" },
@@ -74,16 +73,6 @@ export default function MaintenancePage() {
     if (!desc || !roomNumber) return;
     setBusy(true);
 
-    let photo_url = null;
-    if (photoFile && hasSupabaseBrowser()) {
-      const ext = photoFile.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
-      const { data, error } = await getSupabaseBrowser().storage.from("maintenance-photos").upload(fileName, photoFile);
-      if (!error && data) {
-        photo_url = data.path;
-      }
-    }
-
     const res = await fetch("/api/maintenance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -92,9 +81,16 @@ export default function MaintenancePage() {
         issue_type: issueType,
         description: desc,
         assigned_to: assignedTo || null,
-        photo_url
       })
     });
+
+    if (res.ok && photoFile) {
+      const ticket = await res.json();
+      const body = new FormData();
+      body.append("file", photoFile);
+      await fetch(`/api/maintenance/${ticket.id}/photo`, { method: "POST", body });
+    }
+
     setBusy(false);
     if (res.ok) {
       setShowModal(false);
@@ -180,10 +176,10 @@ export default function MaintenancePage() {
                     {ticket.reported_via === "qr" ? " · via wall QR" : ""}
                   </p>
 
-                  {ticket.photo_url && hasSupabaseBrowser() && (
+                  {ticket.photo_url && (
                     <div style={{ marginBottom: "10px", position: "relative", height: "120px", width: "100%" }}>
                       <Image
-                        src={getSupabaseBrowser().storage.from("maintenance-photos").getPublicUrl(ticket.photo_url).data.publicUrl}
+                        src={ticket.photo_url}
                         alt="Issue"
                         fill
                         style={{ objectFit: "cover", borderRadius: "6px" }}
@@ -253,11 +249,7 @@ export default function MaintenancePage() {
             
             <div style={{ border: "1px dashed #EDE8E1", padding: "12px", borderRadius: "6px" }}>
               <label style={{ fontSize: "12px", color: "#7A8499", display: "block", marginBottom: "8px" }}>Attach Photo (Optional)</label>
-              {hasSupabaseBrowser() ? (
-                <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] || null)} style={{ fontSize: "12px" }} />
-              ) : (
-                <p style={{ fontSize: "12px", color: "#7A8499", fontStyle: "italic", margin: 0 }}>Photo attachments aren&apos;t available on this environment yet. The ticket still saves without one.</p>
-              )}
+              <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] || null)} style={{ fontSize: "12px" }} />
             </div>
 
             <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={{ padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }}>

@@ -4,11 +4,8 @@ import { authRateLimit, aiRateLimit, genericRateLimit } from "./lib/rate-limit";
 const PUBLIC_PREFIXES = [
   "/login",
   "/reset-password",
-  "/update-password",
   "/invite",
   "/intake/verify",
-  "/auth/signout",
-  "/auth/callback",
   "/api/auth",
   "/api/health",
   // The wall-QR repair report — whoever scans the poster has no account (BUILD_PLAN C33).

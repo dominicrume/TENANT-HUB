@@ -9,7 +9,6 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
-import { getSupabaseBrowser } from "../../../lib/supabase-browser";
 
 interface Ticket {
   id: string;
@@ -32,8 +31,6 @@ export default function ReportIssuePage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-
-  const supabase = getSupabaseBrowser();
 
   async function loadTickets() {
     try {
@@ -59,32 +56,30 @@ export default function ReportIssuePage() {
     setError(null);
 
     try {
-      let photo_url = null;
-      if (photoFile) {
-        const ext = photoFile.name.split(".").pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("maintenance-photos")
-          .upload(fileName, photoFile);
-        if (uploadError) throw new Error("Photo upload failed: " + uploadError.message);
-        if (uploadData) {
-          photo_url = uploadData.path;
-        }
-      }
-
       const res = await fetch("/api/tenant-portal/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           issue_type: issueType,
           description,
-          photo_url,
         }),
       });
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
         throw new Error(errJson.error || "Failed to submit request");
+      }
+
+      const ticket = await res.json();
+
+      if (photoFile) {
+        const body = new FormData();
+        body.append("file", photoFile);
+        const photoRes = await fetch(`/api/maintenance/${ticket.id}/photo`, { method: "POST", body });
+        if (!photoRes.ok) {
+          const b = await photoRes.json().catch(() => null);
+          throw new Error(b?.error ?? "Your request was logged, but the photo didn't attach");
+        }
       }
 
       setSuccess(true);

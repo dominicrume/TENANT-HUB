@@ -19,7 +19,6 @@ import {
 } from "@tenant-hub/validation";
 import { useTenants } from "../../../../hooks/useTenants";
 import { LetterheadBlock } from "../../../../components/LetterheadBlock";
-import { getSupabaseBrowser } from "../../../../lib/supabase-browser";
 import { AuditStampBar } from "../../../../components/AuditStampBar";
 import { FormSection, TextField, SelectField } from "../../../../components/form/fields";
 import { SessionsTab } from "../../../../components/tenant/SessionsTab";
@@ -201,29 +200,15 @@ export default function TenantDetailPage() {
               setPhotoBusy(true);
               setPhotoMsg(null);
               try {
-                const supabase = getSupabaseBrowser();
-                const ext = file.name.split('.').pop();
-                const fileName = `tenant-${id}-${Date.now()}.${ext}`;
-
-                const { data, error } = await supabase.storage
-                  .from("maintenance-photos")
-                  .upload(fileName, file);
-
-                if (error) throw new Error(error.message);
-                if (!data) throw new Error("Upload returned no file path");
-
-                const publicUrl = supabase.storage.from("maintenance-photos").getPublicUrl(data.path).data.publicUrl;
-                setTenant(prev => prev ? { ...prev, photo_url: publicUrl } : null);
-
-                const res = await fetch(`/api/tenants/${id}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ photo_url: publicUrl }),
-                });
+                const form = new FormData();
+                form.append("file", file);
+                const res = await fetch(`/api/tenants/${id}/photo`, { method: "POST", body: form });
                 if (!res.ok) {
                   const b = await res.json().catch(() => null);
                   throw new Error(b?.error ?? `${res.status} ${res.statusText}`);
                 }
+                const data = await res.json();
+                setTenant(prev => prev ? { ...prev, photo_url: data.photo_url ?? `/api/tenants/${id}/photo?v=${Date.now()}` } : null);
                 setPhotoMsg(`✓ Photo saved at ${new Date().toLocaleTimeString("en-GB")}`);
               } catch (err) {
                 setTenant(prev => prev ? { ...prev, photo_url: previousPhoto } : null);
@@ -520,37 +505,24 @@ export default function TenantDetailPage() {
               <label style={{ display: "block", fontSize: "12px", color: "#7A8499", marginBottom: "6px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Upload Evidence Document</label>
               <input type="file" accept="application/pdf,image/*" onChange={async (e) => {
                 const file = e.target.files?.[0];
-                if (file) {
-                  const supabase = getSupabaseBrowser();
-                  const ext = file.name.split('.').pop();
-                  const fileName = `hb-${id}-${Date.now()}.${ext}`;
-                  
-                  const { data, error } = await supabase.storage
-                    .from("tenant-documents")
-                    .upload(fileName, file);
-                    
-                  if (error) {
-                    alert("Failed to upload document: " + error.message);
-                    return;
+                if (!file) return;
+                try {
+                  const body = new FormData();
+                  body.append("tenant_id", id);
+                  body.append("name", "Housing Benefit Evidence: " + file.name);
+                  body.append("file", file);
+                  const res = await fetch("/api/documents", { method: "POST", body });
+                  if (!res.ok) {
+                    const b = await res.json().catch(() => null);
+                    throw new Error(b?.error ?? `${res.status} ${res.statusText}`);
                   }
-                  
-                  if (data) {
-                    const publicUrl = supabase.storage.from("tenant-documents").getPublicUrl(data.path).data.publicUrl;
-                    set("hb_document_url", publicUrl);
-                    
-                    // Also save it to the tenant's document vault!
-                    await fetch("/api/documents", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        tenant_id: id,
-                        name: "Housing Benefit Evidence: " + file.name,
-                        file_url: data.path
-                      })
-                    });
-                    
-                    alert("Document uploaded safely to the vault!");
-                  }
+                  const data = await res.json();
+                  set("hb_document_url", `/api/documents/${data.id}/file`);
+                  alert("Document uploaded safely to the vault!");
+                } catch (err) {
+                  alert("Failed to upload document: " + (err instanceof Error ? err.message : "unknown error"));
+                } finally {
+                  e.target.value = '';
                 }
               }} style={{ display: "block", marginBottom: "8px", padding: "8px", border: "1px solid #d1d5db", borderRadius: "6px", width: "100%", background: "#f9fafb", cursor: "pointer" }} />
               {form["hb_document_url"] && (
