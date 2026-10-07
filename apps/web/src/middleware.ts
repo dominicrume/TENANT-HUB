@@ -11,6 +11,9 @@ const PUBLIC_PREFIXES = [
   // The wall-QR repair report — whoever scans the poster has no account (BUILD_PLAN C33).
   "/report",
   "/api/report",
+  // Inbound third-party webhooks authenticate by their own signed payload
+  // (e.g. HMAC), never a session cookie — a provider's server has no login.
+  "/api/webhooks",
 ];
 
 interface VerifiedUser { id: string; email: string; role: string; orgId: string | null; tenantId: string | null; fullName: string }

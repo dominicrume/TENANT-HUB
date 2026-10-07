@@ -45,6 +45,7 @@ const serverSchema = z.object({
   ADAPTER_MODE_NOTIFY:     z.enum(["live", "simulated"]).catch("simulated"),
   ADAPTER_MODE_BANK:       z.enum(["live", "simulated"]).catch("simulated"),
   ADAPTER_MODE_INSURANCE:  z.enum(["live", "simulated"]).catch("simulated"),
+  ADAPTER_MODE_IDCHECK:    z.enum(["live", "simulated"]).catch("simulated"),
   ADAPTER_MODE_STT:        z.enum(["live", "simulated"]).catch("simulated"),
   // Live adapters switch on only when their credentials exist.
   RESEND_API_KEY:          z.string().optional().catch(undefined),
@@ -53,6 +54,10 @@ const serverSchema = z.object({
   TRUELAYER_ACCOUNT_ID:    z.string().optional().catch(undefined),
   INSURANCE_QUOTE_URL:     z.string().url().optional().catch(undefined),
   INSURANCE_QUOTE_KEY:     z.string().optional().catch(undefined),
+  // Right-to-rent / ID verification (Credas by default — see packages/adapters).
+  CREDAS_BASE_URL:         z.string().url().optional().catch(undefined),
+  CREDAS_API_KEY:          z.string().optional().catch(undefined),
+  CREDAS_WEBHOOK_SECRET:   z.string().optional().catch(undefined),
 });
 
 // ── Client-safe schema (NEXT_PUBLIC_ prefix) ─────────────────────────────

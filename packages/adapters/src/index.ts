@@ -12,6 +12,7 @@ import { env } from "@tenant-hub/env";
 import type {
   AdapterMode, AdapterResult, RegulationFeedPort, RegulationItem, InsuranceQuotePort, Quote, RiskProfile,
   BankFeedPort, ExpectedRent, BankTransaction, SttPort, NotifyPort, Notification,
+  IdCheckPort, ApplicantIdentity, IdCheckOutcome,
 } from "@tenant-hub/ports";
 
 export class AdapterError extends Error {
@@ -74,6 +75,55 @@ export class HttpInsuranceQuote implements InsuranceQuotePort {
       .filter((q) => Number.isFinite(q.premium) && q.premium > 0);
     if (!quotes.length) throw new AdapterError("Quote endpoint returned no usable quotes", "insurance");
     return ok(quotes, "live", new URL(this.url).host);
+  }
+}
+
+/* ═══════════════════════ Identity / right-to-rent check ═══════════════════
+ * Same "stops at the decision card" shape as insurance quotes: this reports
+ * what a provider found, nothing more. Staff read the outcome and make the
+ * actual right-to-rent decision — no adapter here can approve or refuse a
+ * tenancy (H10, H11). */
+export class SimIdCheck implements IdCheckPort {
+  readonly mode = "simulated" as const;
+  async submitCheck(_a: ApplicantIdentity): Promise<AdapterResult<{ providerRef: string; outcome: IdCheckOutcome }>> {
+    return ok({ providerRef: `sim-idcheck-${Date.now().toString(36)}`, outcome: "pending" as const }, "simulated", "sim:idcheck");
+  }
+  /** Never resolves to a conclusive pass/fail — a simulated check always reports "refer", so a human always looks, the same way SimNotify always reports delivered=false (H9). */
+  async getCheckStatus(_providerRef: string): Promise<AdapterResult<{ outcome: IdCheckOutcome; detail?: string }>> {
+    return ok({ outcome: "refer" as const, detail: "Simulated — no real check was performed. Verify the tenant's documents yourself." }, "simulated", "sim:idcheck");
+  }
+}
+/**
+ * Credas identity verification. Request/response field names here are a
+ * best-effort mapping of common UK KYC/ID-verification API shapes — verify
+ * against Credas's actual API docs before setting ADAPTER_MODE_IDCHECK=live
+ * in production. A wrong field name surfaces as an AdapterError (the fetch
+ * either fails or the JSON won't have what we expect), never as a silently
+ * wrong pass/fail — the same fail-loud guarantee every other live adapter
+ * here has.
+ */
+export class CredasIdCheck implements IdCheckPort {
+  readonly mode = "live" as const;
+  constructor(private readonly baseUrl: string, private readonly key: string, private readonly fetchImpl: typeof fetch = fetch) {}
+  async submitCheck(a: ApplicantIdentity): Promise<AdapterResult<{ providerRef: string; outcome: IdCheckOutcome }>> {
+    const res = await this.fetchImpl(`${this.baseUrl}/checks`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName: a.fullName, dateOfBirth: a.dateOfBirth, documentType: a.documentType, documentRef: a.documentRef ?? null }),
+    }).catch(() => null);
+    if (!res || !res.ok) throw new AdapterError(`Credas ${res?.status ?? "unreachable"}`, "idcheck");
+    const j = (await res.json().catch(() => ({}))) as { id?: string; reference?: string };
+    const providerRef = String(j.id ?? j.reference ?? "");
+    if (!providerRef) throw new AdapterError("Credas returned no check reference", "idcheck");
+    return ok({ providerRef, outcome: "pending" as const }, "live", "credas");
+  }
+  async getCheckStatus(providerRef: string): Promise<AdapterResult<{ outcome: IdCheckOutcome; detail?: string }>> {
+    const res = await this.fetchImpl(`${this.baseUrl}/checks/${providerRef}`, { headers: { Authorization: `Bearer ${this.key}` } }).catch(() => null);
+    if (!res || !res.ok) throw new AdapterError(`Credas ${res?.status ?? "unreachable"}`, "idcheck");
+    const j = (await res.json().catch(() => ({}))) as { status?: string; result?: string; summary?: string };
+    const raw = String(j.status ?? j.result ?? "pending").toLowerCase();
+    const outcome: IdCheckOutcome = raw === "pass" || raw === "clear" ? "pass" : raw === "fail" || raw === "declined" ? "fail" : raw === "pending" || raw === "processing" ? "pending" : "refer";
+    return ok({ outcome, detail: j.summary }, "live", "credas");
   }
 }
 
@@ -165,6 +215,11 @@ export function notifier(e: Env = env.server): NotifyPort {
   if (e.ADAPTER_MODE_NOTIFY === "live") { if (!e.RESEND_API_KEY || !e.NOTIFY_FROM) throw need("notify", "live", "RESEND_API_KEY", "NOTIFY_FROM"); return new ResendNotify(e.RESEND_API_KEY, e.NOTIFY_FROM); }
   return new SimNotify();
 }
+/** Right-to-rent / ID verification. Credas is the default live vendor — a different one just needs a new class here and a swap in this one line. */
+export function idCheck(e: Env = env.server): IdCheckPort {
+  if (e.ADAPTER_MODE_IDCHECK === "live") { if (!e.CREDAS_BASE_URL || !e.CREDAS_API_KEY) throw need("idcheck", "live", "CREDAS_BASE_URL", "CREDAS_API_KEY"); return new CredasIdCheck(e.CREDAS_BASE_URL, e.CREDAS_API_KEY); }
+  return new SimIdCheck();
+}
 
 /** Which connections are live right now, and the variable that switches each on — shown on Settings → Connections. */
 export function adapterStatus(e: Env = env.server) {
@@ -174,6 +229,7 @@ export function adapterStatus(e: Env = env.server) {
     notify:     { mode: e.ADAPTER_MODE_NOTIFY, source: live(e.ADAPTER_MODE_NOTIFY) ? "resend" : "sim:notify", switch: "RESEND_API_KEY + NOTIFY_FROM, ADAPTER_MODE_NOTIFY=live" },
     bank:       { mode: e.ADAPTER_MODE_BANK, source: live(e.ADAPTER_MODE_BANK) ? "truelayer" : "sim:bank", switch: "TRUELAYER_ACCESS_TOKEN + TRUELAYER_ACCOUNT_ID, ADAPTER_MODE_BANK=live" },
     insurance:  { mode: e.ADAPTER_MODE_INSURANCE, source: live(e.ADAPTER_MODE_INSURANCE) ? "quote endpoint" : "sim:insurance", switch: "INSURANCE_QUOTE_URL, ADAPTER_MODE_INSURANCE=live" },
+    idcheck:    { mode: e.ADAPTER_MODE_IDCHECK, source: live(e.ADAPTER_MODE_IDCHECK) ? "credas" : "sim:idcheck", switch: "CREDAS_BASE_URL + CREDAS_API_KEY, ADAPTER_MODE_IDCHECK=live" },
     stt:        { mode: e.ADAPTER_MODE_STT, source: "sim:stt", switch: "no live adapter yet" },
     ai:         { mode: (e.OPENAI_API_KEY || e.ANTHROPIC_API_KEY ? "live" : "simulated") as AdapterMode, source: e.OPENAI_API_KEY ? "openai" : e.ANTHROPIC_API_KEY ? "anthropic" : "rules", switch: "OPENAI_API_KEY or ANTHROPIC_API_KEY" },
   };
@@ -181,5 +237,5 @@ export function adapterStatus(e: Env = env.server) {
 /** Names of the connections still in practice mode, for the topbar pill. */
 export function practiceMode(e: Env = env.server): string[] {
   const s = adapterStatus(e);
-  return [s.notify.mode !== "live" && "email", s.bank.mode !== "live" && "bank feed", s.insurance.mode !== "live" && "quotes"].filter((x): x is string => Boolean(x));
+  return [s.notify.mode !== "live" && "email", s.bank.mode !== "live" && "bank feed", s.insurance.mode !== "live" && "quotes", s.idcheck.mode !== "live" && "ID checks"].filter((x): x is string => Boolean(x));
 }

@@ -109,6 +109,10 @@ just the checklist line. Does not block, and is not blocked by, M6/M7.
 - **C52** · Room-status overview, colour-coded by landlord · **done when** empty rooms are visible at a glance across every landlord.
 - **C53** · Sessions: Word/PDF export, per-user AI key, Claude as a provider option · **partial, 2026-10-01:** export done (apps/web/src/lib/session-export.ts — a real downloadable .doc and a print-to-PDF view, per session). Found while scoping the rest: Claude/Anthropic is *already* a fully working provider in `packages/ai/src/provider.ts`'s router — it's just never reachable, because `activeProvider()` picks by a fixed priority order (Azure > OpenAI > Anthropic > ...) and this org's `OPENAI_API_KEY` always wins. Not a missing feature, a missing *choice*. Per-user AI key is genuinely not started — it needs a real decision on safe storage (encryption at rest, who can view/revoke it) before any UI for it gets built; not assumed or guessed at here. · **done when** export is a real file and a second provider genuinely runs sessions.
 
+### M9 — Compliance at intake (1 commit)
+
+- **C54** · Right-to-rent / ID verification adapter · same live/simulated pattern as notify, bank feed and insurance quotes (`packages/adapters`) — `SimIdCheck` works with zero credentials, `CredasIdCheck` is real and wired but needs `CREDAS_BASE_URL`/`CREDAS_API_KEY`/`CREDAS_WEBHOOK_SECRET` + `ADAPTER_MODE_IDCHECK=live` to switch on; vendor choice and cost are a real decision, not assumed here — Credas is the default target, swapping it is a one-class change per the adapter pattern. New `tenant_id_checks` table (049), a "Right to Rent" tab on the tenant page, `/api/tenants/[id]/id-check` (+ `/refresh`), and `/api/webhooks/credas` for the real async callback (payload field names unverified against Credas's actual docs — confirm before relying on them live). Reports an outcome only; never approves or refuses a tenancy itself (H10/H11) — staff always make the actual decision. Adds "ID checks" to the practice-mode pill until a real vendor is configured. · **done when** a simulated check runs end to end from the tenant page with zero credentials, and `idCheck()` throws a clear, named error if `ADAPTER_MODE_IDCHECK=live` is set without real Credas credentials.
+
 ### M6 — Move and ship (5 commits)
 
 - **C38** · Docker and Railway services · CON step 5, donor `Dockerfile` · `Dockerfile` (one image, `START_CMD` selects web or worker; web runs migrations on release), `railway.json` (healthcheck `/api/health`), `scripts/migrate.ts` (numbered, tracked in `_migrations`) · **done when** both services build and the worker runs on Railway against the Supabase pooler.
@@ -155,6 +159,7 @@ just the checklist line. Does not block, and is not blocked by, M6/M7.
 - [ ] C38 · [ ] C39 · [ ] C40 · [ ] C41 · [ ] C42 — **M6 gate**
 - [ ] C43 · [ ] C44 — **M7 gate**
 - [x] C45 · [x] C46 · [x] C47 · [x] C48 · [x] C49 · [x] C50 · [x] C51 · [x] C52 · [ ] C53 — **M8 gate** (parallel track, see `docs/PROPERTIES_REFINEMENT.md`) — C45–C52 built 2026-10-01, not yet live-verified (migrations 043/044 not applied to any real database — same gap noted for 042). C53 partial: session export done; per-user AI key and an actual provider *choice* still open, see its own line above.
+- [x] C54 — **M9 gate** ✓ 2026-10-07 (parallel track, does not block/isn't blocked by anything else) — adapter, migration 049, routes and UI built and tested; simulated mode is live in production now, `ADAPTER_MODE_IDCHECK=live` is a deliberate vendor/cost decision for later, not done here.
 
 ## 8. Indicative timing
 

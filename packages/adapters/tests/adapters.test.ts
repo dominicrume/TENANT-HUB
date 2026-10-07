@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   parseAtom, LegislationGovUkAdapter, SimInsuranceQuote, HttpInsuranceQuote, SimBankFeed, SimStt, SimNotify, ResendNotify,
-  insuranceQuotes, bankFeed, notifier, stt, regulationFeed, adapterStatus, practiceMode, AdapterError,
+  SimIdCheck, CredasIdCheck,
+  insuranceQuotes, bankFeed, notifier, stt, idCheck, regulationFeed, adapterStatus, practiceMode, AdapterError,
 } from "../src";
 
 const baseEnv = {
-  ADAPTER_MODE_REGULATION: "live", ADAPTER_MODE_NOTIFY: "simulated", ADAPTER_MODE_BANK: "simulated", ADAPTER_MODE_INSURANCE: "simulated", ADAPTER_MODE_STT: "simulated",
+  ADAPTER_MODE_REGULATION: "live", ADAPTER_MODE_NOTIFY: "simulated", ADAPTER_MODE_BANK: "simulated", ADAPTER_MODE_INSURANCE: "simulated", ADAPTER_MODE_IDCHECK: "simulated", ADAPTER_MODE_STT: "simulated",
 } as unknown as Parameters<typeof notifier>[0];
 
 const fakeFetch = (status: number, body: unknown): typeof fetch =>
@@ -41,6 +42,16 @@ describe("simulated adapters never pretend", () => {
     expect((await new SimStt().transcribe({ hint: " water under the sink " })).data.transcript).toBe("water under the sink");
     expect((await new SimStt().transcribe({})).data.transcript).toBe("(no speech detected)");
   });
+  it("SimIdCheck starts pending and never resolves to a conclusive pass/fail on its own", async () => {
+    const c = new SimIdCheck();
+    const applicant = { fullName: "Amina Khan", dateOfBirth: "1990-01-01", documentType: "Passport" };
+    const submitted = await c.submitCheck(applicant);
+    expect(submitted.mode).toBe("simulated");
+    expect(submitted.data.outcome).toBe("pending");
+    const status = await c.getCheckStatus(submitted.data.providerRef);
+    expect(status.data.outcome).toBe("refer");
+    expect(status.mode).toBe("simulated");
+  });
 });
 
 describe("live adapters fail loudly without credentials", () => {
@@ -48,13 +59,32 @@ describe("live adapters fail loudly without credentials", () => {
     expect(() => notifier({ ...baseEnv, ADAPTER_MODE_NOTIFY: "live" } as never)).toThrow(/RESEND_API_KEY and NOTIFY_FROM/);
     expect(() => bankFeed({ ...baseEnv, ADAPTER_MODE_BANK: "live" } as never)).toThrow(/TRUELAYER_ACCESS_TOKEN/);
     expect(() => insuranceQuotes({ ...baseEnv, ADAPTER_MODE_INSURANCE: "live" } as never)).toThrow(/INSURANCE_QUOTE_URL/);
+    expect(() => idCheck({ ...baseEnv, ADAPTER_MODE_IDCHECK: "live" } as never)).toThrow(/CREDAS_BASE_URL/);
     expect(() => stt({ ...baseEnv, ADAPTER_MODE_STT: "live" } as never)).toThrow(AdapterError);
   });
   it("factories return simulated adapters by default", () => {
     expect(notifier(baseEnv).mode).toBe("simulated");
     expect(bankFeed(baseEnv).mode).toBe("simulated");
     expect(insuranceQuotes(baseEnv).mode).toBe("simulated");
+    expect(idCheck(baseEnv).mode).toBe("simulated");
     expect(regulationFeed(baseEnv).mode).toBe("live");
+  });
+  it("CredasIdCheck submits a check and maps provider status to an outcome", async () => {
+    const c = new CredasIdCheck("https://api.credas.example", "k", fakeFetch(200, { id: "chk_1" }));
+    const submitted = await c.submitCheck({ fullName: "Amina Khan", dateOfBirth: "1990-01-01", documentType: "Passport" });
+    expect(submitted).toMatchObject({ mode: "live", source: "credas", data: { providerRef: "chk_1", outcome: "pending" } });
+
+    const noRef = new CredasIdCheck("https://api.credas.example", "k", fakeFetch(200, {}));
+    await expect(noRef.submitCheck({ fullName: "x", dateOfBirth: "1990-01-01", documentType: "Passport" })).rejects.toThrow(/no check reference/);
+
+    const passing = new CredasIdCheck("https://api.credas.example", "k", fakeFetch(200, { status: "clear", summary: "All checks passed" }));
+    expect((await passing.getCheckStatus("chk_1")).data).toEqual({ outcome: "pass", detail: "All checks passed" });
+
+    const failing = new CredasIdCheck("https://api.credas.example", "k", fakeFetch(200, { status: "declined" }));
+    expect((await failing.getCheckStatus("chk_1")).data.outcome).toBe("fail");
+
+    const down = new CredasIdCheck("https://api.credas.example", "k", fakeFetch(503, ""));
+    await expect(down.getCheckStatus("chk_1")).rejects.toThrow(/Credas 503/);
   });
   it("ResendNotify refuses SMS and reports the upstream status on failure", async () => {
     const r = new ResendNotify("k", "Ops <ops@example.org>", fakeFetch(500, {}));
@@ -91,6 +121,7 @@ describe("status for the Settings screen", () => {
   it("names what is simulated and the switch for each", () => {
     const s = adapterStatus(baseEnv);
     expect(s.notify.mode).toBe("simulated"); expect(s.notify.switch).toMatch(/RESEND_API_KEY/);
-    expect(practiceMode(baseEnv)).toEqual(["email", "bank feed", "quotes"]);
+    expect(s.idcheck.mode).toBe("simulated"); expect(s.idcheck.switch).toMatch(/CREDAS_BASE_URL/);
+    expect(practiceMode(baseEnv)).toEqual(["email", "bank feed", "quotes", "ID checks"]);
   });
 });

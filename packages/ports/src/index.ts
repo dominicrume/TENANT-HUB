@@ -48,3 +48,16 @@ export interface StoragePort {
   getSignedUrl(key: string, ttlSeconds: number): Promise<AdapterResult<{ url: string }>>;
   delete(key: string): Promise<AdapterResult<{ deleted: boolean }>>;
 }
+
+/* ── Identity / right-to-rent check — reports only ───────────────────────
+ * Like insurance quotes, this "stops at the decision card": it can only
+ * report what a provider found, never approve or refuse a tenancy itself
+ * (H10, H11 — no bind/pay/serve-a-notice verb exists here either). Staff
+ * read the outcome and make the actual right-to-rent decision. */
+export interface ApplicantIdentity { fullName: string; dateOfBirth: string; documentType: string; documentRef?: string }
+export type IdCheckOutcome = "pending" | "pass" | "refer" | "fail";
+export interface IdCheckPort {
+  readonly mode: AdapterMode;
+  submitCheck(applicant: ApplicantIdentity): Promise<AdapterResult<{ providerRef: string; outcome: IdCheckOutcome }>>;
+  getCheckStatus(providerRef: string): Promise<AdapterResult<{ outcome: IdCheckOutcome; detail?: string }>>;
+}

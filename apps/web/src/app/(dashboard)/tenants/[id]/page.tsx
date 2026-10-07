@@ -27,6 +27,7 @@ import { RelianceIntakeTab } from "../../../../components/tenant/RelianceIntakeT
 import { SupportPlanTab } from "../../../../components/tenant/SupportPlanTab";
 import { MaintenanceTab } from "../../../../components/tenant/MaintenanceTab";
 import { DocumentsTab } from "../../../../components/tenant/DocumentsTab";
+import { IdCheckTab } from "../../../../components/tenant/IdCheckTab";
 import { NotesTab } from "../../../../components/tenant/NotesTab";
 import { MessagesTab } from "../../../../components/tenant/MessagesTab";
 import { AskTab } from "../../../../components/tenant/AskTab";
@@ -44,6 +45,7 @@ const CORE_TABS = [
   { key: "ledger", label: "Service Charge" },
   { key: "maintenance", label: "Maintenance" },
   { key: "documents", label: "Documents" },
+  { key: "id-check", label: "Right to Rent" },
   { key: "notes", label: "Staff Notes" },
   { key: "messages", label: "Messages" },
   { key: "ask", label: "Ask the AI" },
@@ -573,6 +575,7 @@ export default function TenantDetailPage() {
       {tab === "ledger" && <LedgerTab tenantId={id} />}
       {tab === "maintenance" && <MaintenanceTab tenantId={id} roomNumber={tenant?.room_number} />}
       {tab === "documents" && <DocumentsTab tenantId={id} />}
+      {tab === "id-check" && <IdCheckTab tenantId={id} />}
       {tab === "notes" && <NotesTab tenantId={id} />}
       {tab === "messages" && <MessagesTab tenantId={id} tenantName={tenant?.full_name} />}
       {tab === "ask" && <AskTab tenantId={id} />}
