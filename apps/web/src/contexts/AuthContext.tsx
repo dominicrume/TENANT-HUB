@@ -25,6 +25,8 @@ export interface Profile {
   full_name: string;
   role: UserRole;
   email: string | null;
+  /** The real, active organisation's name — the only thing that should ever label "which workspace am I in" (see packages/db/src/auth-store.ts). */
+  org_name: string | null;
 }
 
 interface AuthValue {
@@ -47,9 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     fetch("/api/auth/verify")
       .then((r) => (r.ok ? r.json() : { user: null }))
-      .then((body: { user: { id: string; email: string; role: string; fullName: string } | null }) => {
+      .then((body: { user: { id: string; email: string; role: string; fullName: string; orgName: string | null } | null }) => {
         const u = body.user;
-        setProfile(u ? { id: u.id, full_name: u.fullName, role: u.role as UserRole, email: u.email } : null);
+        setProfile(u ? { id: u.id, full_name: u.fullName, role: u.role as UserRole, email: u.email, org_name: u.orgName } : null);
       })
       .catch(() => setProfile(null))
       .finally(() => {

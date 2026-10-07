@@ -42,7 +42,7 @@ export async function createSession(client: Queryable, i: CreateSessionInput): P
   return { id: row.id, expiresAt: row.expires_at };
 }
 
-export interface SessionProfile { profileId: string; email: string; role: string; orgId: string | null; tenantId: string | null; fullName: string; brand: string }
+export interface SessionProfile { profileId: string; email: string; role: string; orgId: string | null; orgName: string | null; tenantId: string | null; fullName: string; brand: string }
 
 /**
  * Looks up a live (unexpired) session and touches last_seen_at. Returns
@@ -54,17 +54,26 @@ export interface SessionProfile { profileId: string; email: string; role: string
  * page.tsx) just keeps working unchanged: a profile that never switches
  * (almost everyone) gets their own org_id exactly as before; a multi-org
  * manager who has switched gets whichever org they're currently in.
+ *
+ * orgName is the REAL organisation's name — the only thing the sidebar
+ * should ever show as "which workspace am I in". `profiles.brand` is a
+ * separate, cosmetic document-letterhead preference (BrandContext on the
+ * client, stored in localStorage) that doesn't track the active org at
+ * all; conflating the two is exactly what made the sidebar show "Matty's
+ * Place" while the real active org was Ash Shahada or Reliance.
  */
 export async function findSessionByTokenHash(client: Queryable, tokenHash: string): Promise<SessionProfile | null> {
-  const r = await client.query<{ profile_id: string; email: string; role: string; org_id: string | null; tenant_id: string | null; full_name: string; brand: string }>(
+  const r = await client.query<{ profile_id: string; email: string; role: string; org_id: string | null; org_name: string | null; tenant_id: string | null; full_name: string; brand: string }>(
     `UPDATE user_sessions s SET last_seen_at = NOW()
      FROM profiles p
      WHERE s.token_hash = $1 AND s.profile_id = p.id AND s.expires_at > NOW()
-     RETURNING p.id AS profile_id, p.email, p.role, COALESCE(s.active_org_id, p.org_id) AS org_id, p.tenant_id, p.full_name, p.brand`,
+     RETURNING p.id AS profile_id, p.email, p.role, COALESCE(s.active_org_id, p.org_id) AS org_id,
+       (SELECT name FROM organisations WHERE id = COALESCE(s.active_org_id, p.org_id)) AS org_name,
+       p.tenant_id, p.full_name, p.brand`,
     [tokenHash]);
   const row = r.rows[0];
   if (!row) return null;
-  return { profileId: row.profile_id, email: row.email, role: row.role, orgId: row.org_id, tenantId: row.tenant_id, fullName: row.full_name, brand: row.brand };
+  return { profileId: row.profile_id, email: row.email, role: row.role, orgId: row.org_id, orgName: row.org_name, tenantId: row.tenant_id, fullName: row.full_name, brand: row.brand };
 }
 
 export interface OrganisationOption { id: string; name: string }

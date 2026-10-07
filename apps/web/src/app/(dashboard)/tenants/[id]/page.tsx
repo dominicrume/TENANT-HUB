@@ -53,6 +53,17 @@ const CORE_TABS = [
 
 type FormState = Record<string, string>;
 
+/** Human labels for save-validation errors, so "Please fix: X" always names a real field — regardless of which tab you're on when you hit Save (every save validates the whole record, not just the active tab). */
+const FIELD_LABELS: Record<string, string> = {
+  title: "Title", full_name: "Full Name", dob: "Date of Birth", nino: "National Insurance No.",
+  nationality: "Nationality", date_entry_uk: "Date of Entry to UK", address: "Address", postcode: "Postcode",
+  room_number: "Room Number", moved_in: "Moved-in Date", mobile: "Mobile", email: "Email", languages: "Languages",
+  benefit_type: "Benefit Type", benefit_frequency: "Frequency", benefit_amount: "Amount",
+  nok_name: "Next of Kin Name", nok_relationship: "Next of Kin Relationship", nok_phone: "Next of Kin Phone", nok_address: "Next of Kin Address",
+  doctor: "Doctor / GP", probation_officer: "Probation Officer",
+  hb_reference_number: "HB Reference Number", hb_claim_date: "HB Claim Date",
+};
+
 const EDITABLE_STRING_FIELDS = [
   "full_name", "dob", "nino", "nationality", "date_entry_uk",
   "address", "postcode", "room_number", "moved_in", "mobile", "email", "languages",
@@ -165,7 +176,13 @@ export default function TenantDetailPage() {
         const issues: Record<string, string> = {};
         for (const i of b.issues) issues[i.path[0]] = i.message;
         setValidationIssues(issues);
-        setSaveMsg("✗ Please fix the highlighted errors");
+        // Saving from ANY tab validates the whole record, but a field's inline
+        // error only renders while that field's own tab is open — on a
+        // different tab the problem used to vanish into an unhelpful generic
+        // banner. Naming the actual field(s) here means it's never invisible,
+        // regardless of which tab you're looking at when you hit Save.
+        const names = b.issues.map((i: { path: string[] }) => { const key = i.path[0] ?? "field"; return FIELD_LABELS[key] ?? key; }).join(", ");
+        setSaveMsg(`✗ Please fix: ${names}`);
       } else {
         setSaveMsg(`✗ ${b?.error ?? "Save failed"}`);
       }

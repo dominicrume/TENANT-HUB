@@ -41,7 +41,7 @@ export default function TenantPortalLayout({ children }: { children: ReactNode }
   if (!profile || profile.role !== "tenant") return null;
 
   return (
-    <Shell nav={TENANT_NAV} brand={label} brandSub="Your home" user={profile.full_name || "You"} role="tenant" settingsHref={null} onSignOut={() => void signOut()}>
+    <Shell nav={TENANT_NAV} brand={profile.org_name ?? "Tenant Hub"} brandSub="Your home" user={profile.full_name || "You"} role="tenant" settingsHref={null} onSignOut={() => void signOut()}>
       {children}
     </Shell>
   );

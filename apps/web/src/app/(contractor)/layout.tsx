@@ -6,16 +6,14 @@
 
 import type { ReactNode } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { useBrand } from "../../contexts/BrandContext";
 import { Shell, CONTRACTOR_NAV } from "../../components/Shell";
 
 export default function ContractorLayout({ children }: { children: ReactNode }) {
   const { profile, signOut } = useAuth();
-  const { label } = useBrand();
   return (
     <Shell
       nav={CONTRACTOR_NAV}
-      brand={label}
+      brand={profile?.org_name ?? "Tenant Hub"}
       brandSub="Contractor"
       user={profile?.full_name ?? "—"}
       role={profile?.role ?? "contractor"}

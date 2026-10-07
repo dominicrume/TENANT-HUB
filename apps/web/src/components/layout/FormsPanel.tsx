@@ -128,7 +128,7 @@ export function FormsPanel({ tenant }: { tenant: CanonicalTenant }) {
         </div>
 
         <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "8px", paddingTop: "16px", borderTop: "1px dashed #E2E8F0" }}>
-          <button onClick={() => window.print()} style={{ minHeight: "44px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 600, fontSize: "13px", cursor: "pointer", transition: "background 0.2s" }} onMouseOver={e => e.currentTarget.style.background = "#0F1C2E"} onMouseOut={e => e.currentTarget.style.background = "var(--navy)"}>
+          <button onClick={() => window.open(`/tenants/${tenant.id}/print`, "_blank")} style={{ minHeight: "44px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 600, fontSize: "13px", cursor: "pointer", transition: "background 0.2s" }} onMouseOver={e => e.currentTarget.style.background = "#0F1C2E"} onMouseOut={e => e.currentTarget.style.background = "var(--navy)"}>
             🖨 Print Active Form
           </button>
           <button onClick={() => setEvictionOpen(true)} style={{ minHeight: "44px", borderRadius: "8px", border: "1px solid rgba(224,82,82,0.3)", background: "rgba(224,82,82,0.06)", color: "#E05252", fontWeight: 600, fontSize: "13px", cursor: "pointer", transition: "background 0.2s" }} onMouseOver={e => e.currentTarget.style.background = "rgba(224,82,82,0.1)"} onMouseOut={e => e.currentTarget.style.background = "rgba(224,82,82,0.06)"}>
