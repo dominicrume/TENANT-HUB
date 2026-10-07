@@ -14,6 +14,13 @@ import { formatDateTime, truncateHash } from "../../../lib/format";
 type Tab = "users" | "charges" | "brands" | "billing" | "blockchain";
 
 interface Profile { id: string; full_name: string; role: string; email: string | null }
+
+const INVITE_ROLES = [
+  { value: "manager", label: "Manager" },
+  { value: "support_worker", label: "Support worker" },
+  { value: "contractor", label: "Contractor" },
+  { value: "tenant", label: "Tenant" },
+] as const;
 interface Stamp { id: string; status: string; audit_hash: string; tx_hash: string | null; created_at: string; tenant_id: string | null }
 
 const STAMP_TONE: Record<string, { color: string; label: string }> = {
@@ -37,11 +44,48 @@ export default function SettingsPage() {
   const [billingBusy, setBillingBusy] = useState(false);
   const [rateError, setRateError] = useState<string | null>(null);
   const [rateSaved, setRateSaved] = useState(false);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<(typeof INVITE_ROLES)[number]["value"]>("manager");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSentTo, setInviteSentTo] = useState<string | null>(null);
 
   const { brand } = useBrand();
 
-  useEffect(() => {
+  function loadProfiles() {
     fetch("/api/profiles").then((r) => (r.ok ? r.json() : [])).then((d) => setProfiles(Array.isArray(d) ? d : [])).catch(() => {});
+  }
+
+  async function handleSendInvite(e: React.FormEvent) {
+    e.preventDefault();
+    setInviteBusy(true);
+    setInviteError(null);
+    setInviteSentTo(null);
+    try {
+      const res = await fetch("/api/auth/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole, fullName: inviteName || undefined }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setInviteError(body?.error ?? "Could not send the invite. Try again.");
+        return;
+      }
+      setInviteSentTo(inviteEmail);
+      setInviteName("");
+      setInviteEmail("");
+      setInviteRole("manager");
+    } catch {
+      setInviteError("Could not reach the server. The invite was not sent.");
+    } finally {
+      setInviteBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    loadProfiles();
     fetch("/api/stamp-queue").then((r) => (r.ok ? r.json() : [])).then((d) => setStamps(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/tenants").then((r) => (r.ok ? r.json() : [])).then((d) => setActiveTenantsCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
     fetch("/api/drafts").then((r) => (r.ok ? r.json() : [])).then((d) => setAiExtractionsCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
@@ -109,15 +153,35 @@ export default function SettingsPage() {
 
       <div style={{ flex: 1, minWidth: 280 }}>
         {tab === "users" && (
-          <section className="card">
-            <div className="ch"><h3>Users</h3></div>
-            {profiles.length === 0 ? <div className="li"><p className="muted">No users to show (manager access required).</p></div> : profiles.map((p) => (
-              <div className="li" key={p.id}>
-                <div className="body"><b>{p.full_name}</b><p>{p.email}</p></div>
-                <span className="tag" style={{ background: "rgba(15,28,46,.06)", color: "var(--navy)", textTransform: "capitalize" }}>{p.role.replace("_", " ")}</span>
-              </div>
-            ))}
-          </section>
+          <>
+            <section className="card" style={{ marginBottom: 18 }}>
+              <div className="ch"><h3>Invite someone</h3></div>
+              <form onSubmit={handleSendInvite} className="li" style={{ display: "grid", gap: 10 }}>
+                <label><span className="lbl">Full name (optional)</span>
+                  <input value={inviteName} onChange={(e) => setInviteName(e.target.value)} type="text" style={inp} /></label>
+                <label><span className="lbl">Email</span>
+                  <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} type="email" required style={inp} /></label>
+                <label><span className="lbl">Role</span>
+                  <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as typeof inviteRole)} style={inp}>
+                    {INVITE_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                </label>
+                {inviteError && <p style={{ color: "var(--brick)", margin: 0, fontSize: 13 }}>{inviteError}</p>}
+                {inviteSentTo && !inviteError && <p style={{ color: "var(--live)", margin: 0, fontSize: 13 }}>Invite sent to {inviteSentTo}. The link works once, for 14 days.</p>}
+                <div><button type="submit" className="rel sm" disabled={inviteBusy || !inviteEmail}>{inviteBusy ? "Sending…" : "Send invite"}</button></div>
+              </form>
+            </section>
+
+            <section className="card">
+              <div className="ch"><h3>Users</h3></div>
+              {profiles.length === 0 ? <div className="li"><p className="muted">No users to show (manager access required).</p></div> : profiles.map((p) => (
+                <div className="li" key={p.id}>
+                  <div className="body"><b>{p.full_name}</b><p>{p.email}</p></div>
+                  <span className="tag" style={{ background: "rgba(15,28,46,.06)", color: "var(--navy)", textTransform: "capitalize" }}>{p.role.replace("_", " ")}</span>
+                </div>
+              ))}
+            </section>
+          </>
         )}
 
         {tab === "charges" && (
