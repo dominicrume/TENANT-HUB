@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { TenantCreateSchema } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../lib/api-auth";
@@ -25,8 +25,14 @@ export async function POST(req: Request) {
   const { draftId } = (await req.json().catch(() => ({}))) as { draftId?: string };
   if (!draftId) return NextResponse.json({ error: "draftId required" }, { status: 400 });
 
-  const { data: draft, error } = await auth.supabase.from("drafts").select("*").eq("id", draftId).maybeSingle();
-  if (error || !draft) return NextResponse.json({ error: toSafeErrorMessage(error, "Draft not found") }, { status: 404 });
+  let draft: Record<string, unknown> | undefined;
+  try {
+    const r = await db().query<Record<string, unknown>>("SELECT * FROM drafts WHERE id = $1 AND created_by = $2", [draftId, auth.actor.user_id]);
+    draft = r.rows[0];
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err, "Draft not found") }, { status: 404 });
+  }
+  if (!draft) return NextResponse.json({ error: "Draft not found" }, { status: 404 });
 
   if (draft.step === 5) {
     return NextResponse.json({ error: "This intake has already been completed." }, { status: 409 });
@@ -58,31 +64,23 @@ export async function POST(req: Request) {
     );
   }
 
-  if (parsed.data.room_number) {
-    const { count } = await auth.supabase
-      .from("tenants")
-      .select("id", { count: "exact", head: true })
-      .eq("org_id", auth.actor.org_id)
-      .eq("room_number", parsed.data.room_number)
-      .eq("is_archived", false)
-      .eq("is_active", true);
-      
-    if (count && count > 0) {
-      return NextResponse.json({ error: `Room ${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
+  // Emergency fallback in case the session lookup somehow omitted org_id.
+  if (!auth.actor.org_id) {
+    const r = await db().query<{ org_id: string | null }>("SELECT org_id FROM profiles WHERE id = $1", [auth.actor.user_id]);
+    const freshOrgId = r.rows[0]?.org_id;
+    if (freshOrgId) {
+      auth.actor.org_id = freshOrgId;
+    } else {
+      return NextResponse.json({ error: "Critical configuration error: Missing organization ID" }, { status: 500 });
     }
   }
 
-  // Emergency fallback in case Next.js fetch cache omitted org_id from the profile
-  if (!auth.actor.org_id) {
-    const { data: freshProfile } = await auth.supabase
-      .from("profiles")
-      .select("org_id")
-      .eq("id", auth.actor.user_id)
-      .single();
-    if (freshProfile?.org_id) {
-      auth.actor.org_id = freshProfile.org_id;
-    } else {
-      return NextResponse.json({ error: "Critical configuration error: Missing organization ID" }, { status: 500 });
+  if (parsed.data.room_number) {
+    const r = await db().query<{ id: string }>(
+      "SELECT id FROM tenants WHERE org_id = $1 AND room_number = $2 AND is_archived = false AND is_active = true",
+      [auth.actor.org_id, parsed.data.room_number]);
+    if (r.rows.length > 0) {
+      return NextResponse.json({ error: `Room ${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
     }
   }
 

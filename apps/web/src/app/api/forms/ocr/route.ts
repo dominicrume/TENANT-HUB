@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { complete, activeProvider } from "@tenant-hub/ai";
+import { db } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+
+interface FormSchemaField { id: string; label: string }
 
 export async function POST(req: Request) {
   const auth = await getApiAuth();
@@ -21,19 +24,19 @@ export async function POST(req: Request) {
   if (!text && !image) {
     return NextResponse.json({ extracted: {}, note: "No text or image supplied" });
   }
+  if (!auth.actor.org_id) return NextResponse.json({ error: "Template not found" }, { status: 404 });
 
-  // Fetch the template schema
-  const { data: template, error } = await auth.supabase
-    .from("form_templates")
-    .select("schema, name")
-    .eq("id", templateId)
-    .single();
-
-  if (error || !template) {
+  // Fetch the template schema, scoped to the caller's org (form_templates.org_id is NOT NULL).
+  const templateR = await db().query<{ schema: FormSchemaField[]; name: string }>(
+    "SELECT schema, name FROM form_templates WHERE id = $1 AND org_id = $2",
+    [templateId, auth.actor.org_id],
+  );
+  const template = templateR.rows[0];
+  if (!template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
 
-  const schemaKeys = template.schema.map((s: any) => `${s.id} (${s.label})`).join(", ");
+  const schemaKeys = template.schema.map((s) => `${s.id} (${s.label})`).join(", ");
 
   let prompt = `You are extracting fields from a UK supported-housing form. The form type is: ${template.name}.
 From the provided document, return ONLY a JSON object with any of these keys you can find:

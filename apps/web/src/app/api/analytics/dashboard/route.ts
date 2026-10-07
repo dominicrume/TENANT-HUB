@@ -1,16 +1,27 @@
 import { NextResponse } from "next/server";
+import { db } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+
+interface TenantRow { id: string; full_name: string; is_archived: boolean; housing_benefit_status: string | null; benefit_amount: number | null }
 
 export async function GET(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  if (!auth.actor.org_id) {
+    return NextResponse.json({ totalActiveTenants: 0, totalPendingHBClaims: 0, totalSuspendedHB: 0, expectedRevenue: 0, pendingRevenue: 0, alerts: [] });
+  }
 
-  const { data: tenants, error } = await auth.supabase
-    .from("tenants")
-    .select("id, full_name, is_archived, housing_benefit_status, benefit_amount")
-    
-  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
+  let tenants: TenantRow[];
+  try {
+    const r = await db().query<TenantRow>(
+      "SELECT id, full_name, is_archived, housing_benefit_status, benefit_amount FROM tenants WHERE org_id = $1",
+      [auth.actor.org_id],
+    );
+    tenants = r.rows;
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
 
   let totalActiveTenants = 0;
   let totalPendingHBClaims = 0;

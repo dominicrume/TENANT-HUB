@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { db } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
@@ -13,15 +14,17 @@ export const dynamic = "force-dynamic";
 export const GET = withRouteHandler({ resource: "tenants", action: "read" }, async (req, _ctx, auth) => {
   const kind = new URL(req.url).searchParams.get("kind");
   if (!kind) return NextResponse.json({ error: "Missing kind" }, { status: 400 });
+  if (!auth.actor.org_id) return NextResponse.json(null, { headers: { "Cache-Control": "no-store" } });
 
-  const { data, error } = await auth.supabase
-    .from("documents")
-    .select("id, title, body, is_simulated, created_at")
-    .eq("kind", kind)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
-  return NextResponse.json(data ?? null, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const r = await db().query<{ id: string; title: string; body: string; is_simulated: boolean; created_at: string }>(
+      `SELECT id, title, body, is_simulated, created_at FROM documents
+       WHERE kind = $1 AND org_id = $2
+       ORDER BY created_at DESC LIMIT 1`,
+      [kind, auth.actor.org_id],
+    );
+    return NextResponse.json(r.rows[0] ?? null, { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
 });

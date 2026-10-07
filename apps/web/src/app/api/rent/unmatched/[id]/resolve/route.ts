@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../../../lib/safe-error";
+
+interface UnmatchedRow {
+  id: string;
+  org_id: string;
+  tenant_id: string | null;
+  amount: string | number;
+  received_on: string;
+  external_reference: string | null;
+  status: string;
+}
 
 /**
  * POST /api/rent/unmatched/[id]/resolve — "Is this rent?" answered. A weak
@@ -16,18 +26,19 @@ import { toSafeErrorMessage } from "../../../../../../lib/safe-error";
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
   if (!can(auth.actor.user_role, "rent", "update")) return NextResponse.json({ error: "Permission denied" }, { status: 403 });
 
   const body = await req.json().catch(() => null);
   const action = body?.action;
   if (action !== "confirm" && action !== "dismiss") return NextResponse.json({ error: "action must be 'confirm' or 'dismiss'" }, { status: 422 });
 
-  const { data: existing, error: readErr } = await auth.supabase
-    .from("rent_unmatched")
-    .select("id, org_id, tenant_id, amount, received_on, external_reference, status")
-    .eq("id", params.id)
-    .single();
-  if (readErr || !existing) return NextResponse.json({ error: toSafeErrorMessage(readErr, "Not found") }, { status: 404 });
+  const existingR = await db().query<UnmatchedRow>(
+    "SELECT id, org_id, tenant_id, amount, received_on, external_reference, status FROM rent_unmatched WHERE id = $1 AND org_id = $2",
+    [params.id, auth.actor.org_id],
+  );
+  const existing = existingR.rows[0];
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (existing.status !== "pending") return NextResponse.json({ error: "Already resolved" }, { status: 409 });
 
   try {
@@ -35,7 +46,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     if (action === "confirm") {
       if (!existing.tenant_id) return NextResponse.json({ error: "No tenant to confirm this against" }, { status: 422 });
-      const { data: tenancy } = await auth.supabase.from("tenancies").select("id").eq("tenant_id", existing.tenant_id).eq("status", "active").maybeSingle();
+      const tenancyR = await db().query<{ id: string }>(
+        "SELECT id FROM tenancies WHERE tenant_id = $1 AND status = 'active' AND org_id = $2 LIMIT 1",
+        [existing.tenant_id, auth.actor.org_id],
+      );
+      const tenancy = tenancyR.rows[0];
       await writeWithAudit({
         table: "rent_payments",
         record: {

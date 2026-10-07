@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
+import { writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
-import { createSupabaseServer } from "../../../../lib/supabase-server";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
 
+/**
+ * POST /api/communications/trigger — staff-facing. The write is always
+ * stamped with the signed-in staff member's own org_id; without one there is
+ * no organisation to log the communication against.
+ */
 export async function POST(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-
+  if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
 
   try {
     const body = await req.json();
@@ -16,9 +21,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const { data, error } = await auth.supabase
-      .from("communications_log")
-      .insert({
+    const { data } = await writeWithAudit({
+      table: "communications_log",
+      record: {
         org_id: auth.actor.org_id,
         tenant_id: tenantId || null,
         type,
@@ -26,11 +31,14 @@ export async function POST(req: Request) {
         body: messageBody,
         status: "sent",
         sent_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+      } as Record<string, unknown>,
+      action: "CREATE",
+      org_id: auth.actor.org_id,
+      tenant_id: tenantId || undefined,
+      user_id: auth.actor.user_id,
+      user_name: auth.actor.user_name,
+      user_role: auth.actor.user_role,
+    });
 
     // If SMS, actually send it via Twilio
     if (type.toLowerCase() === "sms" && recipient) {

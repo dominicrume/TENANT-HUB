@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { db } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { stripe } from "../../../../lib/stripe";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
@@ -11,15 +12,20 @@ export async function POST(req: Request) {
   if (auth.actor.user_role !== "manager") {
     return NextResponse.json({ error: "Permission denied. Only managers can access billing." }, { status: 403 });
   }
+  if (!auth.actor.org_id) {
+    return NextResponse.json({ error: "Organisation not found or billing not configured" }, { status: 404 });
+  }
 
-  // Get the org to find the stripe_customer_id
-  const { data: org, error } = await auth.supabase
-    .from("organisations")
-    .select("stripe_customer_id")
-    .eq("id", auth.actor.org_id)
-    .single();
+  // Get the org to find the stripe_customer_id. organisations.id IS the org
+  // scope here — this is the org's own row, not a row owned by some other
+  // table, so the actor's own org_id in the WHERE is the whole boundary.
+  const orgR = await db().query<{ stripe_customer_id: string | null }>(
+    "SELECT stripe_customer_id FROM organisations WHERE id = $1",
+    [auth.actor.org_id],
+  );
+  const org = orgR.rows[0];
 
-  if (error || !org?.stripe_customer_id) {
+  if (!org?.stripe_customer_id) {
     return NextResponse.json({ error: "Organisation not found or billing not configured" }, { status: 404 });
   }
 

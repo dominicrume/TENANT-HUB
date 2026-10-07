@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { db } from "@tenant-hub/db";
 import { ARREARS_LADDER, stageIndex } from "@tenant-hub/domain";
 import type { UnitClass } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../../lib/api-handler";
@@ -28,25 +29,30 @@ const HB_LINE: Record<string, string> = {
  * tenancy_arrears — never a second, hand-rolled arrears calculation.
  */
 export const GET = withRouteHandler({ resource: "rent", action: "read" }, async (_req, _ctx, auth) => {
-  const sb = auth.supabase;
-  const [tenants, tenancies, units, cases, arrears, unmatched] = await Promise.all([
-    sb.from("tenants").select("id, full_name, room_number, is_active, is_archived, housing_benefit_status"),
-    sb.from("tenancies").select("id, tenant_id, unit_id, status").eq("status", "active"),
-    sb.from("units").select("id, unit_class"),
-    sb.from("arrears_cases").select("id, tenant_id, stage, opened_on").is("closed_on", null),
-    sb.from("tenancy_arrears").select("tenant_id, balance, oldest_unpaid::text"),
-    sb.from("rent_unmatched").select("id, tenant_id, amount, received_on, external_reference, confidence, is_simulated").eq("status", "pending"),
-  ]);
-  const failed = [tenants, tenancies, units, cases, arrears, unmatched].find((r) => r.error);
-  if (failed?.error) return NextResponse.json({ error: toSafeErrorMessage(failed.error) }, { status: 500 });
+  if (!auth.actor.org_id) return NextResponse.json({ ladders: [], isThisRent: [], upToDate: [] }, { headers: { "Cache-Control": "no-store" } });
+  const orgId = auth.actor.org_id;
 
-  const tenantById = new Map((tenants.data as TenantRow[] | null ?? []).map((t) => [t.id, t]));
-  const unitClassById = new Map((units.data as UnitRow[] | null ?? []).map((u) => [u.id, u.unit_class]));
-  const unitClassByTenant = new Map((tenancies.data as TenancyRow[] | null ?? []).map((t) => [t.tenant_id, unitClassById.get(t.unit_id) ?? "supported"]));
-  const arrearsByTenant = new Map((arrears.data as ArrearsRow[] | null ?? []).map((a) => [a.tenant_id, a]));
+  let tenants, tenancies, units, cases, arrears, unmatched;
+  try {
+    [tenants, tenancies, units, cases, arrears, unmatched] = await Promise.all([
+      db().query<TenantRow>("SELECT id, full_name, room_number, is_active, is_archived, housing_benefit_status FROM tenants WHERE org_id = $1", [orgId]),
+      db().query<TenancyRow>("SELECT id, tenant_id, unit_id, status FROM tenancies WHERE org_id = $1 AND status = 'active'", [orgId]),
+      db().query<UnitRow>("SELECT id, unit_class FROM units WHERE org_id = $1", [orgId]),
+      db().query<CaseRow>("SELECT id, tenant_id, stage, opened_on FROM arrears_cases WHERE org_id = $1 AND closed_on IS NULL", [orgId]),
+      db().query<ArrearsRow>("SELECT tenant_id, balance, oldest_unpaid::text FROM tenancy_arrears WHERE org_id = $1", [orgId]),
+      db().query<UnmatchedRow>("SELECT id, tenant_id, amount, received_on, external_reference, confidence, is_simulated FROM rent_unmatched WHERE org_id = $1 AND status = 'pending'", [orgId]),
+    ]);
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
+
+  const tenantById = new Map(tenants.rows.map((t) => [t.id, t]));
+  const unitClassById = new Map(units.rows.map((u) => [u.id, u.unit_class]));
+  const unitClassByTenant = new Map(tenancies.rows.map((t) => [t.tenant_id, unitClassById.get(t.unit_id) ?? "supported"]));
+  const arrearsByTenant = new Map(arrears.rows.map((a) => [a.tenant_id, a]));
 
   const today = new Date();
-  const ladders = (cases.data as CaseRow[] | null ?? [])
+  const ladders = cases.rows
     .map((c) => {
       const tenant = tenantById.get(c.tenant_id);
       if (!tenant) return null;
@@ -71,11 +77,11 @@ export const GET = withRouteHandler({ resource: "rent", action: "read" }, async 
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
   const laddered = new Set(ladders.map((l) => l.tenantId));
-  const isThisRent = (unmatched.data as UnmatchedRow[] | null ?? []).map((u) => ({
+  const isThisRent = unmatched.rows.map((u) => ({
     ...u, amount: Number(u.amount), confidence: Number(u.confidence), tenantName: u.tenant_id ? tenantById.get(u.tenant_id)?.full_name ?? null : null,
   }));
 
-  const upToDate = (tenancies.data as TenancyRow[] | null ?? [])
+  const upToDate = tenancies.rows
     .map((t) => tenantById.get(t.tenant_id))
     .filter((t): t is TenantRow => t !== undefined && t.is_active !== false && !t.is_archived)
     .filter((t) => !laddered.has(t.id) && Number(arrearsByTenant.get(t.id)?.balance ?? 0) <= 0)

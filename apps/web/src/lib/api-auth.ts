@@ -66,17 +66,19 @@ export async function getApiAuth(): Promise<ApiAuth | null> {
   };
 }
 
-/** Best-effort previous audit hash for a record, to chain the audit log. */
+/**
+ * Best-effort previous audit hash for a record, to chain the audit log.
+ * Takes `supabase` for call-site compatibility with the ~2 remaining callers
+ * not yet migrated off it, but ignores it — audit_logs has no RLS boundary
+ * a caller needs (writeWithAudit already scopes the write itself), so this
+ * reads via packages/db directly rather than needing Supabase configured.
+ */
 export async function latestAuditHash(
-  supabase: ReturnType<typeof createSupabaseServer>,
+  _supabase: ReturnType<typeof createSupabaseServer>,
   recordId: string,
 ): Promise<string | undefined> {
-  const { data } = await supabase
-    .from("audit_logs")
-    .select("blockchain_hash")
-    .eq("record_id", recordId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data?.blockchain_hash as string | undefined) ?? undefined;
+  const r = await db().query<{ blockchain_hash: string }>(
+    "SELECT blockchain_hash FROM audit_logs WHERE record_id = $1 ORDER BY created_at DESC LIMIT 1",
+    [recordId]);
+  return r.rows[0]?.blockchain_hash;
 }

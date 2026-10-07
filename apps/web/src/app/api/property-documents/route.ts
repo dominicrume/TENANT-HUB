@@ -1,8 +1,22 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { PropertyDocumentCreateSchema, PropertyDocumentRequestSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+
+interface PropertyDocumentRow {
+  id: string;
+  org_id: string;
+  property_id: string;
+  document_type: string;
+  file_url: string | null;
+  status: string;
+  requested_from_landlord_id: string | null;
+  requested_at: string | null;
+  received_at: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -15,14 +29,25 @@ export const dynamic = "force-dynamic";
 export const GET = withRouteHandler({ resource: "properties", action: "read" }, async (req, _ctx, auth) => {
   const propertyId = new URL(req.url).searchParams.get("propertyId");
   if (!propertyId) return NextResponse.json({ error: "propertyId is required" }, { status: 400 });
+  if (!auth.actor.org_id) return NextResponse.json([], { headers: { "Cache-Control": "no-store" } });
 
-  const { data, error } = await auth.supabase
-    .from("property_documents")
-    .select("*, landlords(name)")
-    .eq("property_id", propertyId)
-    .order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
-  return NextResponse.json(data ?? [], { headers: { "Cache-Control": "no-store" } });
+  try {
+    const r = await db().query<PropertyDocumentRow & { landlord_name: string | null }>(
+      `SELECT pd.*, l.name AS landlord_name
+       FROM property_documents pd
+       LEFT JOIN landlords l ON l.id = pd.requested_from_landlord_id
+       WHERE pd.property_id = $1 AND pd.org_id = $2
+       ORDER BY pd.created_at DESC`,
+      [propertyId, auth.actor.org_id],
+    );
+    const data = r.rows.map(({ landlord_name, ...row }) => ({
+      ...row,
+      landlords: landlord_name ? { name: landlord_name } : null,
+    }));
+    return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
 });
 
 /**

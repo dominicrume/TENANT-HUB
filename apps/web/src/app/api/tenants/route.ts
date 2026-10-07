@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { TenantCreateSchema } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
@@ -7,10 +7,12 @@ import { generateSupportPlan } from "../../../lib/generate-plan";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /**
- * GET /api/tenants — active, non-archived tenants for the current user.
- * Reads via the RLS-respecting server client (D6). Returns an explicit 401
- * (never an empty 200) when unauthenticated — closing the silent-401 failure.
- * Consumed by useTenants() (single source of truth, H8).
+ * GET /api/tenants — active, non-archived tenants for the current user's
+ * organisation. Reads via packages/db with an explicit org_id filter,
+ * replacing what Supabase RLS (org_tenants_read / visible_tenant_ids())
+ * used to scope implicitly. Returns an explicit 401 (never an empty 200)
+ * when unauthenticated — closing the silent-401 failure. Consumed by
+ * useTenants() (single source of truth, H8).
  */
 export async function GET() {
   const auth = await getApiAuth();
@@ -19,16 +21,17 @@ export async function GET() {
   if (!can(auth.actor.user_role, "tenants", "read")) {
     return NextResponse.json({ error: "Permission denied" }, { status: 403 });
   }
+  if (!auth.actor.org_id) return NextResponse.json([]);
 
-  const { data, error } = await auth.supabase
-    .from("tenants")
-    .select("*")
-    .eq("is_active", true)
-    .eq("is_archived", false)
-    .order("created_at", { ascending: false });
-
-  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
-  return NextResponse.json(data ?? []);
+  try {
+    const r = await db().query(
+      `SELECT * FROM tenants WHERE org_id = $1 AND is_active = true AND is_archived = false ORDER BY created_at DESC`,
+      [auth.actor.org_id],
+    );
+    return NextResponse.json(r.rows);
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
 }
 
 /**
@@ -42,6 +45,7 @@ export async function POST(req: Request) {
   if (!can(auth.actor.user_role, "tenants", "create")) {
     return NextResponse.json({ error: "Permission denied" }, { status: 403 });
   }
+  if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
 
   const body = await req.json().catch(() => null);
   const parsed = TenantCreateSchema.safeParse(body);
@@ -51,17 +55,13 @@ export async function POST(req: Request) {
       { status: 422 },
     );
   }
-  
+
   if (parsed.data.room_number) {
-    const { count } = await auth.supabase
-      .from("tenants")
-      .select("id", { count: "exact", head: true })
-      .eq("org_id", auth.actor.org_id)
-      .eq("room_number", parsed.data.room_number)
-      .eq("is_archived", false)
-      .eq("is_active", true);
-      
-    if (count && count > 0) {
+    const { rows } = await db().query<{ count: string }>(
+      `SELECT COUNT(*) FROM tenants WHERE org_id = $1 AND room_number = $2 AND is_archived = false AND is_active = true`,
+      [auth.actor.org_id, parsed.data.room_number],
+    );
+    if (Number(rows[0]?.count ?? 0) > 0) {
       return NextResponse.json({ error: `Room ${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
     }
   }

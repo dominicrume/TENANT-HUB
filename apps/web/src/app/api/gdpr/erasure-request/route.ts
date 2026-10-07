@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
@@ -21,17 +21,17 @@ export async function POST(req: Request) {
 
   const { tenantId } = (await req.json().catch(() => ({}))) as { tenantId?: string };
   if (!tenantId) return NextResponse.json({ error: "tenantId required" }, { status: 400 });
+  if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
 
-  const { data: tenant, error } = await auth.supabase
-    .from("tenants")
-    .select("*")
-    .eq("id", tenantId)
-    .single();
-
-  if (error || !tenant) {
-    if (error) console.error("[gdpr/erasure-request:POST:lookup]", error);
-    return NextResponse.json({ error: error ? toSafeErrorMessage(error, "Tenant not found") : "Tenant not found" }, { status: 404 });
+  let tenant: Record<string, unknown> | undefined;
+  try {
+    const r = await db().query<Record<string, unknown>>("SELECT * FROM tenants WHERE id = $1 AND org_id = $2", [tenantId, auth.actor.org_id]);
+    tenant = r.rows[0];
+  } catch (err) {
+    console.error("[gdpr/erasure-request:POST:lookup]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err, "Tenant not found") }, { status: 404 });
   }
+  if (!tenant) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
   try {
     // Redact Personally Identifiable Information (PII)

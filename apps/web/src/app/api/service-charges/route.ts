@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { ServiceChargeCreateSchema } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
@@ -8,22 +8,35 @@ import { toSafeErrorMessage } from "../../../lib/safe-error";
 /**
  * GET /api/service-charges?tenantId=[id]  — charges for a tenant.
  * GET /api/service-charges?unpaid=true     — unpaid charges (dashboard total).
+ *
+ * service_charges has no org_id column of its own — org scoping goes through
+ * tenant_id IN (SELECT id FROM tenants WHERE org_id = ...), replicating the
+ * "org_rent_payments_read"-style RLS policy Supabase used to enforce.
  */
 export async function GET(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  if (!auth.actor.org_id) return NextResponse.json([]);
 
   const url = new URL(req.url);
   const tenantId = url.searchParams.get("tenantId");
   const unpaid = url.searchParams.get("unpaid") === "true";
 
-  let query = auth.supabase.from("service_charges").select("*").order("due_date", { ascending: true });
-  if (tenantId) query = query.eq("tenant_id", tenantId);
-  if (unpaid) query = query.eq("is_paid", false);
+  const params: unknown[] = [auth.actor.org_id];
+  let sql = "SELECT * FROM service_charges WHERE tenant_id IN (SELECT id FROM tenants WHERE org_id = $1)";
+  if (tenantId) {
+    params.push(tenantId);
+    sql += ` AND tenant_id = $${params.length}`;
+  }
+  if (unpaid) sql += " AND is_paid = false";
+  sql += " ORDER BY due_date ASC";
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
-  return NextResponse.json(data ?? []);
+  try {
+    const r = await db().query(sql, params);
+    return NextResponse.json(r.rows);
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
 }
 
 /** POST /api/service-charges — add a charge week (writeWithAudit, H1). */

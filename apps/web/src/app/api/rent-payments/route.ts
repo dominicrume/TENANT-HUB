@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { RentPaymentCreateSchema } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
@@ -7,20 +7,33 @@ import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /**
  * GET /api/rent-payments?tenantId=[id]
+ *
+ * rent_payments has no org_id column of its own — org scoping goes through
+ * tenant_id IN (SELECT id FROM tenants WHERE org_id = ...), replicating the
+ * "org_rent_payments_read" RLS policy Supabase used to enforce.
  */
 export async function GET(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  if (!auth.actor.org_id) return NextResponse.json([]);
 
   const url = new URL(req.url);
   const tenantId = url.searchParams.get("tenantId");
 
-  let query = auth.supabase.from("rent_payments").select("*").order("payment_date", { ascending: false });
-  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const params: unknown[] = [auth.actor.org_id];
+  let sql = "SELECT * FROM rent_payments WHERE tenant_id IN (SELECT id FROM tenants WHERE org_id = $1)";
+  if (tenantId) {
+    params.push(tenantId);
+    sql += ` AND tenant_id = $${params.length}`;
+  }
+  sql += " ORDER BY payment_date DESC";
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
-  return NextResponse.json(data ?? []);
+  try {
+    const r = await db().query(sql, params);
+    return NextResponse.json(r.rows);
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
 }
 
 /** POST /api/rent-payments — record a payment */

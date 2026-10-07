@@ -1,15 +1,21 @@
 import { complete, activeProvider } from "@tenant-hub/ai";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 export async function generateSupportPlan(
   tenantId: string,
   tenant: Record<string, any>,
   actor: { user_id: string; user_name: string; user_role: string; org_id?: string },
-  supabase: SupabaseClient<any, any, any>
+  supabase: SupabaseClient<any, any, any> | null
 ) {
   if (activeProvider() === "none") {
     throw new Error("No AI provider configured");
+  }
+  // Supabase Storage is what "tenant-documents" lives in — there's no Railway
+  // equivalent yet (DECISIONS D27). Fail clearly before spending an AI call
+  // on a document we already know we can't store.
+  if (!supabase) {
+    throw new Error("Document storage is not configured on this environment yet.");
   }
 
   const prompt = `You are generating a formal "Reliance Support Plan" for a supported housing tenant.
@@ -60,10 +66,13 @@ Write it in a formal, supportive, UK-English tone suitable for a housing associa
     ...actor,
   });
 
-  await supabase
-    .from("intake_checklists")
-    .update({ initial_assessment: true, updated_at: new Date().toISOString() })
-    .eq("tenant_id", tenantId);
+  const existing = await db().query<{ id: string }>("SELECT id FROM intake_checklists WHERE tenant_id = $1", [tenantId]);
+  await writeWithAudit({
+    table: "intake_checklists",
+    action: existing.rows[0] ? "UPDATE" : "CREATE",
+    record: { id: existing.rows[0]?.id, tenant_id: tenantId, initial_assessment: true } as Record<string, unknown>,
+    ...actor,
+  });
 
   return publicUrl;
 }

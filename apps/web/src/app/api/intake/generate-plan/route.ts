@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { db } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { can } from "@tenant-hub/auth";
 import { generateSupportPlan } from "../../../../lib/generate-plan";
@@ -22,13 +23,11 @@ export async function POST(req: Request) {
   if (!tenantId) return NextResponse.json({ error: "tenantId required" }, { status: 400 });
 
   // 1. Fetch Tenant
-  const { data: tenant, error: tErr } = await auth.supabase
-    .from("tenants")
-    .select("*")
-    .eq("id", tenantId)
-    .single();
+  if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
+  const tenantR = await db().query<Record<string, unknown>>("SELECT * FROM tenants WHERE id = $1 AND org_id = $2", [tenantId, auth.actor.org_id]);
+  const tenant = tenantR.rows[0];
 
-  if (tErr || !tenant) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+  if (!tenant) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
   try {
     const publicUrl = await generateSupportPlan(tenantId, tenant, auth.actor, auth.supabase);

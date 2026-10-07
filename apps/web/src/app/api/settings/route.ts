@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import type { AuditEntry } from "@tenant-hub/audit";
 
 import { SettingsUpdateSchema } from "@tenant-hub/validation";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 
+interface SettingsRow { id: string; brand: string; service_charge_default: string; updated_at: string }
+
+/**
+ * `settings` (supabase/migrations/005) is keyed by `brand`, NOT org_id - it
+ * genuinely has no org_id column. One row per brand (mattys_place,
+ * ash_shahada, reliance), not per organisation: these are the three brands
+ * this single client runs, not separate SaaS tenants. Supabase RLS never
+ * scoped it either (migration 028: "settings_read_all" USING (true), any
+ * authenticated user could read every brand's row) - so there is no
+ * per-tenant isolation to replicate here; this mirrors that as-is.
+ */
 export async function GET(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
@@ -13,14 +24,14 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const brand = searchParams.get("brand");
 
-  let query = auth.supabase.from("settings").select("*");
-  if (brand) {
-    query = query.eq("brand", brand);
+  try {
+    const r = brand
+      ? await db().query<SettingsRow>("SELECT * FROM settings WHERE brand = $1", [brand])
+      : await db().query<SettingsRow>("SELECT * FROM settings");
+    return NextResponse.json(r.rows);
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
-
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 500 });
-  return NextResponse.json(data);
 }
 
 export async function PATCH(req: Request) {

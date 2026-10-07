@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../lib/api-auth";
 import type { DraftState } from "../../../../lib/intake";
@@ -12,9 +12,13 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
-  const { data, error } = await auth.supabase.from("drafts").select("*").eq("id", params.id).single();
-  if (error) return NextResponse.json({ error: toSafeErrorMessage(error) }, { status: 404 });
-  return NextResponse.json(data);
+  try {
+    const r = await db().query<Record<string, unknown>>("SELECT * FROM drafts WHERE id = $1 AND created_by = $2", [params.id, auth.actor.user_id]);
+    if (!r.rows[0]) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json(r.rows[0]);
+  } catch (err) {
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 404 });
+  }
 }
 
 /**
@@ -28,6 +32,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!can(auth.actor.user_role, "drafts", "update")) {
     return NextResponse.json({ error: "Permission denied" }, { status: 403 });
   }
+
+  const owned = await db().query("SELECT 1 FROM drafts WHERE id = $1 AND created_by = $2", [params.id, auth.actor.user_id]);
+  if (!owned.rows[0]) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
   const record: Record<string, unknown> = { id: params.id };
