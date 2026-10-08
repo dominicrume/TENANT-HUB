@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   parseAtom, LegislationGovUkAdapter, SimInsuranceQuote, HttpInsuranceQuote, SimBankFeed, SimStt, SimNotify, ResendNotify,
-  SimIdCheck, CredasIdCheck,
-  insuranceQuotes, bankFeed, notifier, stt, idCheck, regulationFeed, adapterStatus, practiceMode, AdapterError,
+  SimIdCheck, CredasIdCheck, SimAddressLookup, NominatimAddressLookup, GooglePlacesAddressLookup,
+  insuranceQuotes, bankFeed, notifier, stt, idCheck, addressLookup, regulationFeed, adapterStatus, practiceMode, AdapterError,
 } from "../src";
 
 const baseEnv = {
-  ADAPTER_MODE_REGULATION: "live", ADAPTER_MODE_NOTIFY: "simulated", ADAPTER_MODE_BANK: "simulated", ADAPTER_MODE_INSURANCE: "simulated", ADAPTER_MODE_IDCHECK: "simulated", ADAPTER_MODE_STT: "simulated",
+  ADAPTER_MODE_REGULATION: "live", ADAPTER_MODE_NOTIFY: "simulated", ADAPTER_MODE_BANK: "simulated", ADAPTER_MODE_INSURANCE: "simulated", ADAPTER_MODE_IDCHECK: "simulated", ADAPTER_MODE_ADDRESS: "live", ADAPTER_MODE_STT: "simulated",
 } as unknown as Parameters<typeof notifier>[0];
 
 const fakeFetch = (status: number, body: unknown): typeof fetch =>
@@ -100,6 +100,40 @@ describe("live adapters fail loudly without credentials", () => {
     expect(r.source).toBe("broker.example");
     const empty = new HttpInsuranceQuote("https://broker.example/quotes", undefined, fakeFetch(200, { quotes: [] }));
     await expect(empty.getQuotes(r as never)).rejects.toThrow(/no usable quotes/);
+  });
+});
+
+describe("address lookup", () => {
+  it("SimAddressLookup badges every row as simulated", async () => {
+    const r = await new SimAddressLookup().search("B11 3AA");
+    expect(r.mode).toBe("simulated");
+    expect(r.data.every((a) => a.line1.includes("(simulated)") && a.postcode === "B11 3AA")).toBe(true);
+  });
+  it("Nominatim maps house number + road + postcode, drops rows without either, and fails loudly when down", async () => {
+    const live = new NominatimAddressLookup(fakeFetch(200, [
+      { lat: "52.44", lon: "-1.85", address: { house_number: "5A", road: "Formans Road", suburb: "Sparkhill", city: "Birmingham", postcode: "B11 3AA" } },
+      { lat: "52.44", lon: "-1.85", address: { city: "Birmingham" } }, // no street, no postcode — dropped
+    ]));
+    const r = await live.search("B11 3AA");
+    expect(r.source).toBe("nominatim");
+    expect(r.data).toEqual([{ line1: "5A Formans Road", line2: "Sparkhill", city: "Birmingham", postcode: "B11 3AA", lat: 52.44, lng: -1.85 }]);
+    await expect(new NominatimAddressLookup(fakeFetch(503, "")).search("x")).rejects.toThrow(/Nominatim 503/);
+  });
+  it("Google Places maps components and location", async () => {
+    const g = new GooglePlacesAddressLookup("k", fakeFetch(200, { places: [{
+      formattedAddress: "7 Formans Rd, Birmingham B11 3AA, UK", location: { latitude: 52.4, longitude: -1.8 },
+      addressComponents: [{ longText: "7", types: ["street_number"] }, { longText: "Formans Road", types: ["route"] }, { longText: "Birmingham", types: ["postal_town"] }, { longText: "B11 3AA", types: ["postal_code"] }],
+    }] }));
+    const r = await g.search("7 Formans Road");
+    expect(r.source).toBe("google-places");
+    expect(r.data).toEqual([{ line1: "7 Formans Road", city: "Birmingham", postcode: "B11 3AA", lat: 52.4, lng: -1.8 }]);
+  });
+  it("factory: Google when its key exists, OpenStreetMap by default, simulated only when asked", () => {
+    expect(addressLookup(baseEnv).mode).toBe("live");
+    expect(addressLookup(baseEnv)).toBeInstanceOf(NominatimAddressLookup);
+    expect(addressLookup({ ...baseEnv, GOOGLE_PLACES_API_KEY: "k" } as never)).toBeInstanceOf(GooglePlacesAddressLookup);
+    expect(addressLookup({ ...baseEnv, ADAPTER_MODE_ADDRESS: "simulated" } as never)).toBeInstanceOf(SimAddressLookup);
+    expect(adapterStatus({ ...baseEnv, GOOGLE_PLACES_API_KEY: "k" } as never).address.source).toBe("google-places");
   });
 });
 

@@ -61,3 +61,7 @@ export interface IdCheckPort {
   submitCheck(applicant: ApplicantIdentity): Promise<AdapterResult<{ providerRef: string; outcome: IdCheckOutcome }>>;
   getCheckStatus(providerRef: string): Promise<AdapterResult<{ outcome: IdCheckOutcome; detail?: string }>>;
 }
+
+/* ── UK address lookup — suggestions only; the human picks ───────────────── */
+export interface AddressSuggestion { line1: string; line2?: string; city: string; postcode: string; lat?: number; lng?: number }
+export interface AddressLookupPort { readonly mode: AdapterMode; search(query: string): Promise<AdapterResult<AddressSuggestion[]>> }

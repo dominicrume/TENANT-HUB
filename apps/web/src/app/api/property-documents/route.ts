@@ -3,6 +3,8 @@ import { db, writeWithAudit, insertDocumentBlob, MAX_DOCUMENT_BYTES } from "@ten
 import { PropertyDocumentRequestSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { looksLikeTenantDocument } from "../../../lib/document-types";
+import { sendLandlordDocumentRequest } from "../../../lib/resend";
 
 interface PropertyDocumentRow {
   id: string;
@@ -35,7 +37,7 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
   try {
     const r = await db().query<PropertyDocumentRow & { landlord_name: string | null }>(
       `SELECT pd.id, pd.org_id, pd.property_id, pd.document_type, pd.blob_id, pd.status,
-              pd.requested_from_landlord_id, pd.requested_at, pd.received_at, pd.uploaded_by, pd.created_at,
+              pd.requested_from_landlord_id, pd.requested_at, pd.notified_at, pd.received_at, pd.uploaded_by, pd.created_at,
               l.name AS landlord_name
        FROM property_documents pd
        LEFT JOIN landlords l ON l.id = pd.requested_from_landlord_id
@@ -71,6 +73,9 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
     if (typeof propertyId !== "string" || typeof documentType !== "string" || !documentType.trim() || !(file instanceof File)) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
     }
+    if (looksLikeTenantDocument(documentType)) {
+      return NextResponse.json({ error: `"${documentType.trim()}" is a tenant document — add it on the tenant's own record, not the property.` }, { status: 422 });
+    }
     if (file.size === 0) return NextResponse.json({ error: "That file is empty" }, { status: 422 });
     if (file.size > MAX_DOCUMENT_BYTES) return NextResponse.json({ error: `File is too large (max ${MAX_DOCUMENT_BYTES / 1024 / 1024}MB)` }, { status: 413 });
 
@@ -105,6 +110,9 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
   const parsed = PropertyDocumentRequestSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid request", issues: parsed.error.issues }, { status: 422 });
   if (!parsed.data.requested_from_landlord_id) return NextResponse.json({ error: "Pick which landlord to ask" }, { status: 422 });
+  if (looksLikeTenantDocument(parsed.data.document_type)) {
+    return NextResponse.json({ error: `"${parsed.data.document_type}" is a tenant document — it belongs on the tenant's record, not a landlord request.` }, { status: 422 });
+  }
   try {
     const { data } = await writeWithAudit({
       table: "property_documents",
@@ -115,7 +123,32 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
       } as Record<string, unknown>,
       action: "CREATE", org_id: auth.actor.org_id, ...auth.actor,
     });
-    return NextResponse.json(data, { status: 201 });
+    const row = data as Record<string, unknown>;
+
+    // The request is real only if the landlord is actually told. Until
+    // 2026-10-08 this stopped at the row above — "Requested" with nobody
+    // asked. Now: email via Resend, and record notified_at only when Resend
+    // accepted it; no address on file or a failed send leaves it null, and
+    // the UI says so rather than implying the landlord knows.
+    const info = await db().query<{ email: string | null; landlord: string; property: string }>(
+      `SELECT l.contact_email AS email, l.name AS landlord, p.name AS property
+       FROM landlords l, properties p
+       WHERE l.id = $1 AND p.id = $2 AND l.org_id = $3 AND p.org_id = $3`,
+      [parsed.data.requested_from_landlord_id, parsed.data.property_id, auth.actor.org_id]);
+    const target = info.rows[0];
+    let notifiedAt: string | null = null;
+    if (target?.email) {
+      const sent = await sendLandlordDocumentRequest(target.email, target.landlord, parsed.data.document_type, target.property, auth.actor.user_name);
+      if (sent) {
+        notifiedAt = new Date().toISOString();
+        await writeWithAudit({
+          table: "property_documents",
+          record: { id: row["id"], notified_at: notifiedAt } as Record<string, unknown>,
+          action: "UPDATE", org_id: auth.actor.org_id, ...auth.actor,
+        });
+      }
+    }
+    return NextResponse.json({ ...row, notified_at: notifiedAt, landlord_email: target?.email ?? null }, { status: 201 });
   } catch (err) {
     console.error("[property-documents:POST:request]", err);
     return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });

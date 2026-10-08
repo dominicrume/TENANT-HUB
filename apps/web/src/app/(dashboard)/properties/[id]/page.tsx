@@ -20,7 +20,7 @@ import { AddTenancyModal } from "../../../../components/property/AddTenancyModal
 
 interface PropertyDoc {
   id: string; document_type: string; blob_id: string | null; status: "requested" | "received";
-  created_at: string; landlords?: { name: string } | null;
+  created_at: string; notified_at?: string | null; landlords?: { name: string } | null;
 }
 
 interface PropertyDetail {
@@ -305,7 +305,11 @@ export default function PropertyDetailPage() {
                   {d.status === "received" ? (
                     <span style={{ color: "var(--live)", fontWeight: 600 }}>Received</span>
                   ) : (
-                    <span style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Requested{d.landlords?.name ? ` from ${d.landlords.name}` : ""}</span>
+                    <span style={{ color: "var(--amber-deep)", fontWeight: 600 }}>
+                      {d.notified_at
+                        ? `Emailed ${d.landlords?.name ?? "the landlord"} · ${formatShortDate(d.notified_at)}`
+                        : `Requested${d.landlords?.name ? ` from ${d.landlords.name}` : ""} · no email went (no address on file)`}
+                    </span>
                   )}
                   {" · "}{formatShortDate(d.created_at)}
                 </p>

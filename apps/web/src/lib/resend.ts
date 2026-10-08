@@ -375,6 +375,48 @@ export async function sendMaintenanceAck(to: string, tenantName: string, issueTi
   });
 }
 
+// 9. Document request to a landlord. Returns true only if Resend accepted
+// it — the caller records that, so "Requested" never quietly means "nobody
+// was told". No key configured = false, same as a failed send.
+export async function sendLandlordDocumentRequest(
+  to: string, landlordName: string, documentType: string, propertyName: string, requestedBy: string,
+): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) return false;
+
+  const html = emailTemplate(
+    "Document Requested",
+    `<p>Hello ${landlordName},</p>
+     <p>${requestedBy} has asked for a document for <strong>${propertyName}</strong>:</p>
+     <div class="table-container">
+       <table>
+         <tbody>
+           <tr>
+             <td><strong>Document:</strong></td>
+             <td>${documentType}</td>
+           </tr>
+           <tr>
+             <td><strong>Property:</strong></td>
+             <td>${propertyName}</td>
+           </tr>
+         </tbody>
+       </table>
+     </div>
+     <p>Please reply to this email with the document attached, or send it to ${requestedBy} directly, and it will be filed against the property.</p>`,
+  );
+
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: `Document requested: ${documentType} — ${propertyName}`,
+      html,
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 // 8. Maintenance Resolved
 export async function sendMaintenanceResolved(to: string, tenantName: string, issueTitle: string) {
   if (!process.env.RESEND_API_KEY) return;

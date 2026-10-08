@@ -14,7 +14,7 @@ import { toSafeErrorMessage } from "../../../lib/safe-error";
  * when unauthenticated — closing the silent-401 failure. Consumed by
  * useTenants() (single source of truth, H8).
  */
-export async function GET() {
+export async function GET(req: Request) {
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
@@ -23,9 +23,17 @@ export async function GET() {
   }
   if (!auth.actor.org_id) return NextResponse.json([]);
 
+  // ?unhoused=1 — only tenants with no active tenancy anywhere. Feeds the
+  // "Existing tenant" picker when adding a tenancy, so someone already in a
+  // room can't be offered for a second one (the server refuses it anyway).
+  const unhoused = new URL(req.url).searchParams.get("unhoused") === "1";
+
   try {
     const r = await db().query(
-      `SELECT * FROM tenants WHERE org_id = $1 AND is_active = true AND is_archived = false ORDER BY created_at DESC`,
+      `SELECT t.* FROM tenants t
+       WHERE t.org_id = $1 AND t.is_active = true AND t.is_archived = false
+         ${unhoused ? "AND NOT EXISTS (SELECT 1 FROM tenancies ty WHERE ty.tenant_id = t.id AND ty.status = 'active')" : ""}
+       ORDER BY t.created_at DESC`,
       [auth.actor.org_id],
     );
     return NextResponse.json(r.rows);

@@ -15,8 +15,10 @@ interface ExistingTenant { id: string; full_name: string; room_number: string | 
  * sensible defaults go in, editable afterwards from the tenant's own
  * Personal Details / Housing Benefit tabs. Picking an existing tenant just
  * links them to this room (POST /api/tenancies) — no duplicate tenant
- * created. Doesn't yet stop a tenant being picked here while they're
- * already housed elsewhere (Rume flagged this as a real gap, separately).
+ * created. The existing-tenant list is ?unhoused=1 — only people with no
+ * active tenancy anywhere — and the server refuses a second active tenancy
+ * regardless (one room per person; migration 051), so nobody can be put in
+ * two places at once from here or anywhere else.
  */
 export function AddTenancyModal({
   open, onClose, onCreated, unitId, roomReference, address, postcode,
@@ -45,7 +47,7 @@ export function AddTenancyModal({
 
   useEffect(() => {
     if (!open || mode !== "existing" || existingTenants !== null) return;
-    fetch("/api/tenants").then((r) => (r.ok ? r.json() : [])).then(setExistingTenants).catch(() => setExistingTenants([]));
+    fetch("/api/tenants?unhoused=1").then((r) => (r.ok ? r.json() : [])).then(setExistingTenants).catch(() => setExistingTenants([]));
   }, [open, mode, existingTenants]);
 
   if (!open) return null;
@@ -116,8 +118,8 @@ export function AddTenancyModal({
         {mode === "existing" ? (
           <label><span className="lbl">Which tenant?</span>
             <select value={existingTenantId} onChange={(e) => setExistingTenantId(e.target.value)} required style={inp}>
-              <option value="">{existingTenants === null ? "Loading…" : existingTenants.length === 0 ? "No tenants in the system yet" : "Select a tenant"}</option>
-              {(existingTenants ?? []).map((t) => <option key={t.id} value={t.id}>{t.full_name}{t.room_number ? ` (currently ${t.room_number})` : ""}</option>)}
+              <option value="">{existingTenants === null ? "Loading…" : existingTenants.length === 0 ? "Everyone on file is already housed — use New tenant" : "Select a tenant"}</option>
+              {(existingTenants ?? []).map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
             </select>
           </label>
         ) : (

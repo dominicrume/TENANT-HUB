@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit, insertDocumentBlob, deleteDocumentBlob, MAX_DOCUMENT_BYTES } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { looksLikePropertyDocument } from "../../../lib/document-types";
 
 interface TenantDocRow {
   id: string;
@@ -52,6 +53,9 @@ export async function POST(req: Request) {
   const file = form?.get("file");
   if (typeof tenantId !== "string" || typeof name !== "string" || !name.trim() || !(file instanceof File)) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
+  }
+  if (looksLikePropertyDocument(name)) {
+    return NextResponse.json({ error: `"${name.trim()}" is a property document — add it on the property's page, not the tenant's.` }, { status: 422 });
   }
   if (file.size === 0) return NextResponse.json({ error: "That file is empty" }, { status: 422 });
   if (file.size > MAX_DOCUMENT_BYTES) return NextResponse.json({ error: `File is too large (max ${MAX_DOCUMENT_BYTES / 1024 / 1024}MB)` }, { status: 413 });

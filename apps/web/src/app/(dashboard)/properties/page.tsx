@@ -22,7 +22,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { PostcodeField } from "../../../components/PostcodeField";
+import { AddressField } from "../../../components/AddressField";
 
 interface Property {
   id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null;
@@ -201,10 +201,15 @@ export default function PropertiesPage() {
           <label><span className="lbl">Name</span>
             <input value={name} onChange={(e) => setName(e.target.value)} required placeholder="14 Ravenhurst Street" style={inp} /></label>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Address</span>
-              <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Optional" style={inp} /></label>
+            <label style={{ flex: 2, minWidth: 220 }}><span className="lbl">Address</span>
+              <AddressField
+                value={address}
+                onChange={setAddress}
+                onPick={(a) => { if (a.line1) setAddress([a.line1, a.line2].filter(Boolean).join(", ")); if (a.postcode) setPostcode(a.postcode); if (a.line1 && !name) setName(a.line1); }}
+                style={inp}
+              /></label>
             <label style={{ flex: 1, minWidth: 120 }}><span className="lbl">Postcode</span>
-              <PostcodeField value={postcode} onChange={setPostcode} style={inp} /></label>
+              <input value={postcode} onChange={(e) => setPostcode(e.target.value)} placeholder="Fills in when you pick" style={inp} /></label>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Type</span>

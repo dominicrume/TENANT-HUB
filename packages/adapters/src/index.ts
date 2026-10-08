@@ -12,7 +12,7 @@ import { env } from "@tenant-hub/env";
 import type {
   AdapterMode, AdapterResult, RegulationFeedPort, RegulationItem, InsuranceQuotePort, Quote, RiskProfile,
   BankFeedPort, ExpectedRent, BankTransaction, SttPort, NotifyPort, Notification,
-  IdCheckPort, ApplicantIdentity, IdCheckOutcome,
+  IdCheckPort, ApplicantIdentity, IdCheckOutcome, AddressLookupPort, AddressSuggestion,
 } from "@tenant-hub/ports";
 
 export class AdapterError extends Error {
@@ -127,6 +127,71 @@ export class CredasIdCheck implements IdCheckPort {
   }
 }
 
+/* ═══════════════════════ UK address lookup ════════════════════════════════
+ * Suggestions only — the human picks the address (same "stops at the
+ * decision card" shape as quotes). Two real providers: Google Places, the
+ * reference Rume pointed at (needs a key + billing on his Google account),
+ * and Nominatim/OpenStreetMap — free, keyless, usable today, with patchier
+ * house-number coverage. The factory prefers Google whenever its key
+ * exists, so adding GOOGLE_PLACES_API_KEY upgrades the picker with no code
+ * change. Built 2026-10-08 on "close it by building it" rather than waiting
+ * on the vendor decision. */
+export class SimAddressLookup implements AddressLookupPort {
+  readonly mode = "simulated" as const;
+  async search(q: string): Promise<AdapterResult<AddressSuggestion[]>> {
+    const postcode = q.trim().toUpperCase() || "B11 3AA";
+    return ok([
+      { line1: "1 Example Road (simulated)", city: "Birmingham", postcode },
+      { line1: "2 Example Road (simulated)", city: "Birmingham", postcode },
+    ], "simulated", "sim:address");
+  }
+}
+/** OpenStreetMap's Nominatim. Usage policy: identify the app, ≤1 req/s, no bulk — fine for a few staff typing addresses. */
+export class NominatimAddressLookup implements AddressLookupPort {
+  readonly mode = "live" as const;
+  constructor(private readonly fetchImpl: typeof fetch = fetch) {}
+  async search(q: string): Promise<AdapterResult<AddressSuggestion[]>> {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=gb&limit=10&q=${encodeURIComponent(q)}`;
+    const res = await this.fetchImpl(url, { headers: { "User-Agent": "TenantHub/1.0 (app.mattysplace.org.uk)", "Accept-Language": "en-GB" } }).catch(() => null);
+    if (!res || !res.ok) throw new AdapterError(`Nominatim ${res?.status ?? "unreachable"}`, "address");
+    const rows = (await res.json().catch(() => [])) as Array<{ lat: string; lon: string; address?: Record<string, string> }>;
+    const out = rows.map((r) => {
+      const a = r.address ?? {};
+      const street = [a.house_number, a.road].filter(Boolean).join(" ");
+      const line1 = street || a.building || a.neighbourhood || a.suburb || "";
+      const area = a.suburb || a.neighbourhood;
+      return {
+        line1, line2: street && area ? area : undefined,
+        city: a.city || a.town || a.village || a.county || "", postcode: a.postcode ?? "",
+        lat: Number(r.lat), lng: Number(r.lon),
+      };
+    }).filter((s) => s.line1 && s.postcode);
+    return ok(out, "live", "nominatim");
+  }
+}
+/** Google Places API (New), Text Search — formatted address, components and location in one call. */
+export class GooglePlacesAddressLookup implements AddressLookupPort {
+  readonly mode = "live" as const;
+  constructor(private readonly key: string, private readonly fetchImpl: typeof fetch = fetch) {}
+  async search(q: string): Promise<AdapterResult<AddressSuggestion[]>> {
+    const res = await this.fetchImpl("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": this.key, "X-Goog-FieldMask": "places.formattedAddress,places.addressComponents,places.location" },
+      body: JSON.stringify({ textQuery: q, regionCode: "GB", languageCode: "en-GB", pageSize: 10 }),
+    }).catch(() => null);
+    if (!res || !res.ok) throw new AdapterError(`Google Places ${res?.status ?? "unreachable"}`, "address");
+    const j = (await res.json().catch(() => ({}))) as {
+      places?: Array<{ formattedAddress?: string; location?: { latitude: number; longitude: number }; addressComponents?: Array<{ longText: string; types: string[] }> }>;
+    };
+    const out = (j.places ?? []).map((p) => {
+      const comp = (t: string) => p.addressComponents?.find((c) => c.types.includes(t))?.longText ?? "";
+      const line1 = [comp("subpremise"), comp("street_number"), comp("route")].filter(Boolean).join(" ") || (p.formattedAddress ?? "").split(",")[0] || "";
+      return { line1, city: comp("postal_town") || comp("locality") || "", postcode: comp("postal_code"), lat: p.location?.latitude, lng: p.location?.longitude };
+    }).filter((s) => s.line1 && s.postcode);
+    return ok(out, "live", "google-places");
+  }
+}
+
 /* ═══════════════════════ Bank feed (read-only) ═══════════════════════════ */
 /** Pays fresh charges cleanly; every second one arrives as a half payment with a vague reference, so the weak-match queue is always demonstrable. */
 export class SimBankFeed implements BankFeedPort {
@@ -221,6 +286,13 @@ export function idCheck(e: Env = env.server): IdCheckPort {
   return new SimIdCheck();
 }
 
+/** UK address suggestions. Google when its key exists; otherwise OpenStreetMap (keyless) unless explicitly simulated. */
+export function addressLookup(e: Env = env.server): AddressLookupPort {
+  if (e.GOOGLE_PLACES_API_KEY) return new GooglePlacesAddressLookup(e.GOOGLE_PLACES_API_KEY);
+  if (e.ADAPTER_MODE_ADDRESS === "simulated") return new SimAddressLookup();
+  return new NominatimAddressLookup();
+}
+
 /** Which connections are live right now, and the variable that switches each on — shown on Settings → Connections. */
 export function adapterStatus(e: Env = env.server) {
   const live = (v: AdapterMode) => v === "live";
@@ -230,6 +302,7 @@ export function adapterStatus(e: Env = env.server) {
     bank:       { mode: e.ADAPTER_MODE_BANK, source: live(e.ADAPTER_MODE_BANK) ? "truelayer" : "sim:bank", switch: "TRUELAYER_ACCESS_TOKEN + TRUELAYER_ACCOUNT_ID, ADAPTER_MODE_BANK=live" },
     insurance:  { mode: e.ADAPTER_MODE_INSURANCE, source: live(e.ADAPTER_MODE_INSURANCE) ? "quote endpoint" : "sim:insurance", switch: "INSURANCE_QUOTE_URL, ADAPTER_MODE_INSURANCE=live" },
     idcheck:    { mode: e.ADAPTER_MODE_IDCHECK, source: live(e.ADAPTER_MODE_IDCHECK) ? "credas" : "sim:idcheck", switch: "CREDAS_BASE_URL + CREDAS_API_KEY, ADAPTER_MODE_IDCHECK=live" },
+    address:    { mode: (e.GOOGLE_PLACES_API_KEY ? "live" : e.ADAPTER_MODE_ADDRESS) as AdapterMode, source: e.GOOGLE_PLACES_API_KEY ? "google-places" : live(e.ADAPTER_MODE_ADDRESS) ? "nominatim" : "sim:address", switch: "GOOGLE_PLACES_API_KEY upgrades to Google; ADAPTER_MODE_ADDRESS=simulated to fake it" },
     stt:        { mode: e.ADAPTER_MODE_STT, source: "sim:stt", switch: "no live adapter yet" },
     ai:         { mode: (e.OPENAI_API_KEY || e.ANTHROPIC_API_KEY ? "live" : "simulated") as AdapterMode, source: e.OPENAI_API_KEY ? "openai" : e.ANTHROPIC_API_KEY ? "anthropic" : "rules", switch: "OPENAI_API_KEY or ANTHROPIC_API_KEY" },
   };

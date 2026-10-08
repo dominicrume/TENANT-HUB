@@ -46,6 +46,8 @@ const serverSchema = z.object({
   ADAPTER_MODE_BANK:       z.enum(["live", "simulated"]).catch("simulated"),
   ADAPTER_MODE_INSURANCE:  z.enum(["live", "simulated"]).catch("simulated"),
   ADAPTER_MODE_IDCHECK:    z.enum(["live", "simulated"]).catch("simulated"),
+  // Address lookup is live by default: Nominatim (OpenStreetMap) needs no key. GOOGLE_PLACES_API_KEY upgrades it.
+  ADAPTER_MODE_ADDRESS:    z.enum(["live", "simulated"]).catch("live"),
   ADAPTER_MODE_STT:        z.enum(["live", "simulated"]).catch("simulated"),
   // Live adapters switch on only when their credentials exist.
   RESEND_API_KEY:          z.string().optional().catch(undefined),
@@ -58,6 +60,9 @@ const serverSchema = z.object({
   CREDAS_BASE_URL:         z.string().url().optional().catch(undefined),
   CREDAS_API_KEY:          z.string().optional().catch(undefined),
   CREDAS_WEBHOOK_SECRET:   z.string().optional().catch(undefined),
+  // UK address lookup — Google Places (New) key. When set, the address picker
+  // upgrades from OpenStreetMap to Google automatically, no code change.
+  GOOGLE_PLACES_API_KEY:   z.string().optional().catch(undefined),
 });
 
 // ── Client-safe schema (NEXT_PUBLIC_ prefix) ─────────────────────────────
