@@ -7,7 +7,6 @@
 
 import { useState } from "react";
 import type { CanonicalTenant } from "@tenant-hub/validation";
-import { useBrand } from "../contexts/BrandContext";
 import { useAuth } from "../contexts/AuthContext";
 import { LetterheadBlock } from "./LetterheadBlock";
 import { formatUkDate } from "../lib/format";
@@ -21,7 +20,6 @@ export function EvictionNoticeModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { label } = useBrand();
   const { profile } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
   const [noticeDays, setNoticeDays] = useState("28");
@@ -101,7 +99,7 @@ export function EvictionNoticeModal({
               <p className="print-only" style={{ display: "none" }}>Reason: {reason || "—"}</p>
               <p style={{ marginTop: "16px" }}>You are required to give up possession after the notice period stated above.</p>
               <p style={{ marginTop: "24px", fontWeight: 600, color: "var(--navy)", textTransform: "uppercase" }}>
-                On behalf of {label}: {profile?.full_name || "AUTHORIZED MANAGER"}
+                On behalf of {profile?.org_name ?? "Tenant Hub"}: {profile?.full_name || "AUTHORIZED MANAGER"}
               </p>
             </div>
             {error && <p className="no-print" style={{ color: "#E05252", fontSize: "13px", marginTop: "12px" }}>{error}</p>}

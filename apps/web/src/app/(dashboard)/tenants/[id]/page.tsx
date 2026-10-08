@@ -35,6 +35,7 @@ import { DynamicFormTab, type FormTemplate } from "../../../../components/tenant
 import { FormsPanel } from "../../../../components/layout/FormsPanel";
 import { BeforeYourNextContact } from "../../../../components/tenant/BeforeYourNextContact";
 import { ConfidentialityDeclaration } from "../../../../components/tenant/ConfidentialityDeclaration";
+import { compressImage } from "../../../../lib/compress-image";
 
 const CORE_TABS = [
   { key: "personal", label: "Personal Details" },
@@ -211,7 +212,7 @@ export default function TenantDetailPage() {
             id="profile-photo-upload"
             style={{ display: 'none' }}
             accept="image/*"
-            capture="environment"
+            capture="user"
             onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file) return;
@@ -219,8 +220,9 @@ export default function TenantDetailPage() {
               setPhotoBusy(true);
               setPhotoMsg(null);
               try {
+                const compressed = await compressImage(file);
                 const form = new FormData();
-                form.append("file", file);
+                form.append("file", compressed);
                 const res = await fetch(`/api/tenants/${id}/photo`, { method: "POST", body: form });
                 if (!res.ok) {
                   const b = await res.json().catch(() => null);

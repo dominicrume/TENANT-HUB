@@ -1,19 +1,27 @@
 /**
  * LetterheadBlock — official document header used on the tenant detail form,
- * intake, reports and the eviction notice. Brand comes from BrandContext so one
- * click reletterheads every document. The switcher lives here, on the document
- * that carries the letterhead, not in the console chrome (BUILD_PLAN C03). It is
- * hidden in print. Always shows the OFFICIAL USE ONLY badge.
+ * intake, reports and the eviction notice. Always shows the OFFICIAL USE ONLY
+ * badge.
+ *
+ * Brand comes from the REAL, active organisation (AuthContext), not a
+ * manually-clickable picker. It used to be switchable (BrandContext, a
+ * cosmetic preference stored in localStorage, independent of which org was
+ * actually active) — that's what let a document say "On behalf of Matty's
+ * Place" while the signed-in workspace was genuinely Reliance Housing: a
+ * wrong legal document, not just a confusing label. Once real, isolated
+ * organisations existed (BUILD_PLAN C46 / the multi-org workspace picker),
+ * a second, disconnected "which brand" picker had no reason to still exist,
+ * so it's gone — the letterhead is always whichever org you're actually
+ * signed into, with nothing to pick.
  */
 "use client";
 
-import { useBrand, BRAND_LABELS, type Brand } from "../contexts/BrandContext";
+import { useAuth } from "../contexts/AuthContext";
 
-const SHORT: Record<Brand, string> = { mattys_place: "Matty's", reliance: "Reliance" };
-
-export function LetterheadBlock({ roomNumber, date, switchable = true }: { roomNumber?: string; date?: string; switchable?: boolean }) {
-  const { brand, setBrand, label } = useBrand();
-  const letter = label.charAt(0).toUpperCase();
+export function LetterheadBlock({ roomNumber, date }: { roomNumber?: string; date?: string }) {
+  const { profile } = useAuth();
+  const name = profile?.org_name ?? "Tenant Hub";
+  const letter = name.charAt(0).toUpperCase();
 
   return (
     <div
@@ -49,40 +57,12 @@ export function LetterheadBlock({ roomNumber, date, switchable = true }: { roomN
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ color: "var(--navy)", fontWeight: 700, fontSize: "16px", fontFamily: "'Sora', sans-serif" }}>
-          {label}
+          {name}
         </div>
         <div style={{ color: "var(--slate-2)", fontSize: "12px", fontFamily: "'JetBrains Mono', monospace" }}>
           {[roomNumber, date].filter(Boolean).join("  ·  ") || "Official record"}
         </div>
       </div>
-
-      {switchable && (
-        <div className="no-print" role="group" aria-label="Letterhead" style={{ display: "flex", gap: "4px" }}>
-          {(Object.keys(BRAND_LABELS) as Brand[]).map((b) => (
-            <button
-              key={b}
-              type="button"
-              onClick={() => setBrand(b)}
-              title={`Use the ${BRAND_LABELS[b]} letterhead`}
-              aria-pressed={brand === b}
-              style={{
-                minHeight: "36px",
-                padding: "6px 10px",
-                borderRadius: "8px",
-                border: brand === b ? "1.5px solid var(--navy)" : "1.5px solid var(--line)",
-                cursor: "pointer",
-                fontSize: "12px",
-                fontWeight: 600,
-                fontFamily: "'Sora',sans-serif",
-                background: brand === b ? "var(--navy)" : "var(--surface)",
-                color: brand === b ? "#fff" : "var(--navy)",
-              }}
-            >
-              {SHORT[b]}
-            </button>
-          ))}
-        </div>
-      )}
 
       <span
         style={{
