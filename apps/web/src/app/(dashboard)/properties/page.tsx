@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { PostcodeField } from "../../../components/PostcodeField";
 
 interface Property {
   id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null;
@@ -203,7 +204,7 @@ export default function PropertiesPage() {
             <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Address</span>
               <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Optional" style={inp} /></label>
             <label style={{ flex: 1, minWidth: 120 }}><span className="lbl">Postcode</span>
-              <input value={postcode} onChange={(e) => setPostcode(e.target.value)} placeholder="Optional" style={inp} /></label>
+              <PostcodeField value={postcode} onChange={setPostcode} style={inp} /></label>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Type</span>
