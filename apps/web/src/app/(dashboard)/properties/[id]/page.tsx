@@ -210,7 +210,14 @@ export default function PropertyDetailPage() {
                 <div className="body">
                   <b>{u.reference}</b>
                   <p>
-                    {u.tenancy ? `${u.tenancy.tenants?.full_name ?? "Tenant"} · ${formatMoney(u.tenancy.rent_amount)} ${u.tenancy.rent_frequency}` : "Vacant"}
+                    {u.tenancy ? (
+                      <>
+                        <Link href={`/tenants/${u.tenancy.tenant_id}`} style={{ color: "var(--navy)", fontWeight: 600, textDecoration: "underline" }}>
+                          {u.tenancy.tenants?.full_name ?? "Tenant"}
+                        </Link>
+                        {` · ${formatMoney(u.tenancy.rent_amount)} ${u.tenancy.rent_frequency}`}
+                      </>
+                    ) : "Vacant"}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>

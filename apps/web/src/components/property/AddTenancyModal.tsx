@@ -1,17 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TITLES } from "@tenant-hub/validation";
 
+interface ExistingTenant { id: string; full_name: string; room_number: string | null }
+
 /**
- * Add tenancy, for real — one popup: the tenant's own details (name, DOB,
- * NINO, nationality, mobile), not a dropdown of pre-existing tenants (which
- * is empty for a brand-new property anyway). Address, postcode, room number
- * and move-in date come from the room itself, not retyped. Creates the
- * tenant (POST /api/tenants) then the tenancy (POST /api/tenancies) in one
- * action — benefit fields are required by the tenant schema but not asked
- * here; sensible defaults go in, editable afterwards from the tenant's own
- * Personal Details / Housing Benefit tabs.
+ * Add tenancy — two ways in: create a brand-new tenant right here (name,
+ * DOB, NINO, nationality, mobile; address/postcode/room/move-in come from
+ * the room itself, not retyped), or pick someone already in the system who
+ * isn't housed anywhere yet. Picking "New tenant" creates the tenant then
+ * the tenancy (POST /api/tenants, then /api/tenancies) in one action —
+ * benefit fields are required by the tenant schema but not asked here;
+ * sensible defaults go in, editable afterwards from the tenant's own
+ * Personal Details / Housing Benefit tabs. Picking an existing tenant just
+ * links them to this room (POST /api/tenancies) — no duplicate tenant
+ * created. Doesn't yet stop a tenant being picked here while they're
+ * already housed elsewhere (Rume flagged this as a real gap, separately).
  */
 export function AddTenancyModal({
   open, onClose, onCreated, unitId, roomReference, address, postcode,
@@ -24,6 +29,9 @@ export function AddTenancyModal({
   address: string;
   postcode: string;
 }) {
+  const [mode, setMode] = useState<"new" | "existing">("new");
+  const [existingTenants, setExistingTenants] = useState<ExistingTenant[] | null>(null);
+  const [existingTenantId, setExistingTenantId] = useState("");
   const [title, setTitle] = useState<string>(TITLES[0]);
   const [fullName, setFullName] = useState("");
   const [dob, setDob] = useState("");
@@ -35,13 +43,38 @@ export function AddTenancyModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!open || mode !== "existing" || existingTenants !== null) return;
+    fetch("/api/tenants").then((r) => (r.ok ? r.json() : [])).then(setExistingTenants).catch(() => setExistingTenants([]));
+  }, [open, mode, existingTenants]);
+
   if (!open) return null;
+
+  async function linkTenancy(tenantId: string) {
+    const res = await fetch("/api/tenancies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ unit_id: unitId, tenant_id: tenantId, rent_amount: Number(rent || 0), rent_frequency: frequency }),
+    });
+    if (!res.ok) {
+      const b = await res.json().catch(() => null);
+      throw new Error(b?.error ?? "Could not link that tenant to this room");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
+      if (mode === "existing") {
+        if (!existingTenantId) return;
+        await linkTenancy(existingTenantId);
+        onCreated();
+        onClose();
+        return;
+      }
+
       const today = new Date().toISOString().slice(0, 10);
       const tenantRes = await fetch("/api/tenants", {
         method: "POST",
@@ -58,16 +91,7 @@ export function AddTenancyModal({
         throw new Error(issue ?? b?.error ?? "Could not add the tenant");
       }
       const tenant = await tenantRes.json();
-
-      const tenancyRes = await fetch("/api/tenancies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unit_id: unitId, tenant_id: tenant.id, rent_amount: Number(rent || 0), rent_frequency: frequency }),
-      });
-      if (!tenancyRes.ok) {
-        const b = await tenancyRes.json().catch(() => null);
-        throw new Error(b?.error ?? "Tenant was added, but the tenancy could not be linked to this room");
-      }
+      await linkTenancy(tenant.id).catch((err) => { throw new Error(err instanceof Error ? `Tenant was added, but ${err.message.toLowerCase()}` : "Tenant was added, but the tenancy could not be linked"); });
 
       onCreated();
       onClose();
@@ -84,34 +108,50 @@ export function AddTenancyModal({
         <h2 style={{ margin: 0, color: "var(--navy)", fontSize: 18 }}>Add tenancy — {roomReference}</h2>
         <p style={{ margin: 0, fontSize: 13, color: "#7A8499" }}>{address}, {postcode}</p>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <label style={{ width: 90 }}><span className="lbl">Title</span>
-            <select value={title} onChange={(e) => setTitle(e.target.value)} style={inp}>
-              {TITLES.map((t) => <option key={t} value={t}>{t}</option>)}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={() => setMode("new")} className={mode === "new" ? "rel sm" : "btn ghost sm"}>New tenant</button>
+          <button type="button" onClick={() => setMode("existing")} className={mode === "existing" ? "rel sm" : "btn ghost sm"}>Existing tenant</button>
+        </div>
+
+        {mode === "existing" ? (
+          <label><span className="lbl">Which tenant?</span>
+            <select value={existingTenantId} onChange={(e) => setExistingTenantId(e.target.value)} required style={inp}>
+              <option value="">{existingTenants === null ? "Loading…" : existingTenants.length === 0 ? "No tenants in the system yet" : "Select a tenant"}</option>
+              {(existingTenants ?? []).map((t) => <option key={t.id} value={t.id}>{t.full_name}{t.room_number ? ` (currently ${t.room_number})` : ""}</option>)}
             </select>
           </label>
-          <label style={{ flex: 1 }}><span className="lbl">Full name</span>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} required style={inp} />
-          </label>
-        </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: 10 }}>
+              <label style={{ width: 90 }}><span className="lbl">Title</span>
+                <select value={title} onChange={(e) => setTitle(e.target.value)} style={inp}>
+                  {TITLES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </label>
+              <label style={{ flex: 1 }}><span className="lbl">Full name</span>
+                <input value={fullName} onChange={(e) => setFullName(e.target.value)} required style={inp} />
+              </label>
+            </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <label style={{ flex: 1 }}><span className="lbl">Date of birth</span>
-            <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} required style={inp} />
-          </label>
-          <label style={{ flex: 1 }}><span className="lbl">Nationality</span>
-            <input value={nationality} onChange={(e) => setNationality(e.target.value)} required style={inp} />
-          </label>
-        </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <label style={{ flex: 1 }}><span className="lbl">Date of birth</span>
+                <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} required style={inp} />
+              </label>
+              <label style={{ flex: 1 }}><span className="lbl">Nationality</span>
+                <input value={nationality} onChange={(e) => setNationality(e.target.value)} required style={inp} />
+              </label>
+            </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <label style={{ flex: 1 }}><span className="lbl">National Insurance No.</span>
-            <input value={nino} onChange={(e) => setNino(e.target.value.toUpperCase())} required placeholder="QQ 12 34 56 A" style={inp} />
-          </label>
-          <label style={{ flex: 1 }}><span className="lbl">Mobile</span>
-            <input value={mobile} onChange={(e) => setMobile(e.target.value)} required style={inp} />
-          </label>
-        </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <label style={{ flex: 1 }}><span className="lbl">National Insurance No.</span>
+                <input value={nino} onChange={(e) => setNino(e.target.value.toUpperCase())} required placeholder="QQ 12 34 56 A" style={inp} />
+              </label>
+              <label style={{ flex: 1 }}><span className="lbl">Mobile</span>
+                <input value={mobile} onChange={(e) => setMobile(e.target.value)} required style={inp} />
+              </label>
+            </div>
+          </>
+        )}
 
         <div style={{ display: "flex", gap: 10 }}>
           <label style={{ flex: 1 }}><span className="lbl">Rent</span>
@@ -129,7 +169,7 @@ export function AddTenancyModal({
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
           <button type="button" onClick={onClose} className="btn ghost sm">Cancel</button>
-          <button type="submit" className="rel sm" disabled={busy || !fullName.trim() || !dob || !nino.trim() || !mobile.trim()}>
+          <button type="submit" className="rel sm" disabled={busy || (mode === "existing" ? !existingTenantId : !fullName.trim() || !dob || !nino.trim() || !mobile.trim())}>
             {busy ? "Adding…" : "Add tenancy"}
           </button>
         </div>

@@ -53,7 +53,7 @@ export interface NavItem {
  * record and People page; Reports and Analytics are reached from Today (C05).
  */
 export const STAFF_NAV: NavItem[] = [
-  { href: "/dashboard",   label: "Today",               icon: "today",     mobile: true },
+  { href: "/dashboard",   label: "Dashboard",           icon: "today",     mobile: true },
   { href: "/tenants",     label: "People",              icon: "people",    mobile: true },
   { href: "/properties",  label: "Properties",          icon: "properties", mobile: true },
   { href: "/ledger",      label: "Rent",                icon: "rent",      mobile: true },

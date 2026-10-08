@@ -251,7 +251,11 @@ export default function TenantDetailPage() {
             title="Upload or take a tenant photo"
           >
             {tenant?.photo_url ? (
-               <Image src={tenant.photo_url} alt="Profile" fill sizes="72px" style={{ objectFit: "cover" }} />
+               // unoptimized: next/image's built-in optimizer fetches the src
+               // SERVER-SIDE without forwarding the browser's session cookie —
+               // this route is auth-gated, so the optimizer always got 401'd
+               // and rendered broken, even though the upload itself succeeded.
+               <Image src={tenant.photo_url} alt="Profile" fill sizes="72px" style={{ objectFit: "cover" }} unoptimized />
             ) : (
                <span style={{ fontSize: "24px" }}>📷</span>
             )}

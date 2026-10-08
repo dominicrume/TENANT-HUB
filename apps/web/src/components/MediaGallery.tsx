@@ -76,7 +76,10 @@ export function MediaGallery({ entityType, entityId, title = "Media" }: { entity
           {items.map((it) => (
             <div key={it.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 8, overflow: "hidden", background: "#F0EEE9" }}>
               <a href={it.url} target="_blank" rel="noreferrer">
-                <Image src={it.url} alt={it.caption ?? "Photo"} fill sizes="110px" style={{ objectFit: "cover" }} />
+                {/* unoptimized: /api/media/[id] is session-gated; next/image's
+                    built-in optimizer fetches src server-side without the
+                    browser's cookie and would always render this broken. */}
+                <Image src={it.url} alt={it.caption ?? "Photo"} fill sizes="110px" style={{ objectFit: "cover" }} unoptimized />
               </a>
               <button
                 type="button"

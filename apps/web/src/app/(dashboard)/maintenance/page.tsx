@@ -178,11 +178,15 @@ export default function MaintenancePage() {
 
                   {ticket.photo_url && (
                     <div style={{ marginBottom: "10px", position: "relative", height: "120px", width: "100%" }}>
+                      {/* unoptimized: /api/maintenance/[id]/photo is session-gated;
+                          next/image's optimizer fetches src server-side without
+                          the browser's cookie and would always render this broken. */}
                       <Image
                         src={ticket.photo_url}
                         alt="Issue"
                         fill
                         style={{ objectFit: "cover", borderRadius: "6px" }}
+                        unoptimized
                       />
                     </div>
                   )}

@@ -15,14 +15,13 @@ export const PROPERTY_DOCUMENT_TYPES = [
 ] as const;
 
 export const TENANT_DOCUMENT_TYPES = [
+  "Tenancy agreement",
+  "Authorisation letter",
+  "Initial Risk Assessment",
+  "Housing Benefit form",
   "ID",
   "Photo",
-  "Licence agreement",
-  "Authorisation letter",
-  "Housing Benefit form",
-  "Universal Credit",
-  "Deposit",
-  "Proof of address",
+  "Proof of Income (Universal Credit / Pension)",
 ] as const;
 
 export const OTHER_DOCUMENT_TYPE = "Other";
