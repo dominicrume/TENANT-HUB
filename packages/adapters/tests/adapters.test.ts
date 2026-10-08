@@ -122,6 +122,6 @@ describe("status for the Settings screen", () => {
     const s = adapterStatus(baseEnv);
     expect(s.notify.mode).toBe("simulated"); expect(s.notify.switch).toMatch(/RESEND_API_KEY/);
     expect(s.idcheck.mode).toBe("simulated"); expect(s.idcheck.switch).toMatch(/CREDAS_BASE_URL/);
-    expect(practiceMode(baseEnv)).toEqual(["email", "bank feed", "quotes"]); // ID checks is deliberately excluded from the pill (see practiceMode's own comment)
+    expect(practiceMode(baseEnv)).toEqual(["email"]); // ID checks, bank feed and quotes are deliberately excluded from the pill (see practiceMode's own comment)
   });
 });

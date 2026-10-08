@@ -234,12 +234,18 @@ export function adapterStatus(e: Env = env.server) {
     ai:         { mode: (e.OPENAI_API_KEY || e.ANTHROPIC_API_KEY ? "live" : "simulated") as AdapterMode, source: e.OPENAI_API_KEY ? "openai" : e.ANTHROPIC_API_KEY ? "anthropic" : "rules", switch: "OPENAI_API_KEY or ANTHROPIC_API_KEY" },
   };
 }
-/** Names of the connections still in practice mode, for the topbar pill. */
+/**
+ * Names of the connections still in practice mode, for the topbar pill.
+ * ID checks, bank feed and quotes are all deliberately left off this list
+ * (Rume, 2026-10-07/08: "how do we remove this totally and permanently" —
+ * none of the three are in active use, so the badge was pure noise with no
+ * corresponding benefit). adapterStatus() above still reports every one of
+ * them honestly for anyone who looks — this only changes what the pill
+ * surfaces unprompted. Only email is still here: it's a real, active
+ * feature, so if it ever drops back to simulated (e.g. RESEND_API_KEY gets
+ * unset), the pill should say so rather than stay silently wrong.
+ */
 export function practiceMode(e: Env = env.server): string[] {
   const s = adapterStatus(e);
-  // ID checks is deliberately left off this list (Rume, 2026-10-07): it's a
-  // feature nobody asked to see badged, not a thing the topbar pill needs to
-  // advertise. adapterStatus() above still reports it honestly for anyone
-  // who looks — this only changes what the pill surfaces unprompted.
-  return [s.notify.mode !== "live" && "email", s.bank.mode !== "live" && "bank feed", s.insurance.mode !== "live" && "quotes"].filter((x): x is string => Boolean(x));
+  return [s.notify.mode !== "live" && "email"].filter((x): x is string => Boolean(x));
 }
