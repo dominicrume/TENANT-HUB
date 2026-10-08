@@ -34,6 +34,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       live={live}
       practice={practice}
       primaryAction={{ href: "/intake/new", label: "+ New tenant" }}
+      secondaryAction={{ href: "/properties?addLandlord=1", label: "+ Add landlord" }}
       onSignOut={() => void signOut()}
     >
       {children}

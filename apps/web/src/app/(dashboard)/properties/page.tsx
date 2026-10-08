@@ -21,6 +21,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 interface Property {
   id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null;
@@ -42,6 +43,7 @@ const LANDLORD_PALETTE = ["var(--amber-deep)", "var(--live)", "var(--violet)", "
 const UNASSIGNED_COLOR = "var(--line)";
 
 export default function PropertiesPage() {
+  const searchParams = useSearchParams();
   const [properties, setProperties] = useState<Property[] | null>(null);
   const [landlords, setLandlords] = useState<Landlord[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +70,12 @@ export default function PropertiesPage() {
   const [llPhone, setLlPhone] = useState("");
   const [llBusy, setLlBusy] = useState(false);
   const [llError, setLlError] = useState<string | null>(null);
+
+  // The dashboard's "+ Add landlord" button links here with ?addLandlord=1
+  // rather than duplicating this form — one form, one source of truth (H8).
+  useEffect(() => {
+    if (searchParams.get("addLandlord") === "1") setShowAddLandlord(true);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     const [pRes, lRes] = await Promise.all([fetch("/api/properties"), fetch("/api/landlords")]);

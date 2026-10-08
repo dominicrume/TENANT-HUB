@@ -100,13 +100,15 @@ export interface ShellProps {
   practice?: string[];
   /** Primary action in the topbar (one, amber). */
   primaryAction?: { href: string; label: string };
+  /** Secondary action in the topbar (one, outlined, sits left of the primary). */
+  secondaryAction?: { href: string; label: string };
   settingsHref?: string | null;
   onSignOut: () => void;
 }
 
 export function Shell({
   children, nav, brand, brandSub = "Tenant Hub", logoUrl, user, role,
-  needsYou = 0, live = null, practice = [], primaryAction, settingsHref = "/settings", onSignOut,
+  needsYou = 0, live = null, practice = [], primaryAction, secondaryAction, settingsHref = "/settings", onSignOut,
 }: ShellProps) {
   const path = usePathname() ?? "";
   const on = (h: string) => path === h || path.startsWith(h + "/");
@@ -162,6 +164,7 @@ export function Shell({
           {live === false && (
             <Link href="/audit" className="pill paused" title="No agent has checked in for over two minutes"><span className="dot" /> Agents paused</Link>
           )}
+          {secondaryAction && <Link href={secondaryAction.href} className="act ghost topact">{secondaryAction.label}</Link>}
           {primaryAction && <Link href={primaryAction.href} className="act topact">{primaryAction.label}</Link>}
         </div>
         <main id="main" className="canvas">{children}</main>

@@ -13,9 +13,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useTenants } from "../../../../hooks/useTenants";
 import { formatShortDate, formatMoney } from "../../../../lib/format";
 import { PROPERTY_DOCUMENT_TYPES, OTHER_DOCUMENT_TYPE } from "../../../../lib/document-types";
+import { MediaGallery } from "../../../../components/MediaGallery";
+import { AddTenancyModal } from "../../../../components/property/AddTenancyModal";
 
 interface PropertyDoc {
   id: string; document_type: string; blob_id: string | null; status: "requested" | "received";
@@ -33,7 +34,6 @@ interface LandlordOption { id: string; name: string }
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { activeTenants } = useTenants();
   const [data, setData] = useState<PropertyDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [landlordOptions, setLandlordOptions] = useState<LandlordOption[]>([]);
@@ -47,11 +47,7 @@ export default function PropertyDetailPage() {
   const [roomError, setRoomError] = useState<string | null>(null);
 
   const [tenancyForUnit, setTenancyForUnit] = useState<string | null>(null);
-  const [tenancyTenant, setTenancyTenant] = useState("");
-  const [tenancyRent, setTenancyRent] = useState("150");
-  const [tenancyFrequency, setTenancyFrequency] = useState("weekly");
-  const [tenancyBusy, setTenancyBusy] = useState(false);
-  const [tenancyError, setTenancyError] = useState<string | null>(null);
+  const [mediaForUnit, setMediaForUnit] = useState<string | null>(null);
 
   const [docs, setDocs] = useState<PropertyDoc[] | null>(null);
   const [docMode, setDocMode] = useState<"none" | "add" | "request">("none");
@@ -97,20 +93,6 @@ export default function PropertyDetailPage() {
     setRoomBusy(false);
     if (!res.ok) { const b = await res.json().catch(() => null); setRoomError(b?.error ?? "Could not add the room"); return; }
     setRoomRef(""); setRoomClass("supported"); setAddingRoom(false);
-    void load();
-  }
-
-  async function addTenancy(e: React.FormEvent) {
-    e.preventDefault();
-    if (!tenancyForUnit || !tenancyTenant) return;
-    setTenancyBusy(true); setTenancyError(null);
-    const res = await fetch("/api/tenancies", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ unit_id: tenancyForUnit, tenant_id: tenancyTenant, rent_amount: Number(tenancyRent), rent_frequency: tenancyFrequency }),
-    });
-    setTenancyBusy(false);
-    if (!res.ok) { const b = await res.json().catch(() => null); setTenancyError(b?.error ?? "Could not add the tenancy"); return; }
-    setTenancyForUnit(null); setTenancyTenant(""); setTenancyRent("150"); setTenancyFrequency("weekly");
     void load();
   }
 
@@ -199,6 +181,8 @@ export default function PropertyDetailPage() {
         </div>
       </section>
 
+      <MediaGallery entityType="property" entityId={id} title="Media" />
+
       <section className="card" style={{ marginBottom: 18 }}>
         <div className="ch"><h3>Rooms</h3>
           <button type="button" className="btn ghost sm" onClick={() => setAddingRoom((v) => !v)}>{addingRoom ? "Cancel" : "Add room"}</button>
@@ -221,39 +205,44 @@ export default function PropertyDetailPage() {
           <div className="li"><div className="body"><b>No rooms yet</b><p>Add the first one above.</p></div></div>
         ) : (
           units.map((u) => (
-            <div className="li" key={u.id}>
-              <div className="body">
-                <b>{u.reference}</b>
-                <p>
-                  {u.tenancy ? `${u.tenancy.tenants?.full_name ?? "Tenant"} · ${formatMoney(u.tenancy.rent_amount)} ${u.tenancy.rent_frequency}` : "Vacant"}
-                </p>
+            <div key={u.id}>
+              <div className="li">
+                <div className="body">
+                  <b>{u.reference}</b>
+                  <p>
+                    {u.tenancy ? `${u.tenancy.tenants?.full_name ?? "Tenant"} · ${formatMoney(u.tenancy.rent_amount)} ${u.tenancy.rent_frequency}` : "Vacant"}
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" className="btn ghost sm" onClick={() => setMediaForUnit(mediaForUnit === u.id ? null : u.id)}>
+                    {mediaForUnit === u.id ? "Hide media" : "Add media"}
+                  </button>
+                  {!u.tenancy && (
+                    <button type="button" className="btn ghost sm" onClick={() => setTenancyForUnit(u.id)}>Add tenancy</button>
+                  )}
+                </div>
               </div>
-              {!u.tenancy && (
-                <button type="button" className="btn ghost sm" onClick={() => setTenancyForUnit(tenancyForUnit === u.id ? null : u.id)}>
-                  {tenancyForUnit === u.id ? "Cancel" : "Add tenancy"}
-                </button>
-              )}
-              {tenancyForUnit === u.id && (
-                <form onSubmit={addTenancy} style={{ display: "grid", gap: 10, marginLeft: "auto", minWidth: 260 }}>
-                  <select value={tenancyTenant} onChange={(e) => setTenancyTenant(e.target.value)} required style={inp}>
-                    <option value="">Which tenant?</option>
-                    {activeTenants.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-                  </select>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input type="number" min="0" step="0.01" value={tenancyRent} onChange={(e) => setTenancyRent(e.target.value)} required style={inp} />
-                    <select value={tenancyFrequency} onChange={(e) => setTenancyFrequency(e.target.value)} style={inp}>
-                      <option value="weekly">Weekly</option><option value="fortnightly">Fortnightly</option><option value="four_weekly">4-weekly</option>
-                      <option value="monthly">Monthly</option><option value="quarterly">Quarterly</option>
-                    </select>
-                  </div>
-                  {tenancyError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{tenancyError}</p>}
-                  <button type="submit" className="rel sm" disabled={tenancyBusy || !tenancyTenant}>{tenancyBusy ? "Adding…" : "Add tenancy"}</button>
-                </form>
+              {mediaForUnit === u.id && (
+                <div style={{ padding: "0 16px 16px" }}>
+                  <MediaGallery entityType="unit" entityId={u.id} title={`${u.reference} photos`} />
+                </div>
               )}
             </div>
           ))
         )}
       </section>
+
+      {tenancyForUnit && (
+        <AddTenancyModal
+          open
+          onClose={() => setTenancyForUnit(null)}
+          onCreated={() => void load()}
+          unitId={tenancyForUnit}
+          roomReference={units.find((u) => u.id === tenancyForUnit)?.reference ?? ""}
+          address={[property.address_line1, property.city].filter(Boolean).join(", ")}
+          postcode={property.postcode ?? ""}
+        />
+      )}
 
       <section className="card" style={{ marginBottom: 18 }}>
         <div className="ch"><h3>Documents</h3>
