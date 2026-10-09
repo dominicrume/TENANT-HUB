@@ -17,4 +17,5 @@ export * from "./media";
 export * from "./mfa";
 export * from "./webhooks";
 export * from "./references";
+export * from "./access-requests";
 export { createPgTelemetrySink, workerHeartbeatAge } from "./telemetry-sink";

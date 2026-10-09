@@ -8,8 +8,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { AvatarPhoto } from "../../../../components/AvatarPhoto";
 import { useParams } from "next/navigation";
 import { formatShortDate } from "../../../../lib/format";
 
@@ -28,8 +28,6 @@ export default function LandlordPage() {
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [phone, setPhone] = useState(""); const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [photoBroken, setPhotoBroken] = useState(false);
-  const [photoKey, setPhotoKey] = useState(0);
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/landlords/${id}`);
@@ -50,16 +48,9 @@ export default function LandlordPage() {
     await load();
   }
 
-  async function uploadPhoto(file: File) {
-    const fd = new FormData(); fd.append("file", file);
-    const r = await fetch(`/api/landlords/${id}/photo`, { method: "POST", body: fd });
-    if (r.ok) { setPhotoBroken(false); setPhotoKey((k) => k + 1); }
-  }
-
   if (error) return <div style={{ padding: "1.75rem" }}><p style={{ color: "var(--brick)" }}>{error}</p><Link href="/properties" className="btn ghost sm">Back to properties</Link></div>;
   if (!data) return <div style={{ padding: "1.75rem" }}><p className="muted">Loading…</p></div>;
   const { landlord, properties, documents, tenantsCount } = data;
-  const initials = landlord.name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const rooms = properties.reduce((s, p) => s + p.unitsCount, 0);
   const filled = properties.reduce((s, p) => s + p.occupiedCount, 0);
   const outstanding = documents.filter((d) => d.status === "requested").length;
@@ -69,11 +60,21 @@ export default function LandlordPage() {
       <p style={{ margin: "0 0 10px", fontSize: 12.5 }}><Link href="/landlords" style={{ color: "var(--slate)" }}>Landlords</Link> <span className="muted">/</span> {landlord.name}</p>
 
       <div style={{ display: "flex", gap: 18, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
-        <label title="Change photo" style={{ cursor: "pointer", position: "relative", width: 72, height: 72, borderRadius: "50%", overflow: "hidden", background: "var(--navy)", color: "#fff", display: "grid", placeItems: "center", fontWeight: 600, fontSize: 24, flex: "none" }}>
-          {!photoBroken && <Image key={photoKey} src={`/api/landlords/${id}/photo?v=${photoKey}`} alt="" fill sizes="72px" style={{ objectFit: "cover" }} unoptimized onError={() => setPhotoBroken(true)} />}
-          {photoBroken && initials}
-          <input type="file" accept="image/*" capture="user" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadPhoto(f); e.target.value = ""; }} />
-        </label>
+        <AvatarPhoto
+          src={`/api/landlords/${id}/photo`}
+          name={landlord.name}
+          size={72}
+          editable
+          onUpload={async (file) => {
+            const fd = new FormData(); fd.append("file", file);
+            const r = await fetch(`/api/landlords/${id}/photo`, { method: "POST", body: fd });
+            if (!r.ok) { const b = await r.json().catch(() => null); throw new Error(b?.error ?? "Photo did not save"); }
+          }}
+          onRemove={async () => {
+            const r = await fetch(`/api/landlords/${id}/photo`, { method: "DELETE" });
+            if (!r.ok) { const b = await r.json().catch(() => null); throw new Error(b?.error ?? "Could not remove the photo"); }
+          }}
+        />
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <h1 style={{ margin: 0 }}>{landlord.name}</h1>

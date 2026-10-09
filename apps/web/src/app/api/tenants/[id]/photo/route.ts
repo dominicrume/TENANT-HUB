@@ -74,3 +74,24 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
   }
 }
+
+/** DELETE — removes the tenant's photo (the blob row stays in document_blobs for the audit trail; the tenant simply no longer points at it). */
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  const auth = await getApiAuth();
+  if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
+  try {
+    const owned = await db().query<{ id: string }>("SELECT id FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
+    if (!owned.rows[0]) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    await writeWithAudit({
+      table: "tenants",
+      record: { id: params.id, photo_blob_id: null, photo_url: null } as Record<string, unknown>,
+      action: "UPDATE", org_id: auth.actor.org_id, tenant_id: params.id,
+      user_id: auth.actor.user_id, user_name: auth.actor.user_name, user_role: auth.actor.user_role,
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[tenants/[id]/photo:DELETE]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
+}

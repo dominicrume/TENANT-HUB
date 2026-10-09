@@ -3,6 +3,7 @@ import { authRateLimit, aiRateLimit, genericRateLimit } from "./lib/rate-limit";
 
 const PUBLIC_PREFIXES = [
   "/login",
+  "/register",
   "/reset-password",
   "/invite",
   "/intake/verify",

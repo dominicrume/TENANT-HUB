@@ -9,7 +9,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   TITLES,
@@ -35,7 +34,7 @@ import { AskTab } from "../../../../components/tenant/AskTab";
 import { DynamicFormTab, type FormTemplate } from "../../../../components/tenant/DynamicFormTab";
 import { FormsPanel } from "../../../../components/layout/FormsPanel";
 import { BeforeYourNextContact } from "../../../../components/tenant/BeforeYourNextContact";
-import { compressImage } from "../../../../lib/compress-image";
+import { AvatarPhoto } from "../../../../components/AvatarPhoto";
 
 const CORE_TABS = [
   { key: "personal", label: "Personal Details" },
@@ -96,8 +95,6 @@ export default function TenantDetailPage() {
   const [form, setForm] = useState<FormState>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [photoBusy, setPhotoBusy] = useState(false);
-  const [photoMsg, setPhotoMsg] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [hbError, setHbError] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<Record<string, string>>({});
@@ -207,66 +204,27 @@ export default function TenantDetailPage() {
       <div className="print-area" style={{ flex: 1, minWidth: 0, padding: "1.75rem", fontFamily: "'Sora', sans-serif", maxWidth: "920px" }}>
         <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
         <div style={{ flex: 1, display: "flex", gap: "16px", alignItems: "center" }}>
-          <input
-            type="file"
-            id="profile-photo-upload"
-            style={{ display: 'none' }}
-            accept="image/*"
-            capture="user"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const previousPhoto = tenant?.photo_url;
-              setPhotoBusy(true);
-              setPhotoMsg(null);
-              try {
-                const compressed = await compressImage(file);
-                const form = new FormData();
-                form.append("file", compressed);
-                const res = await fetch(`/api/tenants/${id}/photo`, { method: "POST", body: form });
-                if (!res.ok) {
-                  const b = await res.json().catch(() => null);
-                  throw new Error(b?.error ?? `${res.status} ${res.statusText}`);
-                }
-                const data = await res.json();
-                setTenant(prev => prev ? { ...prev, photo_url: data.photo_url ?? `/api/tenants/${id}/photo?v=${Date.now()}` } : null);
-                setPhotoMsg(`✓ Photo saved at ${new Date().toLocaleTimeString("en-GB")}`);
-              } catch (err) {
-                setTenant(prev => prev ? { ...prev, photo_url: previousPhoto } : null);
-                setPhotoMsg(`✗ ${err instanceof Error ? err.message : "Photo did not save"}`);
-              } finally {
-                setPhotoBusy(false);
-                e.target.value = '';
-              }
+          {/* View / change / take / remove — the same photo experience as a phone contact (AvatarPhoto). */}
+          <AvatarPhoto
+            src={tenant?.photo_url ? `/api/tenants/${id}/photo` : null}
+            name={tenant?.full_name ?? ""}
+            size={72}
+            editable
+            onUpload={async (file) => {
+              const form = new FormData();
+              form.append("file", file);
+              const res = await fetch(`/api/tenants/${id}/photo`, { method: "POST", body: form });
+              if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? "Photo did not save"); }
+              setTenant((prev) => (prev ? { ...prev, photo_url: `/api/tenants/${id}/photo` } : null));
+            }}
+            onRemove={async () => {
+              const res = await fetch(`/api/tenants/${id}/photo`, { method: "DELETE" });
+              if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? "Could not remove the photo"); }
+              setTenant((prev) => (prev ? { ...prev, photo_url: undefined } : null));
             }}
           />
-          <div
-            style={{
-              width: "72px", height: "72px", borderRadius: "50%", background: "#E2E8F0",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              overflow: "hidden", cursor: photoBusy ? "wait" : "pointer", border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", flexShrink: 0,
-              position: "relative", opacity: photoBusy ? 0.6 : 1,
-            }}
-            onClick={() => !photoBusy && document.getElementById('profile-photo-upload')?.click()}
-            title="Upload or take a tenant photo"
-          >
-            {tenant?.photo_url ? (
-               // unoptimized: next/image's built-in optimizer fetches the src
-               // SERVER-SIDE without forwarding the browser's session cookie —
-               // this route is auth-gated, so the optimizer always got 401'd
-               // and rendered broken, even though the upload itself succeeded.
-               <Image src={tenant.photo_url} alt="Profile" fill sizes="72px" style={{ objectFit: "cover" }} unoptimized />
-            ) : (
-               <span style={{ fontSize: "24px" }}>📷</span>
-            )}
-          </div>
           <div style={{ flex: 1 }}>
             <LetterheadBlock roomNumber={tenant?.room_number} date={tenant?.full_name} />
-            {(photoBusy || photoMsg) && (
-              <p style={{ fontSize: 12.5, margin: "4px 0 0", color: photoBusy ? "#7A8499" : photoMsg?.startsWith("✓") ? "#1E7F4F" : "#E05252" }}>
-                {photoBusy ? "Saving photo…" : photoMsg}
-              </p>
-            )}
           </div>
         </div>
 

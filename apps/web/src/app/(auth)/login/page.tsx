@@ -198,8 +198,9 @@ export default function LoginPage() {
           </div>
         )}
 
-        <div style={{ marginTop: "16px", textAlign: "center" }}>
+        <div style={{ marginTop: "16px", textAlign: "center", display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
           <Link href="/reset-password" style={s.link}>Forgot password?</Link>
+          <Link href="/register" style={s.link}>Need an account? Request access</Link>
         </div>
       </div>
     </main>

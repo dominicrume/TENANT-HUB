@@ -12,6 +12,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { AvatarPhoto } from "./AvatarPhoto";
 
 /* ── Icons: 17px line icons, one path set each, no emoji ─────────────────── */
 const I = {
@@ -95,6 +96,8 @@ export interface ShellProps {
   workspaces?: Workspace[];
   activeWorkspaceId?: string | null;
   onSwitchWorkspace?: (orgId: string) => Promise<boolean>;
+  /** The signed-in person's own photo (migration 055): shown on the topbar button; viewable/changeable from the menu. */
+  avatar?: { src: string; onUpload: (file: File) => Promise<void>; onRemove: () => Promise<void> };
   /** Every landlord this person can work for — the topbar chip (migration 054). Null active = all landlords. */
   landlords?: Workspace[];
   activeLandlordId?: string | null;
@@ -119,7 +122,7 @@ export interface ShellProps {
 export function Shell({
   children, nav, brand, brandSub = "Tenant Hub", logoUrl, user, role,
   workspaces = [], activeWorkspaceId = null, onSwitchWorkspace,
-  landlords = [], activeLandlordId = null, onSwitchLandlord,
+  landlords = [], activeLandlordId = null, onSwitchLandlord, avatar,
   needsYou = 0, live = null, practice = [], primaryAction, secondaryAction, settingsHref = "/settings", onSignOut,
 }: ShellProps) {
   const path = usePathname() ?? "";
@@ -203,14 +206,17 @@ export function Shell({
               ("that profile should be up there, not down at the bottom"). */}
           <div className="me">
             <button type="button" className="mebtn" aria-haspopup="menu" aria-expanded={meOpen} onClick={() => setMeOpen((v) => !v)}>
-              <span className="avatar" aria-hidden="true">{initials}</span>
+              {avatar ? <AvatarPhoto src={avatar.src} name={user} size={32} interactive={false} /> : <span className="avatar" aria-hidden="true">{initials}</span>}
               <span className="who"><b>{user}</b><small>{ROLE_LABEL[role] ?? role}</small></span>
             </button>
             {meOpen && (
               <>
                 <div className="menu-backdrop" onClick={() => setMeOpen(false)} />
                 <div className="menu" role="menu">
-                  <div className="menu-head"><b>{user}</b><small>{ROLE_LABEL[role] ?? role} · {brand}</small></div>
+                  <div className="menu-head" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    {avatar && <AvatarPhoto src={avatar.src} name={user} size={44} editable onUpload={avatar.onUpload} onRemove={avatar.onRemove} />}
+                    <div style={{ minWidth: 0 }}><b>{user}</b><small>{ROLE_LABEL[role] ?? role} · {brand}</small>{avatar && <small style={{ color: "var(--amber-deep)" }}>Tap the photo to view or change it</small>}</div>
+                  </div>
                   {settingsHref && <Link href={settingsHref} role="menuitem"><Icon k="settings" />Settings</Link>}
                   <Link href="/choose-workspace" role="menuitem"><Icon k="people" />Switch landlord</Link>
                   {canSwitch && onSwitchWorkspace && workspaces.filter((w) => w.id !== activeWorkspaceId).map((w) => (

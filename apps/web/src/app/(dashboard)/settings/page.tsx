@@ -54,6 +54,27 @@ export default function SettingsPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSentTo, setInviteSentTo] = useState<string | null>(null);
   const [orgCount, setOrgCount] = useState(0);
+  // People who asked to join via /register (migration 055). Approving issues
+  // the invite email on the spot — the same path as "Invite someone" below.
+  interface AccessRequest { id: string; fullName: string; email: string; phone: string | null; roleWanted: string; message: string | null; createdAt: string }
+  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [requestNotice, setRequestNotice] = useState<string | null>(null);
+  function loadAccessRequests() {
+    fetch("/api/access-requests").then((r) => (r.ok ? r.json() : [])).then((d) => setAccessRequests(Array.isArray(d) ? d : [])).catch(() => {});
+  }
+  async function decideRequest(id: string, decision: "approve" | "decline") {
+    setDecidingId(id); setRequestNotice(null);
+    try {
+      const r = await fetch("/api/access-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, decision }) });
+      const b = await r.json().catch(() => null);
+      if (!r.ok) { setRequestNotice(b?.error ?? "Could not record that decision."); return; }
+      const who = accessRequests.find((x) => x.id === id);
+      setRequestNotice(decision === "approve" ? (b?.invited ? `Invite sent to ${who?.email}. The link works once, for 14 days.` : `Approved — but the invite email could not be sent (email isn't configured here). Use "Invite someone" below to resend.`) : `Declined ${who?.fullName ?? ""}.`);
+      loadAccessRequests(); loadProfiles();
+    } catch { setRequestNotice("Could not reach the server."); }
+    finally { setDecidingId(null); }
+  }
 
   const { brand } = useBrand();
 
@@ -90,6 +111,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadProfiles();
+    loadAccessRequests();
     fetch("/api/stamp-queue").then((r) => (r.ok ? r.json() : [])).then((d) => setStamps(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/tenants").then((r) => (r.ok ? r.json() : [])).then((d) => setActiveTenantsCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
     fetch("/api/drafts").then((r) => (r.ok ? r.json() : [])).then((d) => setAiExtractionsCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
@@ -168,6 +190,26 @@ export default function SettingsPage() {
       <div style={{ flex: 1, minWidth: 280 }}>
         {tab === "users" && (
           <>
+            {accessRequests.length > 0 && (
+              <section className="card" style={{ marginBottom: 18, borderColor: "var(--amber)" }}>
+                <div className="ch"><h3>Access requests · {accessRequests.length}</h3></div>
+                {accessRequests.map((r) => (
+                  <div className="li" key={r.id} style={{ alignItems: "flex-start" }}>
+                    <div className="body">
+                      <b>{r.fullName} <span className="muted" style={{ fontWeight: 500 }}>wants {r.roleWanted.replace("_", " ")} access</span></b>
+                      <p>{r.email}{r.phone ? ` · ${r.phone}` : ""} · asked {formatDateTime(r.createdAt)}</p>
+                      {r.message && <p style={{ fontStyle: "italic" }}>&ldquo;{r.message}&rdquo;</p>}
+                    </div>
+                    <div className="btns">
+                      <button type="button" className="btn ghost sm" disabled={decidingId === r.id} onClick={() => void decideRequest(r.id, "decline")}>Decline</button>
+                      <button type="button" className="rel sm" disabled={decidingId === r.id} onClick={() => void decideRequest(r.id, "approve")}>{decidingId === r.id ? "…" : "Approve & invite"}</button>
+                    </div>
+                  </div>
+                ))}
+                {requestNotice && <div className="li"><p style={{ margin: 0, fontSize: 13, color: requestNotice.startsWith("Could") ? "var(--brick)" : "var(--live)" }}>{requestNotice}</p></div>}
+              </section>
+            )}
+
             <section className="card" style={{ marginBottom: 18 }}>
               <div className="ch"><h3>Invite someone</h3></div>
               <form onSubmit={handleSendInvite} className="li" style={{ display: "grid", gap: 10 }}>

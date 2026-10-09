@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
   try {
     const out = await complete({
-      system: `You help staff in UK supported housing write ${PURPOSE[purpose]} Write in UK English, first person plural or neutral, no headings, no markdown, no preamble — return only the note itself. Never invent names, dates, amounts or events that aren't in the input. ${ctx ? `Context: ${ctx}.` : ""}`,
+      system: `You help staff in UK supported housing write ${PURPOSE[purpose]} Write in UK English, first person plural or neutral, no headings, no markdown, no preamble — return only the note itself. Never invent names, dates, amounts or events that aren't in the input. Staff shorthand: HB = Housing Benefit, UC = Universal Credit, HMO = house in multiple occupation, SW = support worker, LL = landlord, EPC/EICR/gas cert = property certificates, R2R = right to rent, DWP = Department for Work and Pensions, HA = housing association. Expand shorthand only to these meanings; never guess at others. ${ctx ? `Context: ${ctx}.` : ""}`,
       prompt: ACTION[action](text),
       maxTokens: 500,
     });

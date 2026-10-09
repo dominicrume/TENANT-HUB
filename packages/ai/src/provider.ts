@@ -37,6 +37,38 @@ export async function complete(opts: CompleteOptions): Promise<string> {
 
   const provider = providerId as AIBrainProvider;
 
+  // OpenAI — the default and, since 2026-10-05, the only provider in use —
+  // goes through the official `openai` SDK directly. The Vercel AI SDK path
+  // below pulls in zod-to-json-schema, whose `zod/v3` subpath import this
+  // repo's pinned zod@3.23 does not export; webpack shrugs, but when the
+  // package is resolved by plain Node (the worker, tests, and — as found on
+  // 2026-10-09 when "Help me write" failed on every box in production — the
+  // Next server runtime) the call died with "Package subpath './v3' is not
+  // defined" before a request ever reached OpenAI. No zod, no `ai`, no
+  // surprise: one HTTP call.
+  if (provider === "openai") {
+    try {
+      const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
+      const model = process.env["OPENAI_MODEL"] || "gpt-4o";
+      const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] | string = opts.image
+        ? [{ type: "text", text: opts.prompt }, { type: "image_url", image_url: { url: opts.image } }]
+        : opts.prompt;
+      const res = await openai.chat.completions.create({
+        model,
+        max_tokens: maxTokens,
+        messages: [
+          ...(opts.system ? [{ role: "system" as const, content: opts.system }] : []),
+          { role: "user" as const, content: userContent },
+        ],
+      });
+      return res.choices[0]?.message?.content ?? "";
+    } catch (err: any) {
+      const msg = `openai API failed: ${err?.message || "Unknown error"}`;
+      console.warn(msg);
+      throw new Error(`AI completion failed: ${msg}`);
+    }
+  }
+
   try {
     const { getBrainModel } = await import("./router");
     const { generateText } = await import("ai");

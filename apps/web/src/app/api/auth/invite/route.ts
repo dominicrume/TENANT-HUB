@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { db, hasDatabaseUrl, createInvite, attachInviteToken } from "@tenant-hub/db";
-import { generateToken, hashToken } from "@tenant-hub/auth";
-import { notifier } from "@tenant-hub/adapters";
-import { env } from "@tenant-hub/env";
+import { hasDatabaseUrl } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
 import { isSameOriginPost } from "../../../../lib/csrf";
+import { issueInvite } from "../../../../lib/issue-invite";
+import { publicOrigin } from "../../../../lib/google-oauth";
 
 const ROLES = new Set(["manager", "support_worker", "contractor", "tenant"]);
 
@@ -25,19 +24,11 @@ export const POST = withRouteHandler({ resource: "sessions", action: "create", r
   const role = typeof body?.role === "string" ? body.role : "";
   if (!email || !ROLES.has(role)) return NextResponse.json({ error: "A valid email and role are required" }, { status: 400 });
 
-  const client = db();
-  await createInvite(client, {
+  await issueInvite({
     email, role, orgId: auth.actor.org_id, brand: auth.actor.brand, invitedBy: auth.actor.user_id,
-    fullName: typeof body?.fullName === "string" ? body.fullName : email.split("@")[0],
+    fullName: typeof body?.fullName === "string" ? body.fullName : null,
     tenantId: typeof body?.tenantId === "string" ? body.tenantId : null,
-  });
-  const token = generateToken();
-  await attachInviteToken(client, { email, tokenHash: hashToken(token) });
-
-  const base = env.server.APP_URL ?? new URL(req.url).origin;
-  await notifier().send({
-    to: email, channel: "email", subject: "You've been invited to Tenant Hub",
-    body: `You've been invited to join as ${role.replace("_", " ")}.\n\nSet your password here (the link works once, for 14 days):\n\n${base}/invite/${token}`,
+    origin: publicOrigin(req),
   });
   return NextResponse.json({ success: true });
 });

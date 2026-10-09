@@ -79,6 +79,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       landlords={landlords}
       activeLandlordId={profile?.landlord_id ?? null}
       onSwitchLandlord={switchLandlord}
+      avatar={{
+        src: "/api/profiles/me/photo",
+        onUpload: async (file) => {
+          const fd = new FormData(); fd.append("file", file);
+          const r = await fetch("/api/profiles/me/photo", { method: "POST", body: fd });
+          if (!r.ok) { const b = await r.json().catch(() => null); throw new Error(b?.error ?? "Photo did not save"); }
+        },
+        onRemove: async () => {
+          const r = await fetch("/api/profiles/me/photo", { method: "DELETE" });
+          if (!r.ok) throw new Error("Could not remove the photo");
+        },
+      }}
       needsYou={count}
       live={live}
       practice={practice}
