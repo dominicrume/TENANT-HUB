@@ -142,6 +142,27 @@ img.mark { object-fit: cover; }
 .pill.practice { background: rgba(178,74,49,.1); color: var(--brick); font-size: 11.5px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .pill.live .dot { animation: pulse 2s ease-in-out infinite; }
+/* Workspace chip + signed-in person, both in the topbar (walkthrough 2026-10-09). */
+.wschip { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--navy); background: var(--surface); border: 1.5px solid #C9C0B0; border-radius: 20px; padding: 5px 11px; min-height: 34px; position: relative; cursor: pointer; max-width: 260px; }
+.wschip.static { cursor: default; }
+.wschip svg { flex: none; color: var(--amber-deep); }
+.wschip select { appearance: none; -webkit-appearance: none; border: none; background: transparent; font: inherit; color: inherit; font-weight: 600; padding: 0; margin: 0; cursor: pointer; max-width: 200px; text-overflow: ellipsis; outline: none; }
+.wschip > span { color: var(--slate); font-size: 11px; }
+.me { position: relative; }
+.mebtn { display: flex; align-items: center; gap: 9px; background: transparent; border: none; padding: 3px 4px 3px 3px; border-radius: 24px; cursor: pointer; font-family: inherit; color: var(--navy); text-align: left; min-height: 38px; }
+.mebtn:hover { background: rgba(15,28,46,.05); }
+.mebtn .avatar { background: var(--navy); color: #fff; width: 32px; height: 32px; }
+.mebtn .who { display: flex; flex-direction: column; min-width: 0; max-width: 160px; }
+.mebtn .who b, .mebtn .who small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; line-height: 1.15; }
+.mebtn .who b { font-size: 13px; font-weight: 600; }
+.mebtn .who small { font-size: 11px; color: var(--slate); }
+.menu-backdrop { position: fixed; inset: 0; z-index: 40; }
+.menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 41; min-width: 230px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 30px rgba(15,28,46,.14); padding: 6px; display: grid; gap: 2px; }
+.menu-head { padding: 8px 10px 10px; border-bottom: 1px solid var(--line-soft); margin-bottom: 4px; }
+.menu-head b { display: block; font-size: 13.5px; }
+.menu-head small { display: block; font-size: 11.5px; color: var(--slate); margin-top: 2px; }
+.menu a, .menu button { display: flex; align-items: center; gap: 10px; padding: 9px 10px; min-height: 40px; border-radius: 8px; color: var(--navy); font-size: 13.5px; font-weight: 500; background: transparent; border: none; font-family: inherit; text-decoration: none; cursor: pointer; text-align: left; width: 100%; }
+.menu a:hover, .menu button:hover { background: var(--cream); }
 .canvas { padding: 26px 30px 60px; max-width: 1180px; }
 .canvas > h1, .canvas h1.page { font-size: 26px; font-weight: 600; letter-spacing: -.5px; margin: 0 0 3px; color: var(--navy); }
 .sub { color: var(--slate); font-size: 14px; margin: 0 0 22px; }
@@ -276,7 +297,10 @@ label { display: block; }
      screenshot). Wrapping lets each item keep its natural size on its own
      line instead of being crushed or clipped. */
   .topbar { padding: 12px 16px; flex-wrap: wrap; row-gap: 8px; }
-  .topbar .crumb { flex: 1 1 100%; }
+  .topbar .crumb { flex: 1 1 auto; }
+  .topbar .me { order: -1; margin-left: auto; }
+  .mebtn .who { display: none; }
+  .wschip { max-width: 100%; }
   .how { grid-template-columns: 1fr; }
   .tabbar { display: grid; grid-auto-flow: column; position: fixed; bottom: 0; left: 0; right: 0; background: var(--navy); padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0)); z-index: 20; border-top: 1px solid rgba(255,255,255,.08); }
   .tabbar a, .tabbar button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8FA0B4; font-size: 10.5px; font-weight: 600; padding: 6px 2px; min-height: 44px; border-radius: 8px; background: transparent; border: none; font-family: inherit; text-decoration: none; cursor: pointer; }

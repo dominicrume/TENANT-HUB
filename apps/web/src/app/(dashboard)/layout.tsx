@@ -13,16 +13,37 @@
  */
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
-import { Shell, STAFF_NAV } from "../../components/Shell";
+import { Shell, STAFF_NAV, type Workspace } from "../../components/Shell";
 import { useNeedsYou } from "../../hooks/useNeedsYou";
 import { useHealth } from "../../hooks/useHealth";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, refresh } = useAuth();
   const { count } = useNeedsYou();
   const { live, practice } = useHealth();
+  const router = useRouter();
+
+  // Every workspace this account can work in (migration 046). The topbar
+  // shows the active one by name always, and becomes a switcher only when
+  // there's genuinely more than one — "it should show me where I am at the
+  // moment, and give me the option to switch" (walkthrough 2026-10-09).
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  useEffect(() => {
+    if (!profile) return;
+    fetch("/api/organisations/mine").then((r) => (r.ok ? r.json() : [])).then((d) => setWorkspaces(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function switchWorkspace(orgId: string) {
+    const res = await fetch("/api/auth/switch-org", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orgId }) });
+    if (!res.ok) return false;
+    await refresh();
+    router.push("/dashboard");
+    router.refresh();
+    return true;
+  }
 
   return (
     <Shell
@@ -30,6 +51,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       brand={profile?.org_name ?? "Tenant Hub"}
       user={profile?.full_name ?? "—"}
       role={profile?.role ?? ""}
+      workspaces={workspaces}
+      activeWorkspaceId={profile?.org_id ?? null}
+      onSwitchWorkspace={switchWorkspace}
       needsYou={count}
       live={live}
       practice={practice}

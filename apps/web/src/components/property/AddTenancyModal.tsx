@@ -6,6 +6,11 @@ import { TITLES } from "@tenant-hub/validation";
 
 interface ExistingTenant { id: string; full_name: string; room_number: string | null }
 
+const QUICK_ADD_LABELS: Record<string, string> = {
+  full_name: "Full name", dob: "Date of birth", nino: "National Insurance number", nationality: "Nationality", mobile: "Mobile",
+  address: "Property address", postcode: "Postcode", room_number: "Room", moved_in: "Move-in date", title: "Title",
+};
+
 /**
  * Add tenancy — two ways in: create a brand-new tenant right here (name,
  * DOB, NINO, nationality, mobile; address/postcode/room/move-in come from
@@ -90,15 +95,22 @@ export function AddTenancyModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title, full_name: fullName, dob, nino, nationality, mobile,
-          address, postcode, room_number: roomReference, moved_in: today,
+          title, full_name: fullName, dob, nino: nino.replace(/\s+/g, "").toUpperCase(), nationality, mobile,
+          // The tenant's address IS the room's property. A property saved
+          // with only a name (no address line) must still let a tenant in.
+          address: address.trim().length >= 5 ? address : `${address || "Address to confirm"}, ${postcode}`.replace(/^, /, ""),
+          postcode, room_number: roomReference, moved_in: today,
           benefit_type: "Universal Credit", benefit_frequency: "Monthly", benefit_amount: "0",
         }),
       });
       if (!tenantRes.ok) {
         const b = await tenantRes.json().catch(() => null);
-        const issue = b?.issues?.[0]?.message;
-        throw new Error(issue ?? b?.error ?? "Could not add the tenant");
+        // Name the field. "String must contain at least 5 character(s)" with
+        // no field was the whole of what staff saw on the 2026-10-09
+        // walkthrough — it was the property's missing address, nothing they typed.
+        const first = b?.issues?.[0];
+        const label = first ? (QUICK_ADD_LABELS[String(first.path?.[0] ?? "")] ?? String(first.path?.[0] ?? "")) : "";
+        throw new Error(first ? `${label ? `${label}: ` : ""}${first.message}` : (b?.error ?? "Could not add the tenant"));
       }
       const tenant = await tenantRes.json();
       await linkTenancy(tenant.id).catch((err) => { throw new Error(err instanceof Error ? `Tenant was added, but ${err.message.toLowerCase()}` : "Tenant was added, but the tenancy could not be linked"); });

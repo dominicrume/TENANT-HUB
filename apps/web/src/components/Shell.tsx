@@ -80,6 +80,8 @@ const Icon = ({ k }: { k: IconKey }) => (
   </svg>
 );
 
+export interface Workspace { id: string; name: string }
+
 export interface ShellProps {
   children: ReactNode;
   nav: NavItem[];
@@ -89,6 +91,10 @@ export interface ShellProps {
   logoUrl?: string | null;
   user: string;
   role: string;
+  /** Every organisation this person can work in; the topbar chip becomes a switcher when there's more than one. */
+  workspaces?: Workspace[];
+  activeWorkspaceId?: string | null;
+  onSwitchWorkspace?: (orgId: string) => Promise<boolean>;
   /** Count of decisions waiting on Today. Hidden when 0. */
   needsYou?: number;
   /**
@@ -108,12 +114,16 @@ export interface ShellProps {
 
 export function Shell({
   children, nav, brand, brandSub = "Tenant Hub", logoUrl, user, role,
+  workspaces = [], activeWorkspaceId = null, onSwitchWorkspace,
   needsYou = 0, live = null, practice = [], primaryAction, secondaryAction, settingsHref = "/settings", onSignOut,
 }: ShellProps) {
   const path = usePathname() ?? "";
   const on = (h: string) => path === h || path.startsWith(h + "/");
   const [moreOpen, setMoreOpen] = useState(false);
-  useEffect(() => setMoreOpen(false), [path]);
+  const [meOpen, setMeOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  useEffect(() => { setMoreOpen(false); setMeOpen(false); }, [path]);
+  const canSwitch = workspaces.length > 1 && Boolean(onSwitchWorkspace);
 
   const home = nav[0]?.href ?? "/dashboard";
   const tabs = nav.filter((n) => n.mobile).slice(0, 5);
@@ -142,19 +152,35 @@ export function Shell({
           ))}
         </nav>
 
-        <div className="foot">
-          <div className="avatar" aria-hidden="true">{initials}</div>
-          <div className="who"><b>{user}</b><small>{ROLE_LABEL[role] ?? role}</small></div>
-          {settingsHref && (
-            <Link href={settingsHref} className="iconbtn" aria-label="Settings" title="Settings"><Icon k="settings" /></Link>
-          )}
-          <button type="button" className="iconbtn" aria-label="Sign out" title="Sign out" onClick={onSignOut}><Icon k="signout" /></button>
-        </div>
       </aside>
 
       <div className="main">
         <div className="topbar">
           <div className="crumb">{crumb}</div>
+          {/* Which workspace you're in — always visible, by name. A switcher
+              only when this account really has more than one (migration 046);
+              otherwise a plain label, never a dropdown with one option. */}
+          {canSwitch ? (
+            <label className="wschip" title="Switch workspace">
+              <Icon k="properties" />
+              <select
+                value={activeWorkspaceId ?? ""}
+                disabled={switching}
+                aria-label="Workspace"
+                onChange={async (e) => {
+                  const id = e.target.value;
+                  if (!id || id === activeWorkspaceId || !onSwitchWorkspace) return;
+                  setSwitching(true);
+                  try { await onSwitchWorkspace(id); } finally { setSwitching(false); }
+                }}
+              >
+                {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+              <span aria-hidden="true">{switching ? "…" : "▾"}</span>
+            </label>
+          ) : (
+            <span className="wschip static" title="Your workspace"><Icon k="properties" />{brand}</span>
+          )}
           {practice.length > 0 && (
             <Link href={`${settingsHref ?? "/settings"}#connections`} className="pill practice" title="These connections are simulated until you add their credentials">
               Practice mode · {practice.join(", ")}
@@ -166,6 +192,25 @@ export function Shell({
           )}
           {secondaryAction && <Link href={secondaryAction.href} className="act ghost topact">{secondaryAction.label}</Link>}
           {primaryAction && <Link href={primaryAction.href} className="act topact">{primaryAction.label}</Link>}
+          {/* Who's signed in — at the top, where every other console puts it
+              ("that profile should be up there, not down at the bottom"). */}
+          <div className="me">
+            <button type="button" className="mebtn" aria-haspopup="menu" aria-expanded={meOpen} onClick={() => setMeOpen((v) => !v)}>
+              <span className="avatar" aria-hidden="true">{initials}</span>
+              <span className="who"><b>{user}</b><small>{ROLE_LABEL[role] ?? role}</small></span>
+            </button>
+            {meOpen && (
+              <>
+                <div className="menu-backdrop" onClick={() => setMeOpen(false)} />
+                <div className="menu" role="menu">
+                  <div className="menu-head"><b>{user}</b><small>{ROLE_LABEL[role] ?? role} · {brand}</small></div>
+                  {settingsHref && <Link href={settingsHref} role="menuitem"><Icon k="settings" />Settings</Link>}
+                  {canSwitch && <Link href="/choose-workspace" role="menuitem"><Icon k="properties" />Switch workspace</Link>}
+                  <button type="button" role="menuitem" onClick={onSignOut}><Icon k="signout" />Sign out</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
         <main id="main" className="canvas">{children}</main>
       </div>

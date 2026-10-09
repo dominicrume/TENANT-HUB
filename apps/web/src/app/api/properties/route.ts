@@ -92,9 +92,13 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
 
   try {
+    // A property added with only a name (the common quick path: "72 Knowle
+    // Road" + postcode) is still an address — carry the name into
+    // address_line1 so tenants, letters and statements never see a blank.
+    const record = { ...parsed.data, address_line1: parsed.data.address_line1?.trim() || parsed.data.name.trim(), org_id: auth.actor.org_id };
     const { data } = await writeWithAudit({
       table: "properties",
-      record: { ...parsed.data, org_id: auth.actor.org_id } as Record<string, unknown>,
+      record: record as Record<string, unknown>,
       action: "CREATE",
       org_id: auth.actor.org_id,
       ...auth.actor,

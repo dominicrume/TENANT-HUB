@@ -7,6 +7,12 @@ import { generateSupportPlan } from "../../../lib/generate-plan";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { emit } from "../../../lib/webhooks";
 
+const TENANT_FIELD_LABELS: Record<string, string> = {
+  title: "Title", full_name: "Full name", dob: "Date of birth", nino: "National Insurance number", nationality: "Nationality",
+  mobile: "Mobile", email: "Email", address: "Address", postcode: "Postcode", room_number: "Room", moved_in: "Move-in date",
+  benefit_type: "Benefit type", benefit_frequency: "Benefit frequency", benefit_amount: "Benefit amount",
+};
+
 /**
  * GET /api/tenants — active, non-archived tenants for the current user's
  * organisation. Reads via packages/db with an explicit org_id filter,
@@ -60,8 +66,14 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = TenantCreateSchema.safeParse(body);
   if (!parsed.success) {
+    // Say WHICH field, in plain words — a bare Zod message ("String must
+    // contain at least 5 character(s)") is what staff were shown on the
+    // 2026-10-09 walkthrough and nobody could tell what it referred to.
+    const first = parsed.error.issues[0];
+    const key = String(first?.path?.[0] ?? "");
+    const label = TENANT_FIELD_LABELS[key] ?? key.replace(/_/g, " ");
     return NextResponse.json(
-      { error: "Validation failed", issues: parsed.error.issues },
+      { error: first ? `${label ? `${label}: ` : ""}${first.message}` : "Validation failed", issues: parsed.error.issues },
       { status: 422 },
     );
   }

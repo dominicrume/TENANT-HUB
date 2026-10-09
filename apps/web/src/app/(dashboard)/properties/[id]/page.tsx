@@ -228,9 +228,14 @@ export default function PropertyDetailPage() {
           </select>
           {landlordError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{landlordError}</p>}
           {data.landlord && (
-            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-              {[data.landlord.contact_email, data.landlord.contact_phone].filter(Boolean).join(" · ") || "No contact details on file yet"}
-            </p>
+            <Link href={`/landlords/${data.landlord.id}`} className="li row" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", width: "100%", boxSizing: "border-box", alignItems: "center" }}>
+              <span className="avatar" aria-hidden="true" style={{ background: "var(--navy)", color: "#fff" }}>{data.landlord.name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</span>
+              <div className="body">
+                <b>{data.landlord.name}</b>
+                <p>{[data.landlord.contact_phone, data.landlord.contact_email].filter(Boolean).join(" · ") || "No contact details on file yet"} · open profile</p>
+              </div>
+              <span className="chev">›</span>
+            </Link>
           )}
         </div>
       </section>
@@ -246,10 +251,10 @@ export default function PropertyDetailPage() {
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <label style={{ flex: 1, minWidth: 140 }}><span className="lbl">Room</span>
                 <input value={roomRef} onChange={(e) => setRoomRef(e.target.value)} required placeholder="Room 4" style={inp} /></label>
-              <label style={{ flex: 1, minWidth: 140 }}><span className="lbl">Type</span>
-                <select value={roomClass} onChange={(e) => setRoomClass(e.target.value)} style={inp}>
-                  <option value="supported">Supported</option><option value="residential">Residential</option><option value="commercial">Commercial</option>
-                </select></label>
+              {/* Room type stays "supported" — "remove residential and commercial"
+                  (walkthrough 2026-10-09). The field is kept in state so the
+                  enum can be exposed again without touching the save path. */}
+              <input type="hidden" value={roomClass} readOnly onChange={(e) => setRoomClass(e.target.value)} />
             </div>
             {roomError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{roomError}</p>}
             <div><button type="submit" className="rel" disabled={roomBusy || !roomRef.trim()}>{roomBusy ? "Adding…" : "Add room"}</button></div>
@@ -300,7 +305,7 @@ export default function PropertyDetailPage() {
           onCreated={() => void load()}
           unitId={tenancyForUnit}
           roomReference={units.find((u) => u.id === tenancyForUnit)?.reference ?? ""}
-          address={[property.address_line1, property.city].filter(Boolean).join(", ")}
+          address={[property.address_line1, property.city].filter(Boolean).join(", ") || property.name}
           postcode={property.postcode ?? ""}
         />
       )}

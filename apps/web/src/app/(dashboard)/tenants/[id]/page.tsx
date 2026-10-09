@@ -35,7 +35,6 @@ import { AskTab } from "../../../../components/tenant/AskTab";
 import { DynamicFormTab, type FormTemplate } from "../../../../components/tenant/DynamicFormTab";
 import { FormsPanel } from "../../../../components/layout/FormsPanel";
 import { BeforeYourNextContact } from "../../../../components/tenant/BeforeYourNextContact";
-import { ConfidentialityDeclaration } from "../../../../components/tenant/ConfidentialityDeclaration";
 import { compressImage } from "../../../../lib/compress-image";
 
 const CORE_TABS = [
@@ -442,7 +441,10 @@ export default function TenantDetailPage() {
             <TextField label="Probation Officer" value={form["probation_officer"] ?? ""} onChange={(v) => set("probation_officer", v)} />
           </FormSection>
 
-          <ConfidentialityDeclaration tenantId={id} tenantName={form["full_name"] ?? ""} />
+          {/* ConfidentialityDeclaration deliberately not rendered here any more
+              (walkthrough 2026-10-09: "take it out of there so the user doesn't
+              see it"). The signed declaration still exists as a document — it
+              is reached from the Documents tab, not pinned under every form. */}
 
           <div style={{ marginBottom: "14px" }}>
             <AuditStampBar

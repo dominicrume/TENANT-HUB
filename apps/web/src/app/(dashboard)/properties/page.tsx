@@ -34,7 +34,10 @@ interface Property {
 interface Landlord { id: string; name: string; contact_email: string | null; contact_phone: string | null }
 
 const TAG_CLASS: Record<Property["asset_class"], string> = { supported: "sup", residential: "res", commercial: "com", mixed: "both" };
-const TAG_LABEL: Record<Property["asset_class"], string> = { supported: "Supported", residential: "Residential", commercial: "Commercial", mixed: "Mixed" };
+// Two choices on the form — "just put supported accommodation and other, we
+// don't need the rest" (walkthrough 2026-10-09). The DB enum keeps all four
+// so existing rows stay valid and still get a sensible label.
+const TAG_LABEL: Record<Property["asset_class"], string> = { supported: "Supported accommodation", residential: "Residential", commercial: "Commercial", mixed: "Other" };
 
 // A stable colour per landlord (C52). Cycles through the brand palette rather
 // than inventing new hex values — picked by position in the landlord list
@@ -76,6 +79,11 @@ export default function PropertiesPage() {
   // rather than duplicating this form — one form, one source of truth (H8).
   useEffect(() => {
     if (searchParams.get("addLandlord") === "1") setShowAddLandlord(true);
+    // A landlord's profile links here with ?addProperty=1&landlord=<id> so
+    // the new property is already under them — no re-picking from a list.
+    if (searchParams.get("addProperty") === "1") setAdding(true);
+    const ll = searchParams.get("landlord");
+    if (ll) setLandlordId(ll);
   }, [searchParams]);
 
   const load = useCallback(async () => {
@@ -167,6 +175,7 @@ export default function PropertiesPage() {
         <h1 style={{ margin: 0 }}>Properties</h1>
         <div style={{ display: "flex", gap: 10 }}>
           <button type="button" className="btn ghost sm" onClick={() => setView((v) => (v === "list" ? "rooms" : "list"))}>{view === "list" ? "Room status" : "Back to list"}</button>
+          <Link href="/landlords" className="btn ghost sm">Landlords</Link>
           <button type="button" className="btn ghost sm" onClick={() => setShowAddLandlord((v) => !v)}>{showAddLandlord ? "Cancel" : "Add landlord"}</button>
           <button type="button" className="rel" onClick={() => setAdding((v) => !v)}>{adding ? "Cancel" : "Add property"}</button>
         </div>
@@ -229,8 +238,8 @@ export default function PropertiesPage() {
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Type</span>
               <select value={assetClass} onChange={(e) => setAssetClass(e.target.value as Property["asset_class"])} style={inp}>
-                <option value="supported">Supported</option><option value="residential">Residential</option>
-                <option value="commercial">Commercial</option><option value="mixed">Mixed</option>
+                <option value="supported">Supported accommodation</option>
+                <option value="mixed">Other</option>
               </select></label>
             <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Landlord</span>
               <select value={landlordId} onChange={(e) => setLandlordId(e.target.value)} style={inp}>
