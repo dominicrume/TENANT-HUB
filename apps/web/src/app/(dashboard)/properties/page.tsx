@@ -90,9 +90,24 @@ export default function PropertiesPage() {
     e.preventDefault();
     if (!name.trim()) return;
     setBusy(true); setSaveError(null);
+    // "+ Add a new landlord…" picked in the dropdown: create them first, in
+    // the same action, so adding a property never has to stop and go
+    // elsewhere to add its owner (the flow Rume described: property →
+    // landlord → tenants, in one place).
+    let resolvedLandlordId: string | null = landlordId || null;
+    if (landlordId === "__new") {
+      if (!llName.trim()) { setSaveError("Give the new landlord a name."); setBusy(false); return; }
+      const lr = await fetch("/api/landlords", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: llName, contact_email: llEmail || null, contact_phone: llPhone || null }),
+      });
+      if (!lr.ok) { const b = await lr.json().catch(() => null); setSaveError(b?.error ?? "Could not add the landlord"); setBusy(false); return; }
+      resolvedLandlordId = ((await lr.json()) as { id: string }).id;
+      setLlName(""); setLlEmail(""); setLlPhone("");
+    }
     const res = await fetch("/api/properties", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, address_line1: address || null, postcode: postcode || null, asset_class: assetClass, landlord_id: landlordId || null }),
+      body: JSON.stringify({ name, address_line1: address || null, postcode: postcode || null, asset_class: assetClass, landlord_id: resolvedLandlordId }),
     });
     setBusy(false);
     if (!res.ok) { const b = await res.json().catch(() => null); setSaveError(b?.error ?? "Could not add the property"); return; }
@@ -221,8 +236,21 @@ export default function PropertiesPage() {
               <select value={landlordId} onChange={(e) => setLandlordId(e.target.value)} style={inp}>
                 <option value="">Not set yet</option>
                 {landlords.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                <option value="__new">+ Add a new landlord…</option>
               </select></label>
           </div>
+          {landlordId === "__new" && (
+            <div style={{ display: "grid", gap: 10, padding: 12, borderRadius: 10, background: "var(--cream)", border: "1px dashed #C9C0B0" }}>
+              <label><span className="lbl">New landlord&apos;s name</span>
+                <input value={llName} onChange={(e) => setLlName(e.target.value)} required placeholder="e.g. Clyde Porter, or the housing association's name" style={inp} /></label>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Contact email</span>
+                  <input type="email" value={llEmail} onChange={(e) => setLlEmail(e.target.value)} placeholder="Where document requests get sent" style={inp} /></label>
+                <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Contact phone</span>
+                  <input value={llPhone} onChange={(e) => setLlPhone(e.target.value)} placeholder="Optional" style={inp} /></label>
+              </div>
+            </div>
+          )}
           {saveError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{saveError}</p>}
           <div><button type="submit" className="rel" disabled={busy || !name.trim()}>{busy ? "Adding…" : "Add property"}</button></div>
         </form>

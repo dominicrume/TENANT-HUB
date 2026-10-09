@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session, SessionType } from "@tenant-hub/validation";
+import { AiAssist } from "../AiAssist";
 import { formatShortDate, truncateHash } from "../../lib/format";
 import { downloadSessionAsWord, printSession } from "../../lib/session-export";
 
@@ -165,6 +166,7 @@ export function SessionsTab({ tenantId }: { tenantId: string }) {
           placeholder="Session notes…"
           style={{ width: "100%", minHeight: "120px", padding: "11px", borderRadius: "8px", border: "1px solid #EDE8E1", fontFamily: "'Sora',sans-serif", fontSize: "14px", boxSizing: "border-box", resize: "vertical" }}
         />
+        <AiAssist purpose="session" value={notes} onChange={setNotes} />
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "10px" }}>
           <button
             onClick={save}

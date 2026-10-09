@@ -21,7 +21,15 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const input_mode = (body.input_mode as DraftState["input_mode"]) ?? "manual";
-  const machine_state: DraftState = { input_mode, extracted: {} };
+  // Started from a room ("Add tenancy → Full intake"): the room's address,
+  // postcode and number are known, so they're pre-filled rather than retyped,
+  // and unit_id rides along so commit can link the tenancy to that room.
+  const prefill = (body.prefill && typeof body.prefill === "object" ? body.prefill : {}) as Record<string, unknown>;
+  const extracted: DraftState["extracted"] = {};
+  for (const k of ["room_number", "address", "postcode"] as const) {
+    if (typeof prefill[k] === "string" && (prefill[k] as string).trim()) extracted[k] = (prefill[k] as string).trim();
+  }
+  const machine_state: DraftState = { input_mode, extracted, ...(typeof body.unit_id === "string" && body.unit_id ? { unit_id: body.unit_id } : {}) };
 
   try {
     const { data } = await writeWithAudit({

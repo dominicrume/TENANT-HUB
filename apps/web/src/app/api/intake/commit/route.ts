@@ -106,6 +106,32 @@ export async function POST(req: Request) {
       ...auth.actor,
     });
 
+    // Started from a room ("Add tenancy → Full intake"): link the new tenant
+    // to that room now, so the property page shows them housed without a
+    // second step. Rent is set afterwards on the property page — it isn't an
+    // intake-form field. Best-effort and audited: the room may have been
+    // filled meanwhile (migration 051's unique index refuses that), in which
+    // case the tenant still exists and staff pick a room by hand.
+    let linkedUnit: string | null = null;
+    if (state.unit_id) {
+      const unit = await db().query<{ id: string }>(
+        `SELECT u.id FROM units u WHERE u.id = $1 AND u.org_id = $2
+           AND NOT EXISTS (SELECT 1 FROM tenancies ty WHERE ty.unit_id = u.id AND ty.status = 'active')`,
+        [state.unit_id, auth.actor.org_id]);
+      if (unit.rows[0]) {
+        try {
+          await writeWithAudit({
+            table: "tenancies",
+            record: { unit_id: state.unit_id, tenant_id: tenant.id, org_id: auth.actor.org_id, status: "active", rent_amount: 0, rent_frequency: "weekly" } as Record<string, unknown>,
+            action: "CREATE", org_id: auth.actor.org_id, tenant_id: tenant.id as string, ...auth.actor,
+          });
+          linkedUnit = state.unit_id;
+        } catch (e) {
+          console.error("[intake/commit] tenancy link failed (tenant still created):", e);
+        }
+      }
+    }
+
     // Mark the draft completed (best-effort; audited like any draft write).
     await writeWithAudit({
       table: "drafts",
@@ -114,7 +140,7 @@ export async function POST(req: Request) {
       ...auth.actor,
     });
 
-    return NextResponse.json({ tenant }, { status: 201 });
+    return NextResponse.json({ tenant, linked_unit: linkedUnit }, { status: 201 });
   } catch (err) {
     const message = toSafeErrorMessage(err, "Commit failed");
     return NextResponse.json({ error: message }, { status: 500 });

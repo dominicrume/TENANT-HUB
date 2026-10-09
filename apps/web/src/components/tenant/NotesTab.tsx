@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { formatShortDate } from "../../lib/format";
+import { AiAssist } from "../AiAssist";
 import { FormSection } from "../form/fields";
 
 export function NotesTab({ tenantId }: { tenantId: string }) {
@@ -49,6 +50,7 @@ export function NotesTab({ tenantId }: { tenantId: string }) {
             placeholder="Write a private note for staff only..."
             style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #D9D2C7", fontSize: "13px", minHeight: "80px", boxSizing: "border-box", fontFamily: "'Sora', sans-serif" }}
           />
+          <AiAssist purpose="staff_note" value={content} onChange={setContent} />
         </div>
         <button
           onClick={onSave}

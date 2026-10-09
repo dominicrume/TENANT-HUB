@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { TITLES } from "@tenant-hub/validation";
 
 interface ExistingTenant { id: string; full_name: string; room_number: string | null }
@@ -31,7 +32,14 @@ export function AddTenancyModal({
   address: string;
   postcode: string;
 }) {
+  const router = useRouter();
   const [mode, setMode] = useState<"new" | "existing">("new");
+  // "Full intake" — the same 5-step intake every tenant normally goes
+  // through (OCR/voice/manual, review, the tenant's own signature), started
+  // FROM this room: address/postcode/room pre-filled, and on completion the
+  // tenancy is linked here automatically (api/intake/commit). The quick form
+  // below stays for when staff just need someone on the books now.
+  const fullIntakeHref = `/intake/new?unit=${encodeURIComponent(unitId)}&room=${encodeURIComponent(roomReference)}&address=${encodeURIComponent(address)}&postcode=${encodeURIComponent(postcode)}`;
   const [existingTenants, setExistingTenants] = useState<ExistingTenant[] | null>(null);
   const [existingTenantId, setExistingTenantId] = useState("");
   const [title, setTitle] = useState<string>(TITLES[0]);
@@ -110,9 +118,10 @@ export function AddTenancyModal({
         <h2 style={{ margin: 0, color: "var(--navy)", fontSize: 18 }}>Add tenancy — {roomReference}</h2>
         <p style={{ margin: 0, fontSize: 13, color: "#7A8499" }}>{address}, {postcode}</p>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" onClick={() => setMode("new")} className={mode === "new" ? "rel sm" : "btn ghost sm"}>New tenant</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" onClick={() => setMode("new")} className={mode === "new" ? "rel sm" : "btn ghost sm"}>Quick add</button>
           <button type="button" onClick={() => setMode("existing")} className={mode === "existing" ? "rel sm" : "btn ghost sm"}>Existing tenant</button>
+          <button type="button" onClick={() => router.push(fullIntakeHref)} className="btn ghost sm" title="The full intake — OCR or voice, review, the tenant's own signature — with this room pre-filled">Full intake →</button>
         </div>
 
         {mode === "existing" ? (

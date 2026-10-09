@@ -63,6 +63,10 @@ const serverSchema = z.object({
   // UK address lookup — Google Places (New) key. When set, the address picker
   // upgrades from OpenStreetMap to Google automatically, no code change.
   GOOGLE_PLACES_API_KEY:   z.string().optional().catch(undefined),
+  // "Sign in with Google" — appears on the login page only when both exist.
+  // Invite-only still holds: it signs in an email that already has a profile.
+  GOOGLE_OAUTH_CLIENT_ID:     z.string().optional().catch(undefined),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().catch(undefined),
 });
 
 // ── Client-safe schema (NEXT_PUBLIC_ prefix) ─────────────────────────────

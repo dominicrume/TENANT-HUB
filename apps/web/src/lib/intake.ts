@@ -13,6 +13,8 @@ export interface DraftState {
   confirmed_by?: string;
   confirmed_at?: string;
   signature?: { name: string; date: string };
+  /** Set when intake was started from a room ("Add tenancy → Full intake"): commit links the new tenant to it. */
+  unit_id?: string;
 }
 
 export interface Draft {

@@ -58,6 +58,60 @@ export default function PropertyDetailPage() {
   const [docError, setDocError] = useState<string | null>(null);
   const [attachingId, setAttachingId] = useState<string | null>(null);
 
+  // Certificates: what THIS property is required to hold (same rule the
+  // Paperwork matrix and compliance-watch use — one derivation, H3), each
+  // addable/renewable right here. Insurance: a real add form. Both sections
+  // used to be read-only "none on file yet" dead ends.
+  interface PaperworkCell { name: string; certificateTypeId: string | null; status: string; expiresOn: string | null }
+  const [required, setRequired] = useState<PaperworkCell[] | null>(null);
+  const [certFor, setCertFor] = useState<string | null>(null);
+  const [certIssued, setCertIssued] = useState("");
+  const [certExpires, setCertExpires] = useState("");
+  const [certBusy, setCertBusy] = useState(false);
+  const [certError, setCertError] = useState<string | null>(null);
+  const [addingPolicy, setAddingPolicy] = useState(false);
+  const [polInsurer, setPolInsurer] = useState("");
+  const [polRef, setPolRef] = useState("");
+  const [polRenewal, setPolRenewal] = useState("");
+  const [polPremium, setPolPremium] = useState("");
+  const [polBusy, setPolBusy] = useState(false);
+  const [polError, setPolError] = useState<string | null>(null);
+
+  const loadRequired = useCallback(async () => {
+    const res = await fetch("/api/paperwork");
+    if (!res.ok) { setRequired([]); return; }
+    const j = (await res.json()) as { rows?: Array<{ propertyId: string; cells: PaperworkCell[] }> };
+    setRequired(j.rows?.find((r) => r.propertyId === id)?.cells ?? []);
+  }, [id]);
+  useEffect(() => { void loadRequired(); }, [loadRequired]);
+
+  async function addCertificate(e: React.FormEvent, cell: PaperworkCell) {
+    e.preventDefault();
+    if (!cell.certificateTypeId) return;
+    setCertBusy(true); setCertError(null);
+    const res = await fetch("/api/certificates", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ property_id: id, unit_id: null, certificate_type_id: cell.certificateTypeId, issued_on: certIssued || null, expires_on: certExpires || null, document_url: null }),
+    });
+    setCertBusy(false);
+    if (!res.ok) { const b = await res.json().catch(() => null); setCertError(b?.issues?.[0]?.message ?? b?.error ?? "Could not save the certificate"); return; }
+    setCertFor(null); setCertIssued(""); setCertExpires("");
+    void loadRequired(); void load();
+  }
+
+  async function addPolicy(e: React.FormEvent) {
+    e.preventDefault();
+    setPolBusy(true); setPolError(null);
+    const res = await fetch("/api/insurance/policies", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ property_id: id, insurer: polInsurer || null, policy_reference: polRef || null, renewal_date: polRenewal || null, annual_premium: polPremium ? Number(polPremium) : null, renewal_lead_days: 21 }),
+    });
+    setPolBusy(false);
+    if (!res.ok) { const b = await res.json().catch(() => null); setPolError(b?.issues?.[0]?.message ?? b?.error ?? "Could not save the policy"); return; }
+    setAddingPolicy(false); setPolInsurer(""); setPolRef(""); setPolRenewal(""); setPolPremium("");
+    void load();
+  }
+
   const loadDocs = useCallback(async () => {
     const res = await fetch(`/api/property-documents?propertyId=${id}`);
     if (res.ok) setDocs(await res.json());
@@ -332,23 +386,82 @@ export default function PropertyDetailPage() {
       </section>
 
       <section className="card" style={{ marginBottom: 18 }}>
-        <div className="ch"><h3>Certificates</h3></div>
-        {certificates.length === 0 ? (
-          <div className="li"><p className="muted">None on file yet.</p></div>
+        <div className="ch"><h3>Certificates</h3><span className="muted">What this property must hold, by law</span></div>
+        {required === null ? (
+          <div className="li"><p className="muted">Checking what&apos;s required…</p></div>
+        ) : required.length === 0 ? (
+          <div className="li"><p className="muted">Nothing required until this property has at least one room with a type.</p></div>
         ) : (
-          certificates.map((c) => (
-            <div className="li" key={c.id}><div className="body">
-              <b>{c.certificate_types?.name ?? "Certificate"}</b>
-              <p>{c.issued_on ? `Issued ${formatShortDate(c.issued_on)}` : "Issue date not on file"} · {c.expires_on ? `expires ${formatShortDate(c.expires_on)}` : "no expiry on file"}</p>
-            </div></div>
-          ))
+          required.map((cell) => {
+            const tone = cell.status === "valid" ? "var(--live)" : cell.status === "missing" || cell.status === "expired" ? "var(--brick)" : "var(--amber-deep)";
+            const open = certFor === cell.name;
+            return (
+              <div key={cell.name}>
+                <div className="li">
+                  <div className="body">
+                    <b>{cell.name}</b>
+                    <p><span style={{ color: tone, fontWeight: 600, textTransform: "capitalize" }}>{cell.status.replace(/_/g, " ")}</span>{cell.expiresOn ? ` · expires ${formatShortDate(cell.expiresOn)}` : ""}</p>
+                  </div>
+                  <button type="button" className="btn ghost sm" disabled={!cell.certificateTypeId}
+                    title={cell.certificateTypeId ? undefined : "This certificate type isn't in the catalogue yet"}
+                    onClick={() => { setCertFor(open ? null : cell.name); setCertError(null); }}>
+                    {open ? "Cancel" : cell.status === "valid" ? "Renew" : "Add"}
+                  </button>
+                </div>
+                {open && (
+                  <form onSubmit={(e) => void addCertificate(e, cell)} className="li" style={{ display: "grid", gap: 10, background: "var(--cream)" }}>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <label style={{ flex: 1, minWidth: 140 }}><span className="lbl">Issued on</span>
+                        <input type="date" value={certIssued} onChange={(e) => setCertIssued(e.target.value)} required style={inp} /></label>
+                      <label style={{ flex: 1, minWidth: 140 }}><span className="lbl">Expires on</span>
+                        <input type="date" value={certExpires} onChange={(e) => setCertExpires(e.target.value)} required style={inp} /></label>
+                    </div>
+                    {certError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{certError}</p>}
+                    <div><button type="submit" className="rel sm" disabled={certBusy || !certIssued || !certExpires}>{certBusy ? "Saving…" : `Save ${cell.name}`}</button></div>
+                  </form>
+                )}
+              </div>
+            );
+          })
+        )}
+        {certificates.length > 0 && (
+          <details className="li" style={{ display: "block" }}>
+            <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>History ({certificates.length} on file)</summary>
+            <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+              {certificates.map((c) => (
+                <p key={c.id} style={{ margin: 0, fontSize: 13, color: "var(--slate)" }}>
+                  <b>{c.certificate_types?.name ?? "Certificate"}</b> · {c.issued_on ? `issued ${formatShortDate(c.issued_on)}` : "issue date not on file"} · {c.expires_on ? `expires ${formatShortDate(c.expires_on)}` : "no expiry on file"}
+                </p>
+              ))}
+            </div>
+          </details>
         )}
       </section>
 
       <section className="card">
-        <div className="ch"><h3>Insurance</h3></div>
-        {policies.length === 0 ? (
-          <div className="li"><p className="muted">No policy on file yet.</p></div>
+        <div className="ch"><h3>Insurance</h3>
+          <button type="button" className="btn ghost sm" onClick={() => { setAddingPolicy((v) => !v); setPolError(null); }}>{addingPolicy ? "Cancel" : "Add policy"}</button>
+        </div>
+        {addingPolicy && (
+          <form onSubmit={addPolicy} className="li" style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Insurer</span>
+                <input value={polInsurer} onChange={(e) => setPolInsurer(e.target.value)} required placeholder="e.g. Aviva" style={inp} /></label>
+              <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Policy reference</span>
+                <input value={polRef} onChange={(e) => setPolRef(e.target.value)} placeholder="Optional" style={inp} /></label>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Renewal date</span>
+                <input type="date" value={polRenewal} onChange={(e) => setPolRenewal(e.target.value)} required style={inp} /></label>
+              <label style={{ flex: 1, minWidth: 160 }}><span className="lbl">Annual premium (£)</span>
+                <input type="number" min="0" step="0.01" value={polPremium} onChange={(e) => setPolPremium(e.target.value)} placeholder="Optional" style={inp} /></label>
+            </div>
+            {polError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{polError}</p>}
+            <div><button type="submit" className="rel sm" disabled={polBusy || !polInsurer.trim() || !polRenewal}>{polBusy ? "Saving…" : "Save policy"}</button></div>
+          </form>
+        )}
+        {policies.length === 0 && !addingPolicy ? (
+          <div className="li"><div className="body"><b>No policy on file yet</b><p>Add one above — the insurance-renewal agent watches the renewal date and gathers quotes before it lapses.</p></div></div>
         ) : (
           policies.map((p) => (
             <div className="li" key={p.id}><div className="body">

@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { formatShortDate } from "../lib/format";
 import { useTenants } from "../hooks/useTenants";
+import { AiAssist } from "./AiAssist";
 
 interface Handover { id: string; shift_type: string; notes: string; staff_name: string; created_at: string }
 interface Incident { id: string; incident_type: string; description: string; reported_by: string; incident_date: string; tenant?: { full_name?: string } | null }
@@ -61,6 +62,7 @@ export function HandoverPanel() {
             <select value={shift} onChange={(e) => setShift(e.target.value)} style={inp}><option>Morning</option><option>Evening</option><option>Night</option></select></label>
           <label><span className="lbl">For the next shift</span>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} required placeholder="Who to watch, what's outstanding, what's changed. Three lines is enough." style={{ ...inp, minHeight: 90, resize: "vertical" }} /></label>
+          <AiAssist purpose="handover" value={notes} onChange={setNotes} context={{ shift }} />
           <div><button type="submit" className="rel" disabled={busy || !notes.trim()}>{busy ? "Saving…" : "Post handover"}</button></div>
         </form>
       )}
@@ -77,6 +79,7 @@ export function HandoverPanel() {
           </div>
           <label><span className="lbl">What happened</span>
             <textarea value={iDesc} onChange={(e) => setIDesc(e.target.value)} required placeholder="Just the facts, in order." style={{ ...inp, minHeight: 90, resize: "vertical" }} /></label>
+          <AiAssist purpose="incident" value={iDesc} onChange={setIDesc} context={{ incidentType: iType }} />
           <div><button type="submit" className="rel" disabled={busy || !iDesc.trim()}>{busy ? "Saving…" : "Log incident"}</button></div>
         </form>
       )}

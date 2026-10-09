@@ -9,6 +9,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useNeedsYou } from "../../../hooks/useNeedsYou";
 import { GROUP, GROUP_ORDER, GROUP_ICON } from "@tenant-hub/domain";
@@ -17,6 +18,15 @@ import { formatMoney, greeting } from "../../../lib/format";
 export default function TodayPage() {
   const { profile } = useAuth();
   const { data, error, loading } = useNeedsYou();
+
+  // What the system did for you — counted from the audit trail (every write
+  // is in it, H1), with the time estimate per kind of action shown openly.
+  // It's an estimate; the counts are real.
+  interface Impact { days: number; lines: Array<{ label: string; count: number; minutesEach: number }>; totalMinutes: number }
+  const [impact, setImpact] = useState<Impact | null>(null);
+  useEffect(() => {
+    fetch("/api/metrics/impact").then((r) => (r.ok ? r.json() : null)).then((j) => j && setImpact(j as Impact)).catch(() => {});
+  }, []);
   const first = profile?.full_name?.split(" ")[0];
   const items = data?.items ?? [];
   const n = items.length;
@@ -75,6 +85,21 @@ export default function TodayPage() {
         <Link href="/tenants?filter=suspended" className="stat"><div className="k">Housing benefit</div><div className="v">{data ? data.stats.housingBenefitAtRisk : "—"}</div><div className="m">{data ? (data.stats.housingBenefitAtRisk === 0 ? "all claims paying" : "pending or suspended") : " "}</div></Link>
         <Link href="/maintenance" className="stat"><div className="k">Repairs</div><div className="v">{data ? data.stats.repairsOpen : "—"}</div><div className="m">{data ? (data.stats.repairsOpen === 0 ? "nothing open" : "open right now") : " "}</div></Link>
       </div>
+
+      {impact && impact.lines.length > 0 && (
+        <section className="card" style={{ marginTop: 18 }}>
+          <div className="ch">
+            <h3>What the system did for you · last {impact.days} days</h3>
+            <span className="muted">≈ {impact.totalMinutes >= 60 ? `${(impact.totalMinutes / 60).toFixed(1)} hours` : `${impact.totalMinutes} min`} saved (estimate)</span>
+          </div>
+          {impact.lines.map((l) => (
+            <div className="li" key={l.label}>
+              <div className="body"><b>{l.count.toLocaleString("en-GB")} × {l.label}</b><p>≈ {l.minutesEach} min each · {l.count * l.minutesEach} min</p></div>
+            </div>
+          ))}
+          <div className="li"><p className="muted" style={{ margin: 0 }}>Counts are real, from the audit trail. The minutes are an assumption per action, shown so you can disagree with them.</p></div>
+        </section>
+      )}
 
       <p className="muted" style={{ margin: "10px 0 0" }}><Link href="/reports/morning-summary" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>This morning&apos;s summary</Link> · <Link href="/reports" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Monthly report</Link> · <Link href="/settings" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Settings</Link></p>
 

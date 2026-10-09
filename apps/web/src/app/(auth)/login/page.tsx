@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as s from "../_authStyles";
@@ -14,6 +14,14 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // "Sign in with Google" appears only once GOOGLE_OAUTH_CLIENT_ID/SECRET are
+  // configured — a button that leads to "not set up yet" would be worse than
+  // no button. Invite-only still holds: Google only signs in an email that
+  // already has a profile here; it never creates an account.
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  useEffect(() => {
+    fetch("/api/auth/google?status=1").then((r) => (r.ok ? r.json() : null)).then((j) => setGoogleEnabled(Boolean(j?.enabled))).catch(() => {});
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -112,6 +120,18 @@ export default function LoginPage() {
             {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>
+
+        {googleEnabled && (
+          <div style={{ marginTop: "14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 12px", color: "#8A93A0", fontSize: 12 }}>
+              <span style={{ flex: 1, height: 1, background: "#E9E1D4" }} />or<span style={{ flex: 1, height: 1, background: "#E9E1D4" }} />
+            </div>
+            <a href="/api/auth/google" style={{ ...s.submit, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, background: "#fff", color: "#0F1C2E", border: "1.5px solid #C9C0B0", textDecoration: "none" }}>
+              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.7 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6C12.3 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.7-4.1-13.6-9.9l-7.8 6C6.5 42.6 14.6 48 24 48z"/></svg>
+              Sign in with Google
+            </a>
+          </div>
+        )}
 
         <div style={{ marginTop: "16px", textAlign: "center" }}>
           <Link href="/reset-password" style={s.link}>Forgot password?</Link>

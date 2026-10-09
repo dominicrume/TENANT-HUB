@@ -6,7 +6,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { InputMode } from "../../../../lib/intake";
 
 const CARD: React.CSSProperties = {
@@ -17,6 +17,12 @@ const CARD: React.CSSProperties = {
 
 export default function IntakeNewPage() {
   const router = useRouter();
+  const sp = useSearchParams();
+  // Arrived from a room ("Add tenancy → Full intake"): carry the room along so
+  // the address/postcode/room are pre-filled and commit links the tenancy.
+  const fromRoom = sp.get("unit")
+    ? { unit_id: sp.get("unit"), prefill: { room_number: sp.get("room") ?? "", address: sp.get("address") ?? "", postcode: sp.get("postcode") ?? "" } }
+    : {};
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +32,7 @@ export default function IntakeNewPage() {
     const res = await fetch("/api/drafts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input_mode: mode }),
+      body: JSON.stringify({ input_mode: mode, ...fromRoom }),
     });
     if (!res.ok) {
       const b = await res.json().catch(() => null);
