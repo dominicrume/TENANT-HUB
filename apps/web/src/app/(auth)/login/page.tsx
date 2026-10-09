@@ -25,6 +25,48 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // MFA (migration 052): when the password passes on an account with an
+  // authenticator enrolled, the server hands back a 5-minute challenge instead
+  // of a session, and the form becomes a single code box.
+  const [mfaChallenge, setMfaChallenge] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+
+  function goHome(role: string) {
+    // Multi-org access (migration 046) is a manager-level concept —
+    // /choose-workspace itself skips straight to /dashboard for the
+    // common case (exactly one organisation), so this adds no extra
+    // click for anyone who doesn't actually have a choice to make.
+    if (role === "tenant") router.push("/my-home");
+    else if (role === "contractor") router.push("/jobs");
+    else if (role === "manager" || role === "admin") router.push("/choose-workspace");
+    else router.push("/dashboard");
+    router.refresh();
+  }
+
+  async function onMfaSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!mfaChallenge) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/mfa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challenge: mfaChallenge, code: mfaCode }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? "That code didn't match");
+        if (body?.expired) { setMfaChallenge(null); setMfaCode(""); }
+        setLoading(false);
+        return;
+      }
+      goHome(body?.role ?? "tenant");
+    } catch {
+      setError("Could not reach the server. Try again.");
+      setLoading(false);
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -42,16 +84,13 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      const role = body?.role ?? "tenant";
-      // Multi-org access (migration 046) is a manager-level concept —
-      // /choose-workspace itself skips straight to /dashboard for the
-      // common case (exactly one organisation), so this adds no extra
-      // click for anyone who doesn't actually have a choice to make.
-      if (role === "tenant") router.push("/my-home");
-      else if (role === "contractor") router.push("/jobs");
-      else if (role === "manager" || role === "admin") router.push("/choose-workspace");
-      else router.push("/dashboard");
-      router.refresh();
+      if (body?.mfaRequired && typeof body.challenge === "string") {
+        setMfaChallenge(body.challenge);
+        setMfaCode("");
+        setLoading(false);
+        return;
+      }
+      goHome(body?.role ?? "tenant");
     } catch {
       setError("Could not reach the server. Try again.");
       setLoading(false);
@@ -67,6 +106,31 @@ export default function LoginPage() {
           The complete operating system for supported housing
         </p>
 
+        {mfaChallenge ? (
+        <form onSubmit={onMfaSubmit}>
+          <label style={s.label} htmlFor="mfa-code">Code from your authenticator app</label>
+          <input
+            id="mfa-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            autoFocus
+            required
+            placeholder="123 456"
+            style={{ ...s.input, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 2, fontSize: 18 }}
+            value={mfaCode}
+            onChange={(e) => setMfaCode(e.target.value)}
+          />
+          <p style={{ fontSize: "12px", color: "#64748B", marginTop: "6px" }}>Lost the app? Enter one of your recovery codes instead.</p>
+          {error && <div style={s.errorBox}>{error}</div>}
+          <button type="submit" style={s.submit} disabled={loading || mfaCode.trim().length < 6}>
+            {loading ? "Checking…" : "Continue"}
+          </button>
+          <button type="button" onClick={() => { setMfaChallenge(null); setMfaCode(""); setError(null); }}
+            style={{ marginTop: 10, width: "100%", background: "none", border: "none", color: "#64748B", cursor: "pointer", fontSize: 13 }}>
+            Back to password
+          </button>
+        </form>
+        ) : (
         <form onSubmit={onSubmit}>
           <label style={s.label} htmlFor="email">Email</label>
           <input
@@ -120,8 +184,9 @@ export default function LoginPage() {
             {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>
+        )}
 
-        {googleEnabled && (
+        {googleEnabled && !mfaChallenge && (
           <div style={{ marginTop: "14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 12px", color: "#8A93A0", fontSize: 12 }}>
               <span style={{ flex: 1, height: 1, background: "#E9E1D4" }} />or<span style={{ flex: 1, height: 1, background: "#E9E1D4" }} />

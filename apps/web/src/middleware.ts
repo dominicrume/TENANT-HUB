@@ -14,6 +14,13 @@ const PUBLIC_PREFIXES = [
   // Inbound third-party webhooks authenticate by their own signed payload
   // (e.g. HMAC), never a session cookie — a provider's server has no login.
   "/api/webhooks",
+  // One-shot token links for people without accounts (migration 052): a
+  // referee giving a reference, a landlord uploading a requested document.
+  // The token in the URL is the credential; the route checks it.
+  "/reference",
+  "/api/reference",
+  "/landlord-upload",
+  "/api/landlord-upload",
 ];
 
 interface VerifiedUser { id: string; email: string; role: string; orgId: string | null; tenantId: string | null; fullName: string }

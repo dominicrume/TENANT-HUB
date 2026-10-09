@@ -379,7 +379,7 @@ export async function sendMaintenanceAck(to: string, tenantName: string, issueTi
 // it — the caller records that, so "Requested" never quietly means "nobody
 // was told". No key configured = false, same as a failed send.
 export async function sendLandlordDocumentRequest(
-  to: string, landlordName: string, documentType: string, propertyName: string, requestedBy: string,
+  to: string, landlordName: string, documentType: string, propertyName: string, requestedBy: string, uploadUrl?: string,
 ): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) return false;
 
@@ -401,7 +401,10 @@ export async function sendLandlordDocumentRequest(
          </tbody>
        </table>
      </div>
-     <p>Please reply to this email with the document attached, or send it to ${requestedBy} directly, and it will be filed against the property.</p>`,
+     ${uploadUrl
+       ? `<p>Use the button below to upload it — no account or login needed. The link works once and expires in 14 days.</p>`
+       : `<p>Please reply to this email with the document attached, or send it to ${requestedBy} directly, and it will be filed against the property.</p>`}`,
+    uploadUrl ? { text: "Upload the document", url: uploadUrl } : undefined,
   );
 
   try {
@@ -411,6 +414,36 @@ export async function sendLandlordDocumentRequest(
       subject: `Document requested: ${documentType} — ${propertyName}`,
       html,
     });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+// 10. Tenant reference request — the referee answers a one-shot link, no
+// account (migration 052). Returns true only if Resend accepted it.
+export const REFERENCE_KIND_LABELS: Record<string, string> = {
+  previous_landlord: "previous landlord reference",
+  employer: "employer reference",
+  support_worker: "support worker reference",
+  character: "character reference",
+};
+
+export async function sendReferenceRequest(
+  to: string, refereeName: string, tenantFirstName: string, orgName: string, kind: string, url: string,
+): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) return false;
+  const kindLabel = REFERENCE_KIND_LABELS[kind] ?? "reference";
+  const html = emailTemplate(
+    "Reference request",
+    `<p>Hello ${refereeName},</p>
+     <p><strong>${orgName}</strong> is considering housing <strong>${tenantFirstName}</strong>, who has given your name for a ${kindLabel}.</p>
+     <p>It takes about two minutes: three questions and a free-text box. Nothing you write is shown to ${tenantFirstName}; it is seen only by the housing team.</p>
+     <p>The link below works once and expires in 21 days.</p>`,
+    { text: "Give the reference", url },
+  );
+  try {
+    const { error } = await resend.emails.send({ from: FROM_EMAIL, to, subject: `Reference request for ${tenantFirstName} — ${orgName}`, html });
     return !error;
   } catch {
     return false;

@@ -28,6 +28,7 @@ import { SupportPlanTab } from "../../../../components/tenant/SupportPlanTab";
 import { MaintenanceTab } from "../../../../components/tenant/MaintenanceTab";
 import { DocumentsTab } from "../../../../components/tenant/DocumentsTab";
 import { IdCheckTab } from "../../../../components/tenant/IdCheckTab";
+import { ReferencesPanel } from "../../../../components/tenant/ReferencesPanel";
 import { NotesTab } from "../../../../components/tenant/NotesTab";
 import { MessagesTab } from "../../../../components/tenant/MessagesTab";
 import { AskTab } from "../../../../components/tenant/AskTab";
@@ -598,7 +599,7 @@ export default function TenantDetailPage() {
       {tab === "ledger" && <LedgerTab tenantId={id} />}
       {tab === "maintenance" && <MaintenanceTab tenantId={id} roomNumber={tenant?.room_number} />}
       {tab === "documents" && <DocumentsTab tenantId={id} />}
-      {tab === "id-check" && <IdCheckTab tenantId={id} />}
+      {tab === "id-check" && <><IdCheckTab tenantId={id} /><ReferencesPanel tenantId={id} /></>}
       {tab === "notes" && <NotesTab tenantId={id} />}
       {tab === "messages" && <MessagesTab tenantId={id} tenantName={tenant?.full_name} />}
       {tab === "ask" && <AskTab tenantId={id} />}

@@ -4,6 +4,7 @@ import { RentPaymentCreateSchema } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { emit } from "../../../lib/webhooks";
 
 /**
  * GET /api/rent-payments?tenantId=[id]
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
       tenant_id: parsed.data.tenant_id,
       ...auth.actor,
     });
+    emit(auth.actor.org_id, "payment.recorded", data as Record<string, unknown>);
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     const message = toSafeErrorMessage(err, "Unknown error");

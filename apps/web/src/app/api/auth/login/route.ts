@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, hasDatabaseUrl, findProfileByEmail, setPasswordHash, createSession, recordLoginAttempt, recentFailedAttempts, isLoginThrottled } from "@tenant-hub/db";
+import { db, hasDatabaseUrl, findProfileByEmail, setPasswordHash, createSession, recordLoginAttempt, recentFailedAttempts, isLoginThrottled, getMfaState, createMfaChallenge } from "@tenant-hub/db";
 import { verifyPassword, hashPassword, generateToken, hashToken } from "@tenant-hub/auth";
 import { isSameOriginPost } from "../../../../lib/csrf";
 import { setSessionCookie } from "../../../../lib/session-cookie";
@@ -41,6 +41,17 @@ export async function POST(req: Request) {
 
   if (result.needsRehash) {
     await setPasswordHash(client, profile.id, await hashPassword(password));
+  }
+
+  // MFA (migration 052): password alone doesn't open a session for an
+  // account with an authenticator enrolled. Hand back a short-lived challenge
+  // and let /api/auth/mfa/verify finish the job. The attempt above is already
+  // recorded as a success — the password WAS right; the throttle is for guessing.
+  const mfa = await getMfaState(client, profile.id);
+  if (mfa.enabled) {
+    const challenge = generateToken();
+    await createMfaChallenge(client, { profileId: profile.id, tokenHash: hashToken(challenge) });
+    return NextResponse.json({ mfaRequired: true, challenge });
   }
 
   const token = generateToken();

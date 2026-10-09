@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTenants } from "../../../hooks/useTenants";
 import { RentLaddersPanel } from "../../../components/RentLaddersPanel";
+import { downloadCsv } from "../../../lib/csv";
 
 export default function LedgerIndexPage() {
   const { tenants } = useTenants();
@@ -84,6 +85,19 @@ export default function LedgerIndexPage() {
     }
   }
 
+  // Accounting export: one row per tenant from the arrears view — what the
+  // accountant actually asks for at month end. Built from the same data the
+  // page shows (H7), never a second query.
+  function exportCsv() {
+    const rows = [["Tenant", "Room", "Total charged (£)", "Total paid (£)", "Balance (£)", "Status"]];
+    for (const b of balances) {
+      const t = tenants.find((x) => x.id === b.tenant_id);
+      const bal = Number(b.balance ?? 0);
+      rows.push([t?.full_name ?? "Unknown", t?.room_number ?? "", Number(b.total_charged ?? 0).toFixed(2), Number(b.total_paid ?? 0).toFixed(2), bal.toFixed(2), bal < 0 ? "In arrears" : bal > 0 ? "In credit" : "Settled"]);
+    }
+    downloadCsv(`ledger-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+  }
+
   if (loading) return <div style={{ padding: "32px", fontFamily: "'Sora', sans-serif" }}>Loading ledger...</div>;
 
   return (
@@ -91,7 +105,8 @@ export default function LedgerIndexPage() {
       <RentLaddersPanel />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
         <h1 style={{ color: "var(--navy)", margin: 0 }}>Global Ledger</h1>
-        <div style={{ display: "flex", gap: "12px" }}>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <button onClick={exportCsv} title="Every tenant's charged / paid / balance, for the accountant or a spreadsheet" style={{ padding: "8px 16px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", cursor: "pointer", fontWeight: 600, color: "var(--navy)" }}>Export CSV</button>
           <button onClick={() => { setFormError(null); setShowCharge(true); }} style={{ padding: "8px 16px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", cursor: "pointer", fontWeight: 600, color: "var(--navy)" }}>+ Add Charge</button>
           <button onClick={() => { setFormError(null); setShowPayment(true); }} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Record Payment</button>
         </div>
@@ -201,6 +216,7 @@ export default function LedgerIndexPage() {
               <option value="Housing Benefit">Housing Benefit</option>
               <option value="Universal Credit">Universal Credit</option>
               <option value="Tenant Top-up">Tenant Top-up</option>
+              <option value="Adjustment (credit)">Adjustment (credit) — write-off / correction</option>
               <option value="Other">Other</option>
             </select>
             <input name="payment_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} style={{ padding: "10px", borderRadius: "6px", border: "1px solid #EDE8E1" }} />

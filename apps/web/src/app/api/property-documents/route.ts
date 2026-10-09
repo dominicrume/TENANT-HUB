@@ -5,6 +5,9 @@ import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { looksLikeTenantDocument } from "../../../lib/document-types";
 import { sendLandlordDocumentRequest } from "../../../lib/resend";
+import { emit } from "../../../lib/webhooks";
+import { publicOrigin } from "../../../lib/google-oauth";
+import { generateToken, hashToken } from "@tenant-hub/auth";
 
 interface PropertyDocumentRow {
   id: string;
@@ -99,6 +102,7 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
         } as Record<string, unknown>,
         action: "CREATE", org_id: auth.actor.org_id, ...auth.actor,
       });
+      emit(auth.actor.org_id, "document.received", data as Record<string, unknown>);
       return NextResponse.json(data, { status: 201 });
     } catch (err) {
       console.error("[property-documents:POST:add]", err);
@@ -138,7 +142,17 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
     const target = info.rows[0];
     let notifiedAt: string | null = null;
     if (target?.email) {
-      const sent = await sendLandlordDocumentRequest(target.email, target.landlord, parsed.data.document_type, target.property, auth.actor.user_name);
+      // Landlord portal, the thin slice (migration 052): the email carries a
+      // one-shot upload link, no account needed. Token stored hashed, 14 days.
+      const uploadToken = generateToken();
+      const uploadExpires = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+      await writeWithAudit({
+        table: "property_documents",
+        record: { id: row["id"], upload_token_hash: hashToken(uploadToken), upload_token_expires_at: uploadExpires } as Record<string, unknown>,
+        action: "UPDATE", org_id: auth.actor.org_id, ...auth.actor,
+      });
+      const uploadUrl = `${publicOrigin(req)}/landlord-upload/${uploadToken}`;
+      const sent = await sendLandlordDocumentRequest(target.email, target.landlord, parsed.data.document_type, target.property, auth.actor.user_name, uploadUrl);
       if (sent) {
         notifiedAt = new Date().toISOString();
         await writeWithAudit({

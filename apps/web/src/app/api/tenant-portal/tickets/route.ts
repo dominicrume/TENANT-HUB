@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { sendMaintenanceAck } from "../../../../lib/resend";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { emit } from "../../../../lib/webhooks";
 
 export const dynamic = "force-dynamic";
 
@@ -122,6 +123,7 @@ export async function POST(req: Request) {
       }
     }
 
+    emit(orgId, "ticket.created", data as Record<string, unknown>);
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });

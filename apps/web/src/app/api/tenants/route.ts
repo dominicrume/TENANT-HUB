@@ -5,6 +5,7 @@ import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
 import { generateSupportPlan } from "../../../lib/generate-plan";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { emit } from "../../../lib/webhooks";
 
 /**
  * GET /api/tenants — active, non-archived tenants for the current user's
@@ -97,7 +98,8 @@ export async function POST(req: Request) {
       generateSupportPlan(tenantId, recordToInsert, auth.actor, auth.supabase)
         .catch(err => console.error(`[AI Pipeline] Failed to generate support plan for OCR tenant ${tenantId}:`, err));
     }
-    
+
+    emit(auth.actor.org_id, "tenant.created", (Array.isArray(data) ? data[0] : data) as Record<string, unknown>);
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     const message = toSafeErrorMessage(err, "Unknown error");

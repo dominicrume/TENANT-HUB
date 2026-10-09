@@ -6,6 +6,7 @@ import { getApiAuth } from "../../../../lib/api-auth";
 import { hashRecord } from "../../../../lib/hash";
 import { canonicalSubset, type DraftState } from "../../../../lib/intake";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { emit } from "../../../../lib/webhooks";
 
 /**
  * POST /api/intake/commit — finalize a draft into a tenant record.
@@ -140,6 +141,7 @@ export async function POST(req: Request) {
       ...auth.actor,
     });
 
+    emit(auth.actor.org_id, "tenant.created", { ...(tenant as Record<string, unknown>), linked_unit: linkedUnit });
     return NextResponse.json({ tenant, linked_unit: linkedUnit }, { status: 201 });
   } catch (err) {
     const message = toSafeErrorMessage(err, "Commit failed");

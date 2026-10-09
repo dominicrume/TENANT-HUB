@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { emit } from "../../../lib/webhooks";
 
 export async function GET(req: Request) {
   const auth = await getApiAuth();
@@ -64,6 +65,7 @@ export async function POST(req: Request) {
       user_name: auth.actor.user_name,
       user_role: auth.actor.user_role,
     });
+    emit(auth.actor.org_id, "ticket.created", data as Record<string, unknown>);
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });

@@ -3,6 +3,7 @@ import { db, writeWithAudit, insertDocumentBlob, deleteDocumentBlob, MAX_DOCUMEN
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { looksLikePropertyDocument } from "../../../lib/document-types";
+import { emit } from "../../../lib/webhooks";
 
 interface TenantDocRow {
   id: string;
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
       user_name: auth.actor.user_name,
       user_role: auth.actor.user_role,
     });
+    emit(auth.actor.org_id, "document.filed", data as Record<string, unknown>);
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     console.error("[documents:POST]", err);

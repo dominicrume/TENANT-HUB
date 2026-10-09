@@ -11,8 +11,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useBrand, BRAND_LABELS } from "../../../contexts/BrandContext";
 import { formatDateTime, truncateHash } from "../../../lib/format";
+import { SecurityTab } from "../../../components/settings/SecurityTab";
+import { IntegrationsTab } from "../../../components/settings/IntegrationsTab";
 
-type Tab = "users" | "charges" | "brands" | "billing" | "blockchain";
+type Tab = "users" | "security" | "charges" | "brands" | "billing" | "integrations" | "blockchain";
 
 interface Profile { id: string; full_name: string; role: string; email: string | null }
 
@@ -140,9 +142,11 @@ export default function SettingsPage() {
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "users", label: "Users" },
+    { key: "security", label: "Security" },
     { key: "charges", label: "Service charges" },
     { key: "brands", label: "Brands" },
     { key: "billing", label: "Billing" },
+    { key: "integrations", label: "Integrations" },
     { key: "blockchain", label: "Blockchain status" },
   ];
 
@@ -247,6 +251,10 @@ export default function SettingsPage() {
             </section>
           </>
         )}
+
+        {tab === "security" && <SecurityTab />}
+
+        {tab === "integrations" && <IntegrationsTab />}
 
         {tab === "blockchain" && (
           <section className="card">

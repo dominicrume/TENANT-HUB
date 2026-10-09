@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { TenancyCreateSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { emit } from "../../../lib/webhooks";
 
 /**
  * POST /api/tenancies — Add tenancy: link a tenant already on file to a
@@ -48,6 +49,7 @@ export const POST = withRouteHandler({ resource: "tenancies", action: "create" }
       tenant_id: parsed.data.tenant_id,
       ...auth.actor,
     });
+    emit(auth.actor.org_id, "tenancy.created", data as Record<string, unknown>);
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     console.error("[tenancies:POST]", err);

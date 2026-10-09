@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CanonicalTenant, ServiceCharge } from "@tenant-hub/validation";
 import { LetterheadBlock } from "../../../../../components/LetterheadBlock";
 import { formatMoney, formatShortDate } from "../../../../../lib/format";
+import { downloadCsv } from "../../../../../lib/csv";
 
 interface Payment { id: string; amount: number | string; payment_type: string; payment_date: string; reference_note?: string | null }
 interface Line { date: string; description: string; charge: number; payment: number }
@@ -52,7 +53,14 @@ export default function StatementPage({ params }: { params: { id: string } }) {
   let running = 0;
   return (
     <div className="print-area" style={{ maxWidth: 820, margin: "0 auto", padding: "28px 24px 60px", background: "var(--surface)", color: "var(--ink)", fontFamily: "'Sora',sans-serif" }}>
-      <div className="no-print" style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+      <div className="no-print" style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 14 }}>
+        <button type="button" className="btn ghost" onClick={() => {
+          let bal = 0;
+          const rows: (string | number)[][] = [["Date", "Description", "Charge (£)", "Payment (£)", "Balance (£)"]];
+          for (const l of lines) { bal += l.payment - l.charge; rows.push([l.date, l.description, l.charge ? l.charge.toFixed(2) : "", l.payment ? l.payment.toFixed(2) : "", bal.toFixed(2)]); }
+          rows.push([], ["Totals", "", totals.charged.toFixed(2), totals.paid.toFixed(2), totals.balance.toFixed(2)]);
+          downloadCsv(`statement-${tenant.full_name.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+        }}>Download CSV</button>
         <button type="button" className="btn" onClick={() => window.print()}>Print or save as PDF</button>
       </div>
 

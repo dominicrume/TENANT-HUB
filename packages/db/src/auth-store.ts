@@ -23,6 +23,12 @@ export async function findProfileByEmail(client: Queryable, email: string): Prom
   return r.rows[0] ?? null;
 }
 
+export async function findProfileById(client: Queryable, id: string): Promise<ProfileForLogin | null> {
+  const r = await client.query<ProfileForLogin>(
+    "SELECT id, email, password_hash, role, org_id, tenant_id, full_name FROM profiles WHERE id = $1 LIMIT 1", [id]);
+  return r.rows[0] ?? null;
+}
+
 export async function setPasswordHash(client: Queryable, profileId: string, hash: string): Promise<void> {
   await client.query("UPDATE profiles SET password_hash = $2 WHERE id = $1", [profileId, hash]);
 }
