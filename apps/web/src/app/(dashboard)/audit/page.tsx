@@ -5,6 +5,8 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatDateTime, truncateHash } from "../../../lib/format";
 
@@ -20,14 +22,22 @@ interface Row {
 }
 
 const ACTIONS = ["", "CREATE", "UPDATE", "DELETE", "SIGN", "VERIFY", "EXPORT", "LOGIN"];
+const chip: React.CSSProperties = { background: "rgba(232,168,76,.16)", color: "var(--amber-deep)", border: "none", cursor: "pointer", fontFamily: "inherit" };
 const COLOR: Record<string, string> = { CREATE: "#34C87A", UPDATE: "#E8A84C", DELETE: "#E05252", SIGN: "#7C3AED", VERIFY: "#7C3AED", EXPORT: "#7A8499", LOGIN: "#0F1C2E" };
 const PAGE = 20;
 
 export default function AuditLogPage() {
   const { profile } = useAuth();
+  const searchParams = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
-  const [action, setAction] = useState("");
-  const [from, setFrom] = useState("");
+  const [action, setAction] = useState(searchParams.get("action") ?? "");
+  const [from, setFrom] = useState(searchParams.get("from") ?? "");
+  // Drill-down filters arriving from the dashboard's impact card (by agent,
+  // by table, or "everything the agents did") — shown as chips the person
+  // can clear, so it's always obvious why the list is narrowed.
+  const [agent, setAgent] = useState(searchParams.get("agent") ?? "");
+  const [table, setTable] = useState(searchParams.get("table") ?? "");
+  const [systemOnly, setSystemOnly] = useState(searchParams.get("system") === "1");
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -35,8 +45,11 @@ export default function AuditLogPage() {
     const params = new URLSearchParams({ limit: "200" });
     if (action) params.set("action", action);
     if (from) params.set("from", from);
+    if (agent) params.set("agent", agent);
+    if (table) params.set("table", table);
+    if (systemOnly) params.set("system", "1");
     fetch(`/api/audit-logs?${params}`).then((r) => (r.ok ? r.json() : [])).then((d) => { setRows(Array.isArray(d) ? d : []); setPage(0); }).catch(() => {});
-  }, [action, from]);
+  }, [action, from, agent, table, systemOnly]);
 
   const pageRows = useMemo(() => rows.slice(page * PAGE, page * PAGE + PAGE), [rows, page]);
   const pages = Math.ceil(rows.length / PAGE);
@@ -65,7 +78,17 @@ export default function AuditLogPage() {
         {profile?.role === "manager" && (
           <button onClick={exportCsv} style={{ minHeight: "40px", padding: "0 14px", borderRadius: "8px", border: "1px solid #EDE8E1", background: "#fff", cursor: "pointer", fontSize: "13px" }}>Export CSV</button>
         )}
+        {(agent || table || systemOnly) && (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12.5 }}>
+            <span className="muted">Showing:</span>
+            {systemOnly && <button type="button" className="tag" onClick={() => setSystemOnly(false)} style={chip}>only what the agents did ✕</button>}
+            {agent && <button type="button" className="tag" onClick={() => setAgent("")} style={chip}>agent · {agent} ✕</button>}
+            {table && <button type="button" className="tag" onClick={() => setTable("")} style={chip}>table · {table} ✕</button>}
+            <Link href="/dashboard" className="muted" style={{ fontSize: 12.5 }}>← back to the card</Link>
+          </div>
+        )}
       </div>
+      <p className="muted" style={{ margin: "0 0 10px" }}>{rows.length === 200 ? "Showing the latest 200 rows" : `${rows.length} row${rows.length === 1 ? "" : "s"}`} · every row is one write, hashed and chained to the one before it.</p>
 
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
         <thead>

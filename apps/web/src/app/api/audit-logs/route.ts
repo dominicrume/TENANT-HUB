@@ -32,6 +32,12 @@ export async function GET(req: Request) {
   const tenantId = url.searchParams.get("tenant");
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
+  // Drill-downs from the dashboard's "what the system did" card: by agent,
+  // by table, or every automated row — so a count is always one click from
+  // the rows behind it.
+  const agent = url.searchParams.get("agent");
+  const table = url.searchParams.get("table");
+  const systemOnly = url.searchParams.get("system") === "1";
 
   const orgId = auth.actor.org_id;
   const params: unknown[] = [orgId];
@@ -45,6 +51,9 @@ export async function GET(req: Request) {
   if (tenantId) { params.push(tenantId); sql += ` AND tenant_id = $${params.length}`; }
   if (from) { params.push(from); sql += ` AND created_at >= $${params.length}`; }
   if (to) { params.push(to); sql += ` AND created_at <= $${params.length}`; }
+  if (agent) { params.push(agent); sql += ` AND (agent = $${params.length} OR user_name = 'System · ' || $${params.length})`; }
+  if (table) { params.push(table); sql += ` AND table_name = $${params.length}`; }
+  if (systemOnly) sql += ` AND (user_role = 'system' OR agent IS NOT NULL)`;
   params.push(limit);
   sql += ` ORDER BY created_at DESC LIMIT $${params.length}`;
 
