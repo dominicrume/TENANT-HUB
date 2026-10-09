@@ -70,7 +70,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <Shell
       nav={STAFF_NAV}
-      brand={profile?.org_name ?? "Tenant Hub"}
+      // The rail names WHOSE portfolio you're in: the landlord when one is
+      // picked (Rume, 2026-10-10: "we're in Dawson and Reliance is still
+      // showing at the top — bad"); the organisation only when looking at
+      // all landlords.
+      brand={profile?.landlord_name ?? profile?.org_name ?? "Tenant Hub"}
+      brandSub={profile?.landlord_name ? `Landlord · ${profile.org_name ?? "Tenant Hub"}` : "Tenant Hub"}
       user={profile?.full_name ?? "—"}
       role={profile?.role ?? ""}
       workspaces={workspaces}

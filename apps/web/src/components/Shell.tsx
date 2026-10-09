@@ -136,7 +136,7 @@ export function Shell({
   const home = nav[0]?.href ?? "/dashboard";
   const tabs = nav.filter((n) => n.mobile).slice(0, 5);
   const overflow = nav.filter((n) => !tabs.includes(n));
-  const crumb = nav.find((n) => on(n.href))?.label ?? (settingsHref && on(settingsHref) ? "Settings" : brand);
+  const crumb = nav.find((n) => on(n.href))?.label ?? (settingsHref && on(settingsHref) ? "Settings" : on("/landlords") ? "Landlords" : brand);
   const initials = user.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
 
   return (
