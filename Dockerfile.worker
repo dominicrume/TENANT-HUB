@@ -3,7 +3,8 @@
 # "build" script, which CI needs to keep building every package) both end up
 # trying to build apps/web too, which fails without real Supabase credentials
 # at build time. This only ever installs and runs the worker.
-FROM node:20-slim
+# public.ecr.aws mirror of the official image — no Docker Hub pull limit (see Dockerfile.web).
+FROM public.ecr.aws/docker/library/node:20-slim
 
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.1.4 --activate

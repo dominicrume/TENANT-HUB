@@ -9,7 +9,11 @@
 # arrive as build ARGs (Railway passes a service's variables through as build
 # args automatically) rather than only being read at container start like
 # every other env var here.
-FROM node:20-slim AS build
+# public.ecr.aws mirrors the official Docker Hub image byte-for-byte, without
+# Docker Hub's anonymous pull limit — Railway's shared builder hit "429 Too
+# Many Requests" on node:20-slim twice in a row on 2026-10-09 and two deploys
+# failed before a line of our code ran.
+FROM public.ecr.aws/docker/library/node:20-slim AS build
 
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.1.4 --activate
