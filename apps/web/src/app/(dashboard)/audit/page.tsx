@@ -9,6 +9,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatDateTime, truncateHash } from "../../../lib/format";
+import { ImpactCard } from "../../../components/ImpactCard";
 
 interface Row {
   id: string;
@@ -69,6 +70,8 @@ export default function AuditLogPage() {
         <h1 style={{ color: "#fff", fontSize: "18px", fontWeight: 700 }}>Audit Trail: Tamper-Proof Record</h1>
         <p style={{ color: "#9AA6BC", fontSize: "12px", marginTop: "4px" }}>Every mutation is cryptographically hashed. This log cannot be edited or deleted.</p>
       </div>
+
+      <ImpactCard />
 
       <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "12px" }}>
         <select aria-label="Filter by action" value={action} onChange={(e) => setAction(e.target.value)} style={{ minHeight: "40px", padding: "6px 10px", borderRadius: "8px", border: "1px solid #EDE8E1" }}>

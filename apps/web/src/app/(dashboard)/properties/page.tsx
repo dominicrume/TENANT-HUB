@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "../../../contexts/AuthContext";
 import { AddressField } from "../../../components/AddressField";
 
 interface Property {
@@ -65,6 +66,10 @@ export default function PropertiesPage() {
   // Filter + search
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending">("all");
   const [landlordFilter, setLandlordFilter] = useState("all");
+  // The landlord chosen at sign-in / in the topbar (migration 054) is the
+  // default filter here — the list opens on their portfolio, not everyone's.
+  const { profile } = useAuth();
+  useEffect(() => { setLandlordFilter(profile?.landlord_id ?? "all"); }, [profile?.landlord_id]);
   const [search, setSearch] = useState("");
 
   // Add-landlord panel

@@ -27,6 +27,7 @@ export async function GET(req: Request) {
   if (!session) return NextResponse.json({ user: null }, { status: 200 });
 
   return NextResponse.json({
-    user: { id: session.profileId, email: session.email, role: session.role, orgId: session.orgId, orgName: session.orgName, tenantId: session.tenantId, fullName: session.fullName },
+    user: { id: session.profileId, email: session.email, role: session.role, orgId: session.orgId, orgName: session.orgName, tenantId: session.tenantId, fullName: session.fullName,
+      landlordId: session.landlordId, landlordName: session.landlordName },
   });
 }

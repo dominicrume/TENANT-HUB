@@ -83,7 +83,7 @@ export async function middleware(req: NextRequest) {
   // of staff behind one shared IP, can burn through it on ordinary use and get
   // locked out of switching organisations — found live via exactly that
   // symptom ("Could not switch workspace. Try again." with no real cause).
-  const AUTH_RATE_LIMIT_EXEMPT = ["/api/auth/verify", "/api/auth/switch-org", "/api/auth/logout"];
+  const AUTH_RATE_LIMIT_EXEMPT = ["/api/auth/verify", "/api/auth/switch-org", "/api/auth/switch-landlord", "/api/auth/logout"];
   if (pathname.startsWith("/api/") && !AUTH_RATE_LIMIT_EXEMPT.includes(pathname)) {
     const ip = req.ip ?? req.headers.get("x-forwarded-for") ?? "127.0.0.1";
     try {

@@ -30,6 +30,9 @@ export interface Profile {
   /** The real, active organisation — the only thing that should ever label "which workspace am I in" (see packages/db/src/auth-store.ts). */
   org_id: string | null;
   org_name: string | null;
+  /** Which landlord's portfolio this session is looking at (migration 054). Null = all landlords. */
+  landlord_id: string | null;
+  landlord_name: string | null;
 }
 
 interface AuthValue {
@@ -42,7 +45,7 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | undefined>(undefined);
 
-type VerifiedUser = { id: string; email: string; role: string; fullName: string; orgId: string | null; orgName: string | null };
+type VerifiedUser = { id: string; email: string; role: string; fullName: string; orgId: string | null; orgName: string | null; landlordId?: string | null; landlordName?: string | null };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -55,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const r = await fetch("/api/auth/verify", { cache: "no-store" });
       const body = (r.ok ? await r.json() : { user: null }) as { user: VerifiedUser | null };
       const u = body.user;
-      setProfile(u ? { id: u.id, full_name: u.fullName, role: u.role as UserRole, email: u.email, org_id: u.orgId, org_name: u.orgName } : null);
+      setProfile(u ? { id: u.id, full_name: u.fullName, role: u.role as UserRole, email: u.email, org_id: u.orgId, org_name: u.orgName, landlord_id: u.landlordId ?? null, landlord_name: u.landlordName ?? null } : null);
     } catch {
       // Keep whatever we had (H8): a flaky refetch must not blank the console's
       // name/workspace mid-session. Route guards are server-side anyway.

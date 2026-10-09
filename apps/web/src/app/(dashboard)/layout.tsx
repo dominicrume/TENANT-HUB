@@ -14,7 +14,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
 import { Shell, STAFF_NAV, type Workspace } from "../../components/Shell";
 import { useNeedsYou } from "../../hooks/useNeedsYou";
@@ -31,16 +31,38 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   // there's genuinely more than one — "it should show me where I am at the
   // moment, and give me the option to switch" (walkthrough 2026-10-09).
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  // Every landlord this account can work for (migration 054) — the topbar
+  // chip. Re-read whenever the active org or landlord changes, and when the
+  // route changes to /landlords or /properties (that's where new ones get
+  // added), so "added internally → available to choose" holds without a
+  // re-login.
+  const [landlords, setLandlords] = useState<Workspace[]>([]);
+  const pathname = usePathname();
   useEffect(() => {
     if (!profile) return;
     fetch("/api/organisations/mine").then((r) => (r.ok ? r.json() : [])).then((d) => setWorkspaces(Array.isArray(d) ? d : [])).catch(() => {});
   }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!profile) return;
+    fetch("/api/landlords/mine").then((r) => (r.ok ? r.json() : [])).then((d) => setLandlords(Array.isArray(d) ? d.map((l: { id: string; name: string }) => ({ id: l.id, name: l.name })) : [])).catch(() => {});
+  }, [profile?.id, profile?.org_id, profile?.landlord_id, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function switchWorkspace(orgId: string) {
     const res = await fetch("/api/auth/switch-org", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orgId }) });
     if (!res.ok) return false;
+    // A workspace switch clears the landlord (they belong to the old one).
+    await fetch("/api/auth/switch-landlord", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ landlordId: null }) }).catch(() => {});
     await refresh();
     router.push("/dashboard");
+    router.refresh();
+    return true;
+  }
+
+  async function switchLandlord(landlordId: string | null) {
+    const res = await fetch("/api/auth/switch-landlord", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ landlordId }) });
+    if (!res.ok) return false;
+    await refresh();
+    router.push(landlordId ? `/landlords/${landlordId}` : "/landlords");
     router.refresh();
     return true;
   }
@@ -54,6 +76,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       workspaces={workspaces}
       activeWorkspaceId={profile?.org_id ?? null}
       onSwitchWorkspace={switchWorkspace}
+      landlords={landlords}
+      activeLandlordId={profile?.landlord_id ?? null}
+      onSwitchLandlord={switchLandlord}
       needsYou={count}
       live={live}
       practice={practice}

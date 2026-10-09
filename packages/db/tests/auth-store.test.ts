@@ -28,6 +28,11 @@ describe("auth-store on 040_own_sessions", () => {
     await db.raw.exec(PREREQ);
     await db.raw.exec(migration("040_own_sessions.sql"));
     await db.raw.exec(migration("046_multi_org_access.sql"));
+    // 054 adds user_sessions.active_landlord_id → landlords(id). The real
+    // landlords table is 043 (which also alters properties, not in PREREQ);
+    // a minimal stand-in is enough for the foreign key here.
+    await db.raw.exec("CREATE TABLE IF NOT EXISTS landlords (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID, name TEXT NOT NULL)");
+    await db.raw.exec(migration("054_session_active_landlord.sql"));
     org = (await db.query<{ id: string }>("INSERT INTO organisations (name) VALUES ('Matty''s Place') RETURNING id")).rows[0]!.id;
     profileId = (await db.query<{ id: string }>(
       "INSERT INTO profiles (org_id, role, email, full_name) VALUES ($1, 'manager', 'manager@example.com', 'Manager One') RETURNING id", [org])).rows[0]!.id;

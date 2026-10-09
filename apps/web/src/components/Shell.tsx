@@ -91,10 +91,14 @@ export interface ShellProps {
   logoUrl?: string | null;
   user: string;
   role: string;
-  /** Every organisation this person can work in; the topbar chip becomes a switcher when there's more than one. */
+  /** Every organisation this person can work in (kept for the menu's "Switch workspace"). */
   workspaces?: Workspace[];
   activeWorkspaceId?: string | null;
   onSwitchWorkspace?: (orgId: string) => Promise<boolean>;
+  /** Every landlord this person can work for — the topbar chip (migration 054). Null active = all landlords. */
+  landlords?: Workspace[];
+  activeLandlordId?: string | null;
+  onSwitchLandlord?: (landlordId: string | null) => Promise<boolean>;
   /** Count of decisions waiting on Today. Hidden when 0. */
   needsYou?: number;
   /**
@@ -115,6 +119,7 @@ export interface ShellProps {
 export function Shell({
   children, nav, brand, brandSub = "Tenant Hub", logoUrl, user, role,
   workspaces = [], activeWorkspaceId = null, onSwitchWorkspace,
+  landlords = [], activeLandlordId = null, onSwitchLandlord,
   needsYou = 0, live = null, practice = [], primaryAction, secondaryAction, settingsHref = "/settings", onSignOut,
 }: ShellProps) {
   const path = usePathname() ?? "";
@@ -157,24 +162,26 @@ export function Shell({
       <div className="main">
         <div className="topbar">
           <div className="crumb">{crumb}</div>
-          {/* Which workspace you're in — always visible, by name. A switcher
-              only when this account really has more than one (migration 046);
-              otherwise a plain label, never a dropdown with one option. */}
-          {canSwitch ? (
-            <label className="wschip" title="Switch workspace">
-              <Icon k="properties" />
+          {/* Whose portfolio you're looking at — the landlord, by name, always
+              visible (migration 054). A live list: a landlord added a minute
+              ago is already in it. "All landlords" is the whole-company view.
+              Organisations (the managing agents) are not in this list. */}
+          {landlords.length > 0 && onSwitchLandlord ? (
+            <label className="wschip" title="Switch landlord">
+              <Icon k="people" />
               <select
-                value={activeWorkspaceId ?? ""}
+                value={activeLandlordId ?? ""}
                 disabled={switching}
-                aria-label="Workspace"
+                aria-label="Landlord"
                 onChange={async (e) => {
-                  const id = e.target.value;
-                  if (!id || id === activeWorkspaceId || !onSwitchWorkspace) return;
+                  const id = e.target.value || null;
+                  if (id === activeLandlordId) return;
                   setSwitching(true);
-                  try { await onSwitchWorkspace(id); } finally { setSwitching(false); }
+                  try { await onSwitchLandlord(id); } finally { setSwitching(false); }
                 }}
               >
-                {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                <option value="">All landlords</option>
+                {landlords.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
               <span aria-hidden="true">{switching ? "…" : "▾"}</span>
             </label>
@@ -205,7 +212,10 @@ export function Shell({
                 <div className="menu" role="menu">
                   <div className="menu-head"><b>{user}</b><small>{ROLE_LABEL[role] ?? role} · {brand}</small></div>
                   {settingsHref && <Link href={settingsHref} role="menuitem"><Icon k="settings" />Settings</Link>}
-                  {canSwitch && <Link href="/choose-workspace" role="menuitem"><Icon k="properties" />Switch workspace</Link>}
+                  <Link href="/choose-workspace" role="menuitem"><Icon k="people" />Switch landlord</Link>
+                  {canSwitch && onSwitchWorkspace && workspaces.filter((w) => w.id !== activeWorkspaceId).map((w) => (
+                    <button key={w.id} type="button" role="menuitem" onClick={() => void onSwitchWorkspace(w.id)}><Icon k="properties" />Work in {w.name}</button>
+                  ))}
                   <button type="button" role="menuitem" onClick={onSignOut}><Icon k="signout" />Sign out</button>
                 </div>
               </>

@@ -160,7 +160,7 @@ export default function SettingsPage() {
         ))}
         {orgCount > 1 && (
           <Link href="/choose-workspace" className="btn ghost sm" style={{ textAlign: "left", marginTop: 8 }}>
-            Switch workspace
+            Switch landlord
           </Link>
         )}
       </nav>

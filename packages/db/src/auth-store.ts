@@ -48,7 +48,11 @@ export async function createSession(client: Queryable, i: CreateSessionInput): P
   return { id: row.id, expiresAt: row.expires_at };
 }
 
-export interface SessionProfile { profileId: string; email: string; role: string; orgId: string | null; orgName: string | null; tenantId: string | null; fullName: string; brand: string }
+export interface SessionProfile {
+  profileId: string; email: string; role: string; orgId: string | null; orgName: string | null; tenantId: string | null; fullName: string; brand: string;
+  /** Which landlord's portfolio this session is looking at (migration 054). Null = all landlords. */
+  landlordId: string | null; landlordName: string | null;
+}
 
 /**
  * Looks up a live (unexpired) session and touches last_seen_at. Returns
@@ -69,17 +73,20 @@ export interface SessionProfile { profileId: string; email: string; role: string
  * Place" while the real active org was Ash Shahada or Reliance.
  */
 export async function findSessionByTokenHash(client: Queryable, tokenHash: string): Promise<SessionProfile | null> {
-  const r = await client.query<{ profile_id: string; email: string; role: string; org_id: string | null; org_name: string | null; tenant_id: string | null; full_name: string; brand: string }>(
+  const r = await client.query<{ profile_id: string; email: string; role: string; org_id: string | null; org_name: string | null; tenant_id: string | null; full_name: string; brand: string; landlord_id: string | null; landlord_name: string | null }>(
     `UPDATE user_sessions s SET last_seen_at = NOW()
      FROM profiles p
      WHERE s.token_hash = $1 AND s.profile_id = p.id AND s.expires_at > NOW()
      RETURNING p.id AS profile_id, p.email, p.role, COALESCE(s.active_org_id, p.org_id) AS org_id,
        (SELECT name FROM organisations WHERE id = COALESCE(s.active_org_id, p.org_id)) AS org_name,
-       p.tenant_id, p.full_name, p.brand`,
+       p.tenant_id, p.full_name, p.brand,
+       s.active_landlord_id AS landlord_id,
+       (SELECT name FROM landlords WHERE id = s.active_landlord_id) AS landlord_name`,
     [tokenHash]);
   const row = r.rows[0];
   if (!row) return null;
-  return { profileId: row.profile_id, email: row.email, role: row.role, orgId: row.org_id, orgName: row.org_name, tenantId: row.tenant_id, fullName: row.full_name, brand: row.brand };
+  return { profileId: row.profile_id, email: row.email, role: row.role, orgId: row.org_id, orgName: row.org_name, tenantId: row.tenant_id, fullName: row.full_name, brand: row.brand,
+    landlordId: row.landlord_id, landlordName: row.landlord_name };
 }
 
 export interface OrganisationOption { id: string; name: string }
@@ -103,6 +110,48 @@ export async function switchActiveOrg(client: Queryable, i: { tokenHash: string;
     [i.profileId, i.orgId]);
   if (!allowed.rows[0]) return false;
   await client.query("UPDATE user_sessions SET active_org_id = $2 WHERE token_hash = $1", [i.tokenHash, i.orgId]);
+  return true;
+}
+
+export interface LandlordOption { id: string; name: string; orgId: string; orgName: string; propertiesCount: number; roomsCount: number }
+
+/**
+ * Every landlord this profile can work for — across every organisation
+ * they're a member of (migration 054). This is the sign-in picker: a
+ * landlord added anywhere the person has access shows up here at once.
+ */
+export async function landlordsForProfile(client: Queryable, profileId: string): Promise<LandlordOption[]> {
+  const r = await client.query<{ id: string; name: string; org_id: string; org_name: string; properties_count: string; rooms_count: string }>(
+    `SELECT l.id, l.name, l.org_id, o.name AS org_name,
+            (SELECT count(*) FROM properties p WHERE p.landlord_id = l.id) AS properties_count,
+            (SELECT count(*) FROM units u JOIN properties p ON p.id = u.property_id WHERE p.landlord_id = l.id) AS rooms_count
+     FROM landlords l JOIN organisations o ON o.id = l.org_id
+     WHERE l.org_id = (SELECT org_id FROM profiles WHERE id = $1)
+        OR l.org_id IN (SELECT org_id FROM profile_organisations WHERE profile_id = $1)
+     ORDER BY l.name`,
+    [profileId]);
+  return r.rows.map((x) => ({ id: x.id, name: x.name, orgId: x.org_id, orgName: x.org_name, propertiesCount: Number(x.properties_count), roomsCount: Number(x.rooms_count) }));
+}
+
+/**
+ * Points this SESSION at one landlord (and, with it, that landlord's
+ * organisation — the data boundary follows the landlord so nothing has to
+ * be picked twice). Null clears it ("all landlords"). Verifies the person
+ * is a member of the landlord's org first; false = not allowed, nothing changed.
+ */
+export async function switchActiveLandlord(client: Queryable, i: { tokenHash: string; profileId: string; landlordId: string | null }): Promise<boolean> {
+  if (i.landlordId === null) {
+    await client.query("UPDATE user_sessions SET active_landlord_id = NULL WHERE token_hash = $1", [i.tokenHash]);
+    return true;
+  }
+  const r = await client.query<{ org_id: string }>(
+    `SELECT l.org_id FROM landlords l WHERE l.id = $2 AND (
+       l.org_id = (SELECT org_id FROM profiles WHERE id = $1)
+       OR l.org_id IN (SELECT org_id FROM profile_organisations WHERE profile_id = $1))`,
+    [i.profileId, i.landlordId]);
+  const orgId = r.rows[0]?.org_id;
+  if (!orgId) return false;
+  await client.query("UPDATE user_sessions SET active_landlord_id = $2, active_org_id = $3 WHERE token_hash = $1", [i.tokenHash, i.landlordId, orgId]);
   return true;
 }
 
