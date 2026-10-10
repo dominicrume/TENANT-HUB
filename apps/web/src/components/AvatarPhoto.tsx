@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { compressImage } from "../lib/compress-image";
+import { CameraCapture } from "./CameraCapture";
 
 /**
  * A profile photo that behaves the way people expect from their phone
@@ -27,8 +29,8 @@ export function AvatarPhoto({
   const [busy, setBusy] = useState<"upload" | "remove" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState(false);
+  const [camera, setCamera] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setBroken(false); }, [src]);
   useEffect(() => {
@@ -83,7 +85,11 @@ export function AvatarPhoto({
         {face}
       </button>
 
-      {open && (
+      {camera && <CameraCapture facing="user" title={`Photo of ${name}`} onClose={() => setCamera(false)} onCapture={(f) => void pick(f)} />}
+
+      {/* Portal: the topbar is position:sticky with its own stacking context,
+          which trapped this fixed overlay underneath the person menu. */}
+      {open && createPortal(
         <div role="dialog" aria-label={`${name} — photo`} onClick={() => setOpen(false)}
           style={{ position: "fixed", inset: 0, zIndex: 1300, background: "rgba(15,28,46,.92)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "min(80vw, 520px)", height: "min(60vh, 520px)", borderRadius: 16, overflow: "hidden", background: "var(--navy)", display: "grid", placeItems: "center", color: "#fff", fontSize: 96, fontWeight: 600 }}>
@@ -95,15 +101,15 @@ export function AvatarPhoto({
             {error && <p style={{ margin: "6px 0 0", color: "#FFB4A8", fontSize: 13 }}>{error}</p>}
             <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
               {editable && onUpload && <button type="button" className="btn ghost sm" style={lightBtn} disabled={busy !== null} onClick={() => fileRef.current?.click()}>{has ? "Change photo" : "Choose photo"}</button>}
-              {editable && onUpload && <button type="button" className="btn ghost sm" style={lightBtn} disabled={busy !== null} onClick={() => cameraRef.current?.click()}>📷 Take photo</button>}
+              {editable && onUpload && <button type="button" className="btn ghost sm" style={lightBtn} disabled={busy !== null} onClick={() => setCamera(true)}>📷 Take photo</button>}
               {has && url && <a href={url} download className="btn ghost sm" style={lightBtn}>Download</a>}
               {editable && onRemove && has && <button type="button" className="btn ghost sm" style={{ ...lightBtn, color: "#FFB4A8" }} disabled={busy !== null} onClick={() => void remove()}>Remove</button>}
               <button type="button" className="btn ghost sm" style={lightBtn} onClick={() => setOpen(false)}>Close</button>
             </div>
           </div>
           <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ""; }} />
-          <input ref={cameraRef} type="file" accept="image/*" capture="user" style={{ display: "none" }} onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ""; }} />
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

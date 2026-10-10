@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { compressImage } from "../lib/compress-image";
+import { CameraCapture } from "./CameraCapture";
 
 interface MediaItem { id: string; caption: string | null; uploadedBy: string; createdAt: string; url: string }
 interface Pending { name: string; preview: string; status: "waiting" | "uploading" | "done" | "failed"; error?: string }
@@ -25,7 +27,7 @@ export function MediaGallery({ entityType, entityId, title = "Media" }: { entity
   const [open, setOpen] = useState<number | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [camera, setCamera] = useState(false);
   const busy = pending.some((p) => p.status === "waiting" || p.status === "uploading");
 
   const load = useCallback(async () => {
@@ -90,12 +92,12 @@ export function MediaGallery({ entityType, entityId, title = "Media" }: { entity
       <div className="ch" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <h3 style={{ margin: 0 }}>{title}{count > 0 && <span className="muted" style={{ fontWeight: 500, marginLeft: 8 }}>{count} photo{count === 1 ? "" : "s"}</span>}</h3>
         <div className="btns">
-          <button type="button" className="btn ghost sm" disabled={busy} onClick={() => cameraInputRef.current?.click()} title="Take a photo now">📷 Camera</button>
+          <button type="button" className="btn ghost sm" disabled={busy} onClick={() => setCamera(true)} title="Take a photo now">📷 Take photo</button>
           <button type="button" className="rel sm" disabled={busy} onClick={() => fileInputRef.current?.click()}>{busy ? "Uploading…" : "+ Add photos"}</button>
         </div>
         <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => { if (e.target.files) void addFiles(e.target.files); e.target.value = ""; }} />
-        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => { if (e.target.files) void addFiles(e.target.files); e.target.value = ""; }} />
       </div>
+      {camera && <CameraCapture facing="environment" title={`Add a photo · ${title}`} onClose={() => setCamera(false)} onCapture={(f) => void addFiles([f])} />}
 
       {(items === null) ? (
         <div className="li"><p className="muted">Loading…</p></div>
@@ -141,7 +143,7 @@ export function MediaGallery({ entityType, entityId, title = "Media" }: { entity
         </div>
       )}
 
-      {open !== null && items && items[open] && (
+      {open !== null && items && items[open] && createPortal(
         <div role="dialog" aria-label="Photo" onClick={() => setOpen(null)} style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(15,28,46,.92)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "min(92vw, 1000px)", height: "min(82vh, 760px)" }}>
             <Image src={items[open]!.url} alt={items[open]!.caption ?? "Photo"} fill sizes="92vw" style={{ objectFit: "contain" }} unoptimized />
@@ -155,7 +157,8 @@ export function MediaGallery({ entityType, entityId, title = "Media" }: { entity
           </div>
           <button type="button" onClick={() => setOpen(null)} aria-label="Close" style={{ position: "absolute", top: 14, right: 16, width: 40, height: 40, borderRadius: "50%", border: "none", background: "rgba(255,255,255,.14)", color: "#fff", fontSize: 18, cursor: "pointer" }}>✕</button>
           <div style={{ position: "absolute", top: 20, left: 20, color: "#CBD6E4", fontSize: 12.5 }}>Added by {items[open]!.uploadedBy}</div>
-        </div>
+        </div>,
+        document.body,
       )}
     </section>
   );
