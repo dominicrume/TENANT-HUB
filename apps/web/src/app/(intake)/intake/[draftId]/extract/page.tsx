@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { RecordFields } from "../../../../../components/intake/RecordFields";
+import { CameraCapture } from "../../../../../components/CameraCapture";
 import type { Draft } from "../../../../../lib/intake";
 
 export default function ExtractPage() {
@@ -19,6 +20,7 @@ export default function ExtractPage() {
   const [confidence, setConfidence] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [camera, setCamera] = useState(false);
 
   const loadDraft = useCallback(async () => {
     const res = await fetch(`/api/drafts/${draftId}`, { cache: "no-store" });
@@ -85,10 +87,10 @@ export default function ExtractPage() {
               <p style={{ margin: "0 0 14px" }}>📄 Snap the paper form, or upload a photo of it</p>
             )}
             <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-              <label style={{ minHeight: 44, padding: "0 16px", borderRadius: 8, border: "none", background: "var(--navy)", color: "#fff", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <button type="button" onClick={() => setCamera(true)} style={{ minHeight: 44, padding: "0 16px", borderRadius: 8, border: "none", background: "var(--navy)", color: "#fff", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
                 📷 Take photo
-                <input type="file" accept="image/*" capture="environment" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
-              </label>
+              </button>
+              {camera && <CameraCapture facing="environment" title="Photograph the paper form" onClose={() => setCamera(false)} onCapture={onFile} />}
               <label style={{ minHeight: 44, padding: "0 16px", borderRadius: 8, border: "1px solid #EDE8E1", background: "#fff", color: "var(--navy)", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
                 Choose a file
                 <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
