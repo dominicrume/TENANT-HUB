@@ -28,6 +28,7 @@ import { MaintenanceTab } from "../../../../components/tenant/MaintenanceTab";
 import { DocumentsTab } from "../../../../components/tenant/DocumentsTab";
 import { IdCheckTab } from "../../../../components/tenant/IdCheckTab";
 import { ReferencesPanel } from "../../../../components/tenant/ReferencesPanel";
+import { JourneyStrip } from "../../../../components/tenant/JourneyStrip";
 import { NotesTab } from "../../../../components/tenant/NotesTab";
 import { MessagesTab } from "../../../../components/tenant/MessagesTab";
 import { AskTab } from "../../../../components/tenant/AskTab";
@@ -291,6 +292,8 @@ export default function TenantDetailPage() {
           </button>
         </div>
       </div>
+
+      {id && <JourneyStrip tenantId={id} />}
 
       {id && <BeforeYourNextContact tenantId={id} />}
 

@@ -14,7 +14,7 @@ import { FilesPanel } from "../../../../components/files/FilesPanel";
 import { useParams, useRouter } from "next/navigation";
 import { formatShortDate } from "../../../../lib/format";
 
-interface Landlord { id: string; name: string; contact_email: string | null; contact_phone: string | null; notes: string | null; created_at: string }
+interface Landlord { id: string; name: string; contact_email: string | null; contact_phone: string | null; notes: string | null; created_at: string; has_portal?: boolean | null; portal_name?: string | null }
 interface Prop { id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null; asset_class: string; unitsCount: number; occupiedCount: number }
 interface Doc { id: string; document_type: string; status: string; requested_at: string | null; notified_at: string | null; received_at: string | null; property_id: string; property_name: string }
 interface Data { landlord: Landlord; properties: Prop[]; documents: Doc[]; tenantsCount: number }
@@ -28,6 +28,7 @@ export default function LandlordPage() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [phone, setPhone] = useState(""); const [notes, setNotes] = useState("");
+  const [hasPortal, setHasPortal] = useState(true);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -36,7 +37,7 @@ export default function LandlordPage() {
     if (!r.ok) { const b = await r.json().catch(() => null); setError(b?.error ?? "Couldn't load this landlord"); return; }
     const d = (await r.json()) as Data;
     setData(d);
-    setName(d.landlord.name); setEmail(d.landlord.contact_email ?? ""); setPhone(d.landlord.contact_phone ?? ""); setNotes(d.landlord.notes ?? "");
+    setName(d.landlord.name); setEmail(d.landlord.contact_email ?? ""); setPhone(d.landlord.contact_phone ?? ""); setNotes(d.landlord.notes ?? ""); setHasPortal(d.landlord.has_portal !== false);
   }, [id]);
   useEffect(() => { void load(); }, [load]);
 
@@ -58,7 +59,7 @@ export default function LandlordPage() {
   async function save(e: FormEvent) {
     e.preventDefault();
     setBusy(true); setSaveError(null);
-    const r = await fetch(`/api/landlords/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, contact_email: email || null, contact_phone: phone || null, notes: notes || null }) });
+    const r = await fetch(`/api/landlords/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, contact_email: email || null, contact_phone: phone || null, notes: notes || null, has_portal: hasPortal }) });
     setBusy(false);
     if (!r.ok) { const b = await r.json().catch(() => null); setSaveError(b?.error ?? "Could not save"); return; }
     setEditing(false);
@@ -123,6 +124,10 @@ export default function LandlordPage() {
             <label><span className="lbl">Contact email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Where document requests go" style={inp} /></label>
             <label><span className="lbl">Contact phone</span><input value={phone} onChange={(e) => setPhone(e.target.value)} style={inp} /></label>
             <label style={{ gridColumn: "1 / -1" }}><span className="lbl">Notes</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Bank details for rent, preferred contact times, anything the team should know" style={{ ...inp, resize: "vertical" }} /></label>
+            <label style={{ gridColumn: "1 / -1", display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }}>
+              <input type="checkbox" checked={hasPortal} onChange={(e) => setHasPortal(e.target.checked)} />
+              <span><b style={{ fontSize: 13.5 }}>Has their own tenant portal</b><br /><span className="muted" style={{ fontSize: 12.5 }}>Station 7 of every tenant&apos;s journey (&ldquo;on the landlord&apos;s portal&rdquo;) only applies when this is on.</span></span>
+            </label>
             {saveError && <p style={{ color: "var(--brick)", margin: 0, fontSize: 13, gridColumn: "1 / -1" }}>{saveError}</p>}
             <div style={{ display: "flex", gap: 8, gridColumn: "1 / -1", flexWrap: "wrap" }}>
               <button type="submit" className="rel sm" disabled={busy || !name.trim()}>{busy ? "Saving…" : "Save"}</button>

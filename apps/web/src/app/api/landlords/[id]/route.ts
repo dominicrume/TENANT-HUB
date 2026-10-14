@@ -18,7 +18,7 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
   const orgId = auth.actor.org_id;
   try {
-    const landlord = (await db().query("SELECT id, name, contact_email, contact_phone, notes, created_at, updated_at FROM landlords WHERE id = $1 AND org_id = $2", [params.id, orgId])).rows[0];
+    const landlord = (await db().query("SELECT id, name, contact_email, contact_phone, notes, has_portal, portal_name, created_at, updated_at FROM landlords WHERE id = $1 AND org_id = $2", [params.id, orgId])).rows[0];
     if (!landlord) return NextResponse.json({ error: "Landlord not found" }, { status: 404 });
 
     const [properties, documents, tenants] = await Promise.all([

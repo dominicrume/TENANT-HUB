@@ -15,6 +15,8 @@ import { GROUP, GROUP_ORDER, GROUP_ICON } from "@tenant-hub/domain";
 import { formatMoney, greeting } from "../../../lib/format";
 import { useEffect, useState } from "react";
 import { LEAD_STAGES } from "../../../lib/leads";
+import { JourneyDots } from "../../../components/JourneyDots";
+import type { TenantJourney } from "../../../lib/journey-server";
 
 
 export default function TodayPage() {
@@ -22,7 +24,11 @@ export default function TodayPage() {
   const { data, error, loading } = useNeedsYou();
 
   const [leadCounts, setLeadCounts] = useState<Record<string, number> | null>(null);
-  useEffect(() => { fetch("/api/leads").then((r) => (r.ok ? r.json() : null)).then((j) => j && setLeadCounts(j.counts)).catch(() => {}); }, []);
+  const [journeys, setJourneys] = useState<TenantJourney[] | null>(null);
+  useEffect(() => {
+    fetch("/api/leads").then((r) => (r.ok ? r.json() : null)).then((j) => j && setLeadCounts(j.counts)).catch(() => {});
+    fetch("/api/journey").then((r) => (r.ok ? r.json() : null)).then((j) => j && setJourneys(j.tenants)).catch(() => setJourneys([]));
+  }, []);
   const first = profile?.full_name?.split(" ")[0];
   const items = data?.items ?? [];
   const n = items.length;
@@ -84,7 +90,20 @@ export default function TodayPage() {
 
       {/* The tenant journey (Matloob, 2026-10-14): "when we click dashboard we see where we are — lead received, referenced…" */}
       <section className="card" style={{ marginTop: 18 }}>
-        <div className="ch"><h3>Where everyone is</h3><Link href="/leads" className="btn ghost sm">Open leads</Link></div>
+        <div className="ch"><h3>Where every tenant is</h3><span className="muted" style={{ fontSize: 12 }}>1 lead · 2 viewing · 3 signed · 4 moved in · 5 claim · 6 email · 7 portal · 8 moved out</span></div>
+        {journeys === null ? <div className="li"><p className="muted">Checking the stations…</p></div>
+          : journeys.length === 0 ? <div className="li"><div className="body"><b>No tenants yet</b><p>The first one you add gets their eight stations here.</p></div></div>
+          : journeys.map((t) => (
+            <Link key={t.tenantId} href={`/tenants/${t.tenantId}`} className="li row" style={{ alignItems: "center" }}>
+              <div className="body" style={{ flex: "0 1 260px" }}><b>{t.name}</b><p>{[t.room, t.landlord].filter(Boolean).join(" · ") || "No room yet"}</p></div>
+              <JourneyDots stations={t.stations} size={18} />
+              <span className="muted" style={{ marginLeft: "auto", fontSize: 12.5, whiteSpace: "nowrap" }}>{t.next ? <>Next: <b style={{ color: "var(--brick)" }}>{t.next.label}</b></> : <span style={{ color: "var(--live)", fontWeight: 600 }}>All done</span>}</span>
+            </Link>
+          ))}
+      </section>
+
+      <section className="card" style={{ marginTop: 18 }}>
+        <div className="ch"><h3>Before they&apos;re tenants</h3><Link href="/leads" className="btn ghost sm">Open leads</Link></div>
         <div className="timeline" style={{ margin: 0, padding: "14px 16px" }}>
           {LEAD_STAGES.map((s, i) => (
             <Link key={s.key} href={`/leads#stage-${s.key}`} className="tl-step">

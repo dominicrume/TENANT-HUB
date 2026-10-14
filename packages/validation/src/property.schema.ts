@@ -20,10 +20,13 @@ export const LandlordSchema = z.object({
   contact_email: z.string().email().nullable().optional(),
   contact_phone: z.string().max(30).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
+  /** Does this landlord run their own tenant portal we must onboard into (station 7 of the tenant journey)? */
+  has_portal: z.boolean().optional(),
+  portal_name: z.string().max(120).nullable().optional(),
   created_at: z.string().datetime({ offset: true }).optional(),
   updated_at: z.string().datetime({ offset: true }).optional(),
 });
-export const LandlordCreateSchema = LandlordSchema.pick({ name: true, contact_email: true, contact_phone: true, notes: true });
+export const LandlordCreateSchema = LandlordSchema.pick({ name: true, contact_email: true, contact_phone: true, notes: true, has_portal: true, portal_name: true });
 
 export const PropertySchema = z.object({
   id: z.string().uuid(),
