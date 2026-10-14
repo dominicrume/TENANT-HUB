@@ -141,6 +141,13 @@ export async function POST(req: Request) {
       ...auth.actor,
     });
 
+    // Started from a lead → the timeline closes: moved in, and the lead now points at the tenant record.
+    if (state.lead_id) {
+      await writeWithAudit({
+        table: "leads", record: { id: state.lead_id, stage: "moved_in", tenant_id: (tenant as Record<string, unknown>)["id"] } as Record<string, unknown>,
+        action: "UPDATE", org_id: auth.actor.org_id, ...auth.actor,
+      }).catch((e) => console.warn("[intake/commit] lead not updated", e));
+    }
     emit(auth.actor.org_id, "tenant.created", { ...(tenant as Record<string, unknown>), linked_unit: linkedUnit });
     return NextResponse.json({ tenant, linked_unit: linkedUnit }, { status: 201 });
   } catch (err) {

@@ -33,6 +33,9 @@ const I = {
   audit:     <><path d="M9 12l2 2 4-4" /><circle cx="12" cy="12" r="9" /></>,
   settings:  <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" /></>,
   more:      <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></>,
+  leads:     <><path d="M3 4h18l-7 8v6l-4 2v-8z" /></>,
+  diary:     <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
+  support:   <><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5M12 17h.01" /></>,
   signout:   <path d="M10 17l5-5-5-5M15 12H3M21 4v16" />,
 };
 type IconKey = keyof typeof I;
@@ -55,12 +58,15 @@ export interface NavItem {
  */
 export const STAFF_NAV: NavItem[] = [
   { href: "/dashboard",   label: "Dashboard",           icon: "today",     mobile: true },
-  { href: "/tenants",     label: "People",              icon: "people",    mobile: true },
+  { href: "/tenants",     label: "Tenants",             icon: "people",    mobile: true },
+  { href: "/leads",       label: "Leads",               icon: "leads" },
   { href: "/properties",  label: "Properties",          icon: "properties", mobile: true },
-  { href: "/ledger",      label: "Rent",                icon: "rent",      mobile: true },
+  { href: "/diary",       label: "Diary",               icon: "diary",     mobile: true },
+  { href: "/financials",  label: "Financials",          icon: "rent",      mobile: true, short: "Money" },
   { href: "/paperwork",   label: "Paperwork",           icon: "paperwork" },
   { href: "/files",       label: "Files",               icon: "handovers" },
-  { href: "/maintenance", label: "Repairs",             icon: "repairs",   mobile: true, short: "Fix" },
+  { href: "/maintenance", label: "Repairs",             icon: "repairs" },
+  { href: "/support",     label: "Support",             icon: "support" },
   { href: "/audit",       label: "What the system did", icon: "audit",     short: "Log" },
 ];
 

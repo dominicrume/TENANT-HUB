@@ -15,6 +15,8 @@ export interface DraftState {
   signature?: { name: string; date: string };
   /** Set when intake was started from a room ("Add tenancy → Full intake"): commit links the new tenant to it. */
   unit_id?: string;
+  /** Set when intake was started from a lead (Leads → "Start intake"): commit marks the lead moved in. */
+  lead_id?: string;
 }
 
 export interface Draft {

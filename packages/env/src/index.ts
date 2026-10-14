@@ -52,6 +52,8 @@ const serverSchema = z.object({
   // Live adapters switch on only when their credentials exist.
   RESEND_API_KEY:          z.string().optional().catch(undefined),
   NOTIFY_FROM:             z.string().optional().catch(undefined),
+  // Where the in-app Support form is emailed (defaults to the builder's address in the route).
+  SUPPORT_EMAIL:           z.string().optional().catch(undefined),
   TRUELAYER_ACCESS_TOKEN:  z.string().optional().catch(undefined),
   TRUELAYER_ACCOUNT_ID:    z.string().optional().catch(undefined),
   INSURANCE_QUOTE_URL:     z.string().url().optional().catch(undefined),

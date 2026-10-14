@@ -49,7 +49,7 @@ export default function TenantsIndexPage() {
       <HandoverPanel />
 
       <div className="ch" style={{ padding: 0, marginBottom: 18, border: "none" }}>
-        <h1 style={{ margin: 0 }}>People</h1>
+        <h1 style={{ margin: 0 }}>Tenants</h1>
         <Link href="/intake/new" className="rel">+ New tenant</Link>
       </div>
 

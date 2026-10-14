@@ -13,12 +13,16 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useNeedsYou } from "../../../hooks/useNeedsYou";
 import { GROUP, GROUP_ORDER, GROUP_ICON } from "@tenant-hub/domain";
 import { formatMoney, greeting } from "../../../lib/format";
+import { useEffect, useState } from "react";
+import { LEAD_STAGES } from "../../../lib/leads";
 
 
 export default function TodayPage() {
   const { profile } = useAuth();
   const { data, error, loading } = useNeedsYou();
 
+  const [leadCounts, setLeadCounts] = useState<Record<string, number> | null>(null);
+  useEffect(() => { fetch("/api/leads").then((r) => (r.ok ? r.json() : null)).then((j) => j && setLeadCounts(j.counts)).catch(() => {}); }, []);
   const first = profile?.full_name?.split(" ")[0];
   const items = data?.items ?? [];
   const n = items.length;
@@ -45,13 +49,13 @@ export default function TodayPage() {
           <div className="decision due">
             <div className="ic" aria-hidden="true">!</div>
             <div><p className="t">Couldn&apos;t load the list</p><p className="d">{error.message}. Try again in a moment; nothing was lost.</p></div>
-            <Link className="act ghost" href="/tenants">People</Link>
+            <Link className="act ghost" href="/tenants">Tenants</Link>
           </div>
         ) : n === 0 && !loading ? (
           <div className="decision">
             <div className="ic" aria-hidden="true">✓</div>
-            <div><p className="t">You&apos;re clear.</p><p className="d">Come back tomorrow, or look at People while you wait.</p></div>
-            <Link className="act ghost" href="/tenants">People</Link>
+            <div><p className="t">You&apos;re clear.</p><p className="d">Come back tomorrow, or look at Tenants while you wait.</p></div>
+            <Link className="act ghost" href="/tenants">Tenants</Link>
           </div>
         ) : (
           <div className="decisions">
@@ -72,11 +76,26 @@ export default function TodayPage() {
       </section>
 
       <div className="stats">
-        <Link href="/tenants" className="stat"><div className="k">People housed</div><div className="v">{data ? data.stats.peopleHoused : "—"}</div><div className="m">active tenants</div></Link>
+        <Link href="/tenants" className="stat"><div className="k">Tenants housed</div><div className="v">{data ? data.stats.peopleHoused : "—"}</div><div className="m">active tenants</div></Link>
         <Link href="/ledger" className="stat"><div className="k">Money owed</div><div className={`v${data && data.stats.moneyOwed > 0 ? " money" : ""}`}>{data ? formatMoney(data.stats.moneyOwed) : "—"}</div><div className="m">{data ? (data.stats.moneyOwed > 0 ? "service charge past its due date" : "nobody is behind") : " "}</div></Link>
         <Link href="/tenants?filter=suspended" className="stat"><div className="k">Housing benefit</div><div className="v">{data ? data.stats.housingBenefitAtRisk : "—"}</div><div className="m">{data ? (data.stats.housingBenefitAtRisk === 0 ? "all claims paying" : "pending or suspended") : " "}</div></Link>
         <Link href="/maintenance" className="stat"><div className="k">Repairs</div><div className="v">{data ? data.stats.repairsOpen : "—"}</div><div className="m">{data ? (data.stats.repairsOpen === 0 ? "nothing open" : "open right now") : " "}</div></Link>
       </div>
+
+      {/* The tenant journey (Matloob, 2026-10-14): "when we click dashboard we see where we are — lead received, referenced…" */}
+      <section className="card" style={{ marginTop: 18 }}>
+        <div className="ch"><h3>Where everyone is</h3><Link href="/leads" className="btn ghost sm">Open leads</Link></div>
+        <div className="timeline" style={{ margin: 0, padding: "14px 16px" }}>
+          {LEAD_STAGES.map((s, i) => (
+            <Link key={s.key} href={`/leads#stage-${s.key}`} className="tl-step">
+              <span className="tl-n">{leadCounts ? (s.key === "moved_in" ? (data?.stats.peopleHoused ?? leadCounts[s.key] ?? 0) : (leadCounts[s.key] ?? 0)) : "—"}</span>
+              <b>{s.label}</b>
+              <small>{s.hint}</small>
+              {i < LEAD_STAGES.length - 1 && <span className="tl-arrow" aria-hidden="true">›</span>}
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <p className="muted" style={{ margin: "10px 0 0" }}><Link href="/reports/morning-summary" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>This morning&apos;s summary</Link> · <Link href="/reports" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Monthly report</Link> · <Link href="/settings" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>Settings</Link></p>
 
