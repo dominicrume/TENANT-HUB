@@ -4,8 +4,9 @@ import { withRouteHandler } from "../../../../lib/api-handler";
 import { isSameOriginPost } from "../../../../lib/csrf";
 import { issueInvite } from "../../../../lib/issue-invite";
 import { publicOrigin } from "../../../../lib/google-oauth";
+import { canManageUsers } from "../../../../lib/user-admin";
 
-const ROLES = new Set(["manager", "support_worker", "contractor", "tenant"]);
+const ROLES = new Set(["admin", "manager", "support_worker", "contractor", "tenant"]);
 
 /**
  * POST /api/auth/invite — a manager issues an own-session invite (BUILD_PLAN C31): the emailed link
@@ -15,7 +16,7 @@ const ROLES = new Set(["manager", "support_worker", "contractor", "tenant"]);
  */
 export const POST = withRouteHandler({ resource: "sessions", action: "create", rateLimit: true }, async (req, _ctx, auth) => {
   if (!isSameOriginPost(req)) return NextResponse.json({ error: "Refused" }, { status: 403 });
-  if (auth.actor.user_role !== "manager") return NextResponse.json({ error: "Only managers can invite team members" }, { status: 403 });
+  if (!(await canManageUsers(auth.actor))) return NextResponse.json({ error: "Only the organisation's admin can add people" }, { status: 403 });
   if (!hasDatabaseUrl()) return NextResponse.json({ error: "Own-session invites are not configured on this environment yet" }, { status: 503 });
   if (!auth.actor.org_id) return NextResponse.json({ error: "You must belong to an organisation" }, { status: 400 });
 

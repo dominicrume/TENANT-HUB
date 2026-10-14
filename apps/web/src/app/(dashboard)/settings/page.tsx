@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useBrand, BRAND_LABELS } from "../../../contexts/BrandContext";
+import { useAuth } from "../../../contexts/AuthContext";
 import { formatDateTime, truncateHash } from "../../../lib/format";
 import { SecurityTab } from "../../../components/settings/SecurityTab";
 import { IntegrationsTab } from "../../../components/settings/IntegrationsTab";
@@ -19,10 +20,14 @@ type Tab = "users" | "security" | "charges" | "brands" | "billing" | "integratio
 interface Profile { id: string; full_name: string; role: string; email: string | null }
 
 const INVITE_ROLES = [
+  { value: "admin", label: "Admin — adds people, everything else too" },
   { value: "manager", label: "Manager" },
   { value: "support_worker", label: "Support worker" },
   { value: "contractor", label: "Contractor" },
   { value: "tenant", label: "Tenant" },
+] as const;
+const ROLE_OPTIONS = [
+  { value: "admin", label: "Admin" }, { value: "manager", label: "Manager" }, { value: "support_worker", label: "Support worker" }, { value: "contractor", label: "Contractor" }, { value: "tenant", label: "Tenant" },
 ] as const;
 interface Stamp { id: string; status: string; audit_hash: string; tx_hash: string | null; created_at: string; tenant_id: string | null }
 
@@ -74,6 +79,37 @@ export default function SettingsPage() {
       loadAccessRequests(); loadProfiles();
     } catch { setRequestNotice("Could not reach the server."); }
     finally { setDecidingId(null); }
+  }
+
+  // Who may add/change people: the org's admin, or a manager while the org has
+  // no admin yet (mirrors lib/user-admin.ts — the server enforces it).
+  const { profile } = useAuth();
+  const admins = profiles.filter((p) => p.role === "admin");
+  const canManage = profile?.role === "admin" || (profile?.role === "manager" && admins.length === 0);
+  const [userBusy, setUserBusy] = useState<string | null>(null);
+  const [userNotice, setUserNotice] = useState<string | null>(null);
+  async function changeRole(id: string, role: string) {
+    setUserBusy(id); setUserNotice(null);
+    try {
+      const r = await fetch(`/api/profiles/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
+      const b = await r.json().catch(() => null);
+      if (!r.ok) { setUserNotice(b?.error ?? "Could not change the role."); return; }
+      setUserNotice("Role changed.");
+      loadProfiles();
+    } catch { setUserNotice("Could not reach the server."); }
+    finally { setUserBusy(null); }
+  }
+  async function removeUser(p: Profile) {
+    if (!window.confirm(`Remove ${p.full_name}? They're signed out everywhere now and can't sign in again. Their name stays on everything they recorded.`)) return;
+    setUserBusy(p.id); setUserNotice(null);
+    try {
+      const r = await fetch(`/api/profiles/${p.id}`, { method: "DELETE" });
+      const b = await r.json().catch(() => null);
+      if (!r.ok) { setUserNotice(b?.error ?? "Could not remove."); return; }
+      setUserNotice(`Removed ${p.full_name}.`);
+      loadProfiles();
+    } catch { setUserNotice("Could not reach the server."); }
+    finally { setUserBusy(null); }
   }
 
   const { brand } = useBrand();
@@ -210,8 +246,14 @@ export default function SettingsPage() {
               </section>
             )}
 
+            {!canManage && (
+              <section className="card" style={{ marginBottom: 18 }}>
+                <div className="li"><div className="body"><b>Only the admin adds people</b><p>Your organisation&apos;s admin{admins.length ? ` (${admins.map((a) => a.full_name).join(", ")})` : ""} invites staff and approves access requests. Everyone signs in as themselves, so every change carries their own name.</p></div></div>
+              </section>
+            )}
+            {canManage && (
             <section className="card" style={{ marginBottom: 18 }}>
-              <div className="ch"><h3>Invite someone</h3></div>
+              <div className="ch"><h3>Invite someone</h3><span className="muted">They get a one-time link and set their own password</span></div>
               <form onSubmit={handleSendInvite} className="li" style={{ display: "grid", gap: 10 }}>
                 <label><span className="lbl">Full name (optional)</span>
                   <input value={inviteName} onChange={(e) => setInviteName(e.target.value)} type="text" style={inp} /></label>
@@ -227,15 +269,31 @@ export default function SettingsPage() {
                 <div><button type="submit" className="rel sm" disabled={inviteBusy || !inviteEmail}>{inviteBusy ? "Sending…" : "Send invite"}</button></div>
               </form>
             </section>
+            )}
 
             <section className="card">
-              <div className="ch"><h3>Users</h3></div>
-              {profiles.length === 0 ? <div className="li"><p className="muted">No users to show (manager access required).</p></div> : profiles.map((p) => (
-                <div className="li" key={p.id}>
-                  <div className="body"><b>{p.full_name}</b><p>{p.email}</p></div>
-                  <span className="tag" style={{ background: "rgba(15,28,46,.06)", color: "var(--navy)", textTransform: "capitalize" }}>{p.role.replace("_", " ")}</span>
-                </div>
-              ))}
+              <div className="ch"><h3>People in {profile?.org_name ?? "this organisation"}</h3><span className="muted">{profiles.length} account{profiles.length === 1 ? "" : "s"}</span></div>
+              {userNotice && <div className="li"><p style={{ margin: 0, fontSize: 13, color: userNotice.startsWith("Could") || userNotice.startsWith("That") || userNotice.startsWith("You") ? "var(--brick)" : "var(--live)" }}>{userNotice}</p></div>}
+              {profiles.length === 0 ? <div className="li"><p className="muted">No users to show.</p></div> : profiles.map((p) => {
+                const me = p.id === profile?.id;
+                return (
+                  <div className="li" key={p.id} style={{ alignItems: "center" }}>
+                    <span className="avatar" aria-hidden="true" style={{ background: p.role === "admin" ? "var(--amber)" : "var(--navy)", color: p.role === "admin" ? "var(--navy)" : "#fff" }}>{p.full_name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</span>
+                    <div className="body"><b>{p.full_name}{me ? <span className="muted" style={{ fontWeight: 500 }}> · you</span> : null}</b><p>{p.email}</p></div>
+                    {canManage && !me ? (
+                      <div className="btns">
+                        <select value={p.role} onChange={(e) => void changeRole(p.id, e.target.value)} disabled={userBusy === p.id} aria-label={`Role for ${p.full_name}`} style={{ ...inp, maxWidth: 170, minHeight: 36, padding: "6px 10px" }}>
+                          {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                        </select>
+                        <button type="button" className="btn ghost sm" disabled={userBusy === p.id} onClick={() => void removeUser(p)} style={{ color: "var(--brick)" }}>Remove</button>
+                      </div>
+                    ) : (
+                      <span className="tag" style={{ background: p.role === "admin" ? "rgba(232,168,76,.16)" : "rgba(15,28,46,.06)", color: p.role === "admin" ? "var(--amber-deep)" : "var(--navy)", textTransform: "capitalize" }}>{p.role.replace("_", " ")}</span>
+                    )}
+                  </div>
+                );
+              })}
+              <div className="li"><p className="muted" style={{ margin: 0, fontSize: 12.5 }}>Nobody shares an account. Every save, note and decision in What the system did is stamped with the name of the person who was signed in.</p></div>
             </section>
           </>
         )}

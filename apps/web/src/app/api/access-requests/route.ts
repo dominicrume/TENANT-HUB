@@ -5,6 +5,7 @@ import { isSameOriginPost } from "../../../lib/csrf";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { issueInvite } from "../../../lib/issue-invite";
 import { publicOrigin } from "../../../lib/google-oauth";
+import { canManageUsers } from "../../../lib/user-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export const GET = withRouteHandler({ resource: "sessions", action: "create" }, 
 /** POST { id, decision: "approve" | "decline" } — approving issues the invite email on the spot. */
 export const POST = withRouteHandler({ resource: "sessions", action: "create" }, async (req, _ctx, auth) => {
   if (!isSameOriginPost(req)) return NextResponse.json({ error: "Refused" }, { status: 403 });
-  if (auth.actor.user_role !== "manager" && auth.actor.user_role !== "admin") return NextResponse.json({ error: "Only managers can approve access" }, { status: 403 });
+  if (!(await canManageUsers(auth.actor))) return NextResponse.json({ error: "Only the organisation's admin can approve access" }, { status: 403 });
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
   const body = (await req.json().catch(() => null)) as { id?: string; decision?: string } | null;
   const id = typeof body?.id === "string" ? body.id : "";
