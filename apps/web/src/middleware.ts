@@ -22,6 +22,9 @@ const PUBLIC_PREFIXES = [
   "/api/reference",
   "/landlord-upload",
   "/api/landlord-upload",
+  // Expiring share links for files (docs/FILES_SPEC.md): the token is the credential.
+  "/share",
+  "/api/share",
 ];
 
 interface VerifiedUser { id: string; email: string; role: string; orgId: string | null; tenantId: string | null; fullName: string }

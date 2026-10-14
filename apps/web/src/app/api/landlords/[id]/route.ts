@@ -47,6 +47,32 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
   }
 });
 
+/**
+ * DELETE /api/landlords/[id] — removes the landlord ("you can always add or
+ * remove a landlord once you are logged in"). Properties, document requests
+ * and sessions that pointed at them are set to "not set" (ON DELETE SET
+ * NULL), never deleted. Audited; managers only.
+ */
+export const DELETE = withRouteHandler({ resource: "properties", action: "delete" }, async (_req, { params }: { params: { id: string } }, auth) => {
+  if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
+  if (auth.actor.user_role !== "manager" && auth.actor.user_role !== "admin") return NextResponse.json({ error: "Only managers can remove a landlord" }, { status: 403 });
+  try {
+    const row = (await db().query<{ id: string; name: string }>("SELECT id, name FROM landlords WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id])).rows[0];
+    if (!row) return NextResponse.json({ error: "Landlord not found" }, { status: 404 });
+    const props = Number((await db().query<{ n: string }>("SELECT count(*) AS n FROM properties WHERE landlord_id = $1", [params.id])).rows[0]?.n ?? 0);
+    await db().query("DELETE FROM landlords WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
+    await writeWithAudit({
+      table: "documents",
+      record: { org_id: auth.actor.org_id, kind: "landlord_removed", title: `Removed landlord ${row.name}`, body: `${props} propert${props === 1 ? "y" : "ies"} left unassigned`, related_table: "landlords", related_id: params.id } as Record<string, unknown>,
+      action: "CREATE", org_id: auth.actor.org_id, ...auth.actor,
+    }).catch(() => {});
+    return NextResponse.json({ ok: true, unassignedProperties: props });
+  } catch (err) {
+    console.error("[landlords:DELETE]", err);
+    return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
+  }
+});
+
 /** PATCH /api/landlords/[id] — name / contact email / phone / notes. */
 export const PATCH = withRouteHandler({ resource: "properties", action: "update" }, async (req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });

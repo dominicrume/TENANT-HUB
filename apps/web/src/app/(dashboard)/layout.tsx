@@ -75,7 +75,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       // showing at the top — bad"); the organisation only when looking at
       // all landlords.
       brand={profile?.landlord_name ?? profile?.org_name ?? "Tenant Hub"}
-      brandSub={profile?.landlord_name ? `Landlord · ${profile.org_name ?? "Tenant Hub"}` : "Tenant Hub"}
+      brandSub={profile?.landlord_name ? "Landlord · Tenant Hub" : "Tenant Hub"}
       user={profile?.full_name ?? "—"}
       role={profile?.role ?? ""}
       workspaces={workspaces}

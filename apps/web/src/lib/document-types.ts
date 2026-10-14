@@ -24,7 +24,30 @@ export const TENANT_DOCUMENT_TYPES = [
   "Proof of Income (Universal Credit / Pension)",
 ] as const;
 
+/** The third tree (docs/FILES_SPEC.md §3): what the LANDLORD must give us. */
+export const LANDLORD_DOCUMENT_TYPES = [
+  "Photo ID",
+  "Proof of ownership (Land Registry)",
+  "Management agreement",
+  "Buildings insurance",
+  "Bank details",
+  "Gas Safety Certificate",
+  "EPC",
+] as const;
+
 export const OTHER_DOCUMENT_TYPE = "Other";
+
+/** What each thing is expected to hold — the checklist on every Files panel and the manager's "what's missing". */
+export const REQUIRED_DOCUMENTS = {
+  tenant: [...TENANT_DOCUMENT_TYPES] as readonly string[],
+  property: ["Lease with landlord", "EPC", "Gas Safety Certificate", "Electrical (EICR)", "Fire Risk Assessment", "HMO Licence"] as readonly string[],
+  landlord: ["Photo ID", "Proof of ownership (Land Registry)", "Management agreement", "Buildings insurance", "Bank details"] as readonly string[],
+  unit: [] as readonly string[],
+} as const;
+
+export function documentTypesFor(entity: "tenant" | "property" | "landlord" | "unit"): readonly string[] {
+  return entity === "tenant" ? TENANT_DOCUMENT_TYPES : entity === "property" ? PROPERTY_DOCUMENT_TYPES : entity === "landlord" ? LANDLORD_DOCUMENT_TYPES : [];
+}
 
 /* ── The "Other" loophole, closed ──────────────────────────────────────────
  * "Other" stays (the client asked for it: C50, "with an Other option") but it

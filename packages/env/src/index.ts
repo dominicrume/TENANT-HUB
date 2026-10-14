@@ -63,6 +63,8 @@ const serverSchema = z.object({
   // UK address lookup — Google Places (New) key. When set, the address picker
   // upgrades from OpenStreetMap to Google automatically, no code change.
   GOOGLE_PLACES_API_KEY:   z.string().optional().catch(undefined),
+  // A plain Gemini (AI Studio) key: used for address lookup via Gemini's Google Maps grounding when no Places key exists.
+  GEMINI_API_KEY:          z.string().optional().catch(undefined),
   // "Sign in with Google" — appears on the login page only when both exist.
   // Invite-only still holds: it signs in an email that already has a profile.
   GOOGLE_OAUTH_CLIENT_ID:     z.string().optional().catch(undefined),

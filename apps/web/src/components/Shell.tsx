@@ -59,6 +59,7 @@ export const STAFF_NAV: NavItem[] = [
   { href: "/properties",  label: "Properties",          icon: "properties", mobile: true },
   { href: "/ledger",      label: "Rent",                icon: "rent",      mobile: true },
   { href: "/paperwork",   label: "Paperwork",           icon: "paperwork" },
+  { href: "/files",       label: "Files",               icon: "handovers" },
   { href: "/maintenance", label: "Repairs",             icon: "repairs",   mobile: true, short: "Fix" },
   { href: "/audit",       label: "What the system did", icon: "audit",     short: "Log" },
 ];
@@ -213,15 +214,19 @@ export function Shell({
               <>
                 <div className="menu-backdrop" onClick={() => setMeOpen(false)} />
                 <div className="menu" role="menu">
-                  <div className="menu-head" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    {avatar && <AvatarPhoto src={avatar.src} name={user} size={44} editable onUpload={avatar.onUpload} onRemove={avatar.onRemove} />}
-                    <div style={{ minWidth: 0 }}><b>{user}</b><small>{ROLE_LABEL[role] ?? role} · {brand}</small>{avatar && <small style={{ color: "var(--amber-deep)" }}>Tap the photo to view or change it</small>}</div>
+                  {/* Three things only (Rume, 2026-10-14): Settings, Switch landlord, Sign out.
+                      The organisation switch lives on the landlord picker, not here. */}
+                  <div className="menu-head">
+                    {avatar ? <AvatarPhoto src={avatar.src} name={user} size={56} editable onUpload={avatar.onUpload} onRemove={avatar.onRemove} /> : <span className="avatar" style={{ width: 56, height: 56, fontSize: 18 }} aria-hidden="true">{initials}</span>}
+                    <div className="menu-who">
+                      <b>{user}</b>
+                      <span className="menu-role">{ROLE_LABEL[role] ?? role}</span>
+                      <span className="menu-ws"><Icon k="people" />{brand}</span>
+                    </div>
                   </div>
                   {settingsHref && <Link href={settingsHref} role="menuitem"><Icon k="settings" />Settings</Link>}
                   <Link href="/choose-workspace" role="menuitem"><Icon k="people" />Switch landlord</Link>
-                  {canSwitch && onSwitchWorkspace && workspaces.filter((w) => w.id !== activeWorkspaceId).map((w) => (
-                    <button key={w.id} type="button" role="menuitem" onClick={() => void onSwitchWorkspace(w.id)}><Icon k="properties" />Work in {w.name}</button>
-                  ))}
+                  <div className="menu-sep" />
                   <button type="button" role="menuitem" onClick={onSignOut}><Icon k="signout" />Sign out</button>
                 </div>
               </>

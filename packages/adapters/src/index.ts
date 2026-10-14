@@ -192,6 +192,46 @@ export class GooglePlacesAddressLookup implements AddressLookupPort {
   }
 }
 
+/**
+ * Gemini with Google Maps grounding — the route that works from a plain
+ * Gemini API key (Rume added GEMINI_API_KEY to Railway on 2026-10-11; an
+ * AI Studio key is NOT enabled for the Maps Platform APIs, so Places and
+ * Geocoding answer "API key is invalid" with it). The model is asked for the
+ * addresses at the postcode with the Maps tool on and told to return JSON
+ * only. Anything that goes wrong — quota (the key answered 429 on first
+ * test: free tier), a refusal, unparsable output — falls through to the
+ * keyless provider so the picker is never empty because of a vendor.
+ */
+export class GeminiMapsAddressLookup implements AddressLookupPort {
+  readonly mode = "live" as const;
+  constructor(private readonly key: string, private readonly fallback: AddressLookupPort = new NominatimAddressLookup(), private readonly fetchImpl: typeof fetch = fetch) {}
+  async search(q: string): Promise<AdapterResult<AddressSuggestion[]>> {
+    try {
+      const res = await this.fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(this.key)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: `Using Google Maps, list the UK street addresses matching "${q}" (a postcode, part of one, or a street). Up to 12. Return ONLY a JSON array, no prose, of objects with keys line1 (house number and street), city (post town), postcode (full UK postcode), lat, lng. If nothing matches return [].` }] }],
+          tools: [{ googleMaps: {} }],
+          generationConfig: { temperature: 0 },
+        }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) throw new AdapterError(`Gemini ${res.status}`, "address");
+      const j = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      const text = (j.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+      const m = text.match(/\[[\s\S]*\]/);
+      if (!m) throw new AdapterError("Gemini returned no address list", "address");
+      const rows = JSON.parse(m[0]) as Array<{ line1?: string; city?: string; postcode?: string; lat?: number; lng?: number }>;
+      const out = rows.map((r) => ({ line1: String(r.line1 ?? "").trim(), city: String(r.city ?? "").trim(), postcode: String(r.postcode ?? "").trim().toUpperCase(), lat: typeof r.lat === "number" ? r.lat : undefined, lng: typeof r.lng === "number" ? r.lng : undefined }))
+        .filter((s) => s.line1 && /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/.test(s.postcode));
+      if (out.length === 0) throw new AdapterError("Gemini found no addresses", "address");
+      return ok(out, "live", "gemini-maps");
+    } catch {
+      return this.fallback.search(q);
+    }
+  }
+}
+
 /* ═══════════════════════ Bank feed (read-only) ═══════════════════════════ */
 /** Pays fresh charges cleanly; every second one arrives as a half payment with a vague reference, so the weak-match queue is always demonstrable. */
 export class SimBankFeed implements BankFeedPort {
@@ -290,6 +330,7 @@ export function idCheck(e: Env = env.server): IdCheckPort {
 export function addressLookup(e: Env = env.server): AddressLookupPort {
   if (e.GOOGLE_PLACES_API_KEY) return new GooglePlacesAddressLookup(e.GOOGLE_PLACES_API_KEY);
   if (e.ADAPTER_MODE_ADDRESS === "simulated") return new SimAddressLookup();
+  if (e.GEMINI_API_KEY) return new GeminiMapsAddressLookup(e.GEMINI_API_KEY);
   return new NominatimAddressLookup();
 }
 
@@ -302,7 +343,7 @@ export function adapterStatus(e: Env = env.server) {
     bank:       { mode: e.ADAPTER_MODE_BANK, source: live(e.ADAPTER_MODE_BANK) ? "truelayer" : "sim:bank", switch: "TRUELAYER_ACCESS_TOKEN + TRUELAYER_ACCOUNT_ID, ADAPTER_MODE_BANK=live" },
     insurance:  { mode: e.ADAPTER_MODE_INSURANCE, source: live(e.ADAPTER_MODE_INSURANCE) ? "quote endpoint" : "sim:insurance", switch: "INSURANCE_QUOTE_URL, ADAPTER_MODE_INSURANCE=live" },
     idcheck:    { mode: e.ADAPTER_MODE_IDCHECK, source: live(e.ADAPTER_MODE_IDCHECK) ? "credas" : "sim:idcheck", switch: "CREDAS_BASE_URL + CREDAS_API_KEY, ADAPTER_MODE_IDCHECK=live" },
-    address:    { mode: (e.GOOGLE_PLACES_API_KEY ? "live" : e.ADAPTER_MODE_ADDRESS) as AdapterMode, source: e.GOOGLE_PLACES_API_KEY ? "google-places" : live(e.ADAPTER_MODE_ADDRESS) ? "nominatim" : "sim:address", switch: "GOOGLE_PLACES_API_KEY upgrades to Google; ADAPTER_MODE_ADDRESS=simulated to fake it" },
+    address:    { mode: (e.GOOGLE_PLACES_API_KEY ? "live" : e.ADAPTER_MODE_ADDRESS) as AdapterMode, source: e.GOOGLE_PLACES_API_KEY ? "google-places" : !live(e.ADAPTER_MODE_ADDRESS) ? "sim:address" : e.GEMINI_API_KEY ? "gemini-maps" : "nominatim", switch: "GOOGLE_PLACES_API_KEY upgrades to Google Places; GEMINI_API_KEY uses Gemini + Maps grounding (falls back to OpenStreetMap); ADAPTER_MODE_ADDRESS=simulated to fake it" },
     stt:        { mode: e.ADAPTER_MODE_STT, source: "sim:stt", switch: "no live adapter yet" },
     ai:         { mode: (e.OPENAI_API_KEY || e.ANTHROPIC_API_KEY ? "live" : "simulated") as AdapterMode, source: e.OPENAI_API_KEY ? "openai" : e.ANTHROPIC_API_KEY ? "anthropic" : "rules", switch: "OPENAI_API_KEY or ANTHROPIC_API_KEY" },
   };

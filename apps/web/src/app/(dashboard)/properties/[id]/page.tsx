@@ -15,13 +15,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { formatShortDate, formatMoney } from "../../../../lib/format";
 import { PROPERTY_DOCUMENT_TYPES, OTHER_DOCUMENT_TYPE } from "../../../../lib/document-types";
-import { MediaGallery } from "../../../../components/MediaGallery";
+import { FilesPanel } from "../../../../components/files/FilesPanel";
+import Image from "next/image";
 import { AddTenancyModal } from "../../../../components/property/AddTenancyModal";
-
-interface PropertyDoc {
-  id: string; document_type: string; blob_id: string | null; status: "requested" | "received";
-  created_at: string; notified_at?: string | null; landlords?: { name: string } | null;
-}
 
 interface PropertyDetail {
   property: { id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null; asset_class: string; landlord_id: string | null };
@@ -49,14 +45,15 @@ export default function PropertyDetailPage() {
   const [tenancyForUnit, setTenancyForUnit] = useState<string | null>(null);
   const [mediaForUnit, setMediaForUnit] = useState<string | null>(null);
 
-  const [docs, setDocs] = useState<PropertyDoc[] | null>(null);
-  const [docMode, setDocMode] = useState<"none" | "add" | "request">("none");
+  // "Request from landlord" (C51): the form lives above the documents panel; the panel re-reads when a request is sent.
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [filesKey, setFilesKey] = useState(0);
+  const [filesInfo, setFilesInfo] = useState<{ photos: number; documents: number; cover: string | null }>({ photos: 0, documents: 0, cover: null });
   const [docType, setDocType] = useState<string>(PROPERTY_DOCUMENT_TYPES[0]);
   const [docOther, setDocOther] = useState("");
   const [docLandlord, setDocLandlord] = useState("");
   const [docBusy, setDocBusy] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
-  const [attachingId, setAttachingId] = useState<string | null>(null);
 
   // Certificates: what THIS property is required to hold (same rule the
   // Paperwork matrix and compliance-watch use — one derivation, H3), each
@@ -112,12 +109,6 @@ export default function PropertyDetailPage() {
     void load();
   }
 
-  const loadDocs = useCallback(async () => {
-    const res = await fetch(`/api/property-documents?propertyId=${id}`);
-    if (res.ok) setDocs(await res.json());
-  }, [id]);
-  useEffect(() => { void loadDocs(); }, [loadDocs]);
-
   const load = useCallback(async () => {
     const res = await fetch(`/api/properties/${id}`);
     if (!res.ok) { const b = await res.json().catch(() => null); setError(b?.error ?? `${res.status} ${res.statusText}`); return; }
@@ -152,21 +143,6 @@ export default function PropertyDetailPage() {
 
   const resolvedDocType = docType === OTHER_DOCUMENT_TYPE ? docOther.trim() : docType;
 
-  async function addDocument(file: File) {
-    if (!resolvedDocType) { setDocError("Pick what kind of document this is first."); return; }
-    setDocBusy(true); setDocError(null);
-    const form = new FormData();
-    form.append("action", "add");
-    form.append("property_id", String(id));
-    form.append("document_type", resolvedDocType);
-    form.append("file", file);
-    const res = await fetch("/api/property-documents", { method: "POST", body: form });
-    setDocBusy(false);
-    if (!res.ok) { const b = await res.json().catch(() => null); setDocError(b?.error ?? "Could not save the document"); return; }
-    setDocMode("none"); setDocOther("");
-    void loadDocs();
-  }
-
   async function requestDocument(e: React.FormEvent) {
     e.preventDefault();
     if (!resolvedDocType || !docLandlord) return;
@@ -177,26 +153,16 @@ export default function PropertyDetailPage() {
     });
     setDocBusy(false);
     if (!res.ok) { const b = await res.json().catch(() => null); setDocError(b?.error ?? "Could not send the request"); return; }
-    setDocMode("none"); setDocOther(""); setDocLandlord("");
-    void loadDocs();
+    setRequestOpen(false); setDocOther(""); setDocLandlord("");
+    setFilesKey((k) => k + 1);
   }
 
+  // A requested document that arrived some other way (post, WhatsApp): attach it to the request by hand.
   async function attachReceivedFile(docId: string, file: File) {
-    setAttachingId(docId); setDocError(null);
     const form = new FormData();
     form.append("file", file);
     const res = await fetch(`/api/property-documents/${docId}`, { method: "PATCH", body: form });
-    setAttachingId(null);
-    if (!res.ok) { const b = await res.json().catch(() => null); setDocError(b?.error ?? "Could not attach the file"); return; }
-    void loadDocs();
-  }
-
-  function viewDocument(docId: string) {
-    window.open(`/api/property-documents/${docId}/file`, "_blank");
-  }
-
-  function downloadDocument(docId: string) {
-    window.open(`/api/property-documents/${docId}/file?download=1`, "_blank");
+    if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? "Could not attach the file"); }
   }
 
   if (error) return <div style={{ padding: "1.75rem" }}><p style={{ color: "var(--brick)" }}>{error}</p></div>;
@@ -206,12 +172,20 @@ export default function PropertyDetailPage() {
 
   return (
     <div style={{ padding: "1.75rem", maxWidth: 820 }}>
-      <div className="ch" style={{ padding: 0, marginBottom: 6, border: "none" }}>
-        <h1 style={{ margin: 0 }}>{property.name}</h1>
+      <div className="ch" style={{ padding: 0, marginBottom: 6, border: "none", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+          {filesInfo.cover && (
+            <div style={{ position: "relative", width: 64, height: 64, borderRadius: 12, overflow: "hidden", flex: "none", boxShadow: "0 1px 3px rgba(15,28,46,.18)" }}>
+              <Image src={filesInfo.cover} alt="" fill sizes="64px" style={{ objectFit: "cover" }} unoptimized />
+            </div>
+          )}
+          <h1 style={{ margin: 0 }}>{property.name}</h1>
+        </div>
         <Link href={`/properties/${id}/print`} className="btn ghost sm" target="_blank">Print QR</Link>
       </div>
       <p className="muted" style={{ marginTop: 0, marginBottom: 20 }}>
         {[property.address_line1, property.city, property.postcode].filter(Boolean).join(", ") || "No address on file yet"}
+        {(filesInfo.photos > 0 || filesInfo.documents > 0) && <> · {filesInfo.photos} photo{filesInfo.photos === 1 ? "" : "s"} · {filesInfo.documents} document{filesInfo.documents === 1 ? "" : "s"}</>}
       </p>
 
       <section className="card" style={{ marginBottom: 18 }}>
@@ -240,7 +214,8 @@ export default function PropertyDetailPage() {
         </div>
       </section>
 
-      <MediaGallery entityType="property" entityId={id} title="Media" />
+      <FilesPanel entity="property" id={id} mode="photos" title="Photos" refreshKey={filesKey}
+        onChanged={(r) => setFilesInfo((f) => ({ ...f, photos: r.counts.photos, cover: r.items.find((x) => x.kind === "photo" && x.isCover)?.thumbUrl ?? r.items.find((x) => x.kind === "photo")?.thumbUrl ?? null }))} />
 
       <section className="card" style={{ marginBottom: 18 }}>
         <div className="ch"><h3>Rooms</h3>
@@ -281,7 +256,7 @@ export default function PropertyDetailPage() {
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="button" className="btn ghost sm" onClick={() => setMediaForUnit(mediaForUnit === u.id ? null : u.id)}>
-                    {mediaForUnit === u.id ? "Hide media" : "Add media"}
+                    {mediaForUnit === u.id ? "Hide photos" : "Photos"}
                   </button>
                   {!u.tenancy && (
                     <button type="button" className="btn ghost sm" onClick={() => setTenancyForUnit(u.id)}>Add tenancy</button>
@@ -290,7 +265,7 @@ export default function PropertyDetailPage() {
               </div>
               {mediaForUnit === u.id && (
                 <div style={{ padding: "0 16px 16px" }}>
-                  <MediaGallery entityType="unit" entityId={u.id} title={`${u.reference} photos`} />
+                  <FilesPanel entity="unit" id={u.id} mode="photos" title={`${u.reference} photos`} />
                 </div>
               )}
             </div>
@@ -310,31 +285,13 @@ export default function PropertyDetailPage() {
         />
       )}
 
-      <section className="card" style={{ marginBottom: 18 }}>
-        <div className="ch"><h3>Documents</h3>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn ghost sm" onClick={() => setDocMode(docMode === "request" ? "none" : "request")}>{docMode === "request" ? "Cancel" : "Request from landlord"}</button>
-            <button type="button" className="btn ghost sm" onClick={() => setDocMode(docMode === "add" ? "none" : "add")}>{docMode === "add" ? "Cancel" : "Add document"}</button>
-          </div>
-        </div>
-        <p className="muted" style={{ margin: "0 0 4px", fontSize: 12.5 }}>The lease, invoices and other paperwork for this property, kept separate from a tenant&apos;s own documents.</p>
-
-        {docMode === "add" && (
-          <div className="li" style={{ display: "grid", gap: 10 }}>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <select value={docType} onChange={(e) => setDocType(e.target.value)} style={inp}>
-                {PROPERTY_DOCUMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                <option value={OTHER_DOCUMENT_TYPE}>{OTHER_DOCUMENT_TYPE}</option>
-              </select>
-              {docType === OTHER_DOCUMENT_TYPE && <input value={docOther} onChange={(e) => setDocOther(e.target.value)} placeholder="Describe it" style={inp} />}
-            </div>
-            <input type="file" disabled={docBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void addDocument(f); e.target.value = ""; }} />
-            {docError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{docError}</p>}
-          </div>
-        )}
-
-        {docMode === "request" && (
-          <form onSubmit={requestDocument} className="li" style={{ display: "grid", gap: 10 }}>
+      <FilesPanel entity="property" id={id} mode="documents" title="Documents" refreshKey={filesKey}
+        onChanged={(r) => setFilesInfo((f) => ({ ...f, documents: r.counts.documents }))}
+        extraActions={<button type="button" className="btn ghost sm" onClick={() => setRequestOpen((v) => !v)}>{requestOpen ? "Cancel request" : "Request from landlord"}</button>}
+        onAttachRequested={(f, file) => attachReceivedFile(f.id, file)}
+        below={requestOpen ? (
+          <form onSubmit={requestDocument} className="li" style={{ display: "grid", gap: 10, background: "var(--cream)" }}>
+            <p style={{ margin: 0, fontSize: 13 }}>The landlord gets an email with a one-time upload link — no account needed. When they use it, the file lands here on its own.</p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <select value={docType} onChange={(e) => setDocType(e.target.value)} style={inp}>
                 {PROPERTY_DOCUMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -349,46 +306,8 @@ export default function PropertyDetailPage() {
             {docError && <p style={{ color: "var(--brick)", fontSize: 13, margin: 0 }}>{docError}</p>}
             <div><button type="submit" className="rel sm" disabled={docBusy || !docLandlord}>{docBusy ? "Sending…" : "Send request"}</button></div>
           </form>
-        )}
-
-        {docs === null ? (
-          <div className="li"><p className="muted">Loading…</p></div>
-        ) : docs.length === 0 ? (
-          <div className="li"><p className="muted">No documents yet.</p></div>
-        ) : (
-          docs.map((d) => (
-            <div className="li" key={d.id}>
-              <div className="body">
-                <b>{d.document_type}</b>
-                <p>
-                  {d.status === "received" ? (
-                    <span style={{ color: "var(--live)", fontWeight: 600 }}>Received</span>
-                  ) : (
-                    <span style={{ color: "var(--amber-deep)", fontWeight: 600 }}>
-                      {d.notified_at
-                        ? `Emailed ${d.landlords?.name ?? "the landlord"} · ${formatShortDate(d.notified_at)}`
-                        : `Requested${d.landlords?.name ? ` from ${d.landlords.name}` : ""} · no email went (no address on file)`}
-                    </span>
-                  )}
-                  {" · "}{formatShortDate(d.created_at)}
-                </p>
-              </div>
-              {d.status === "received" && d.blob_id ? (
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button type="button" className="btn ghost sm" onClick={() => viewDocument(d.id)}>View</button>
-                  <button type="button" className="btn ghost sm" onClick={() => downloadDocument(d.id)}>Download</button>
-                </div>
-              ) : (
-                <label className="btn ghost sm" style={{ cursor: attachingId === d.id ? "wait" : "pointer" }}>
-                  {attachingId === d.id ? "Attaching…" : "Attach received file"}
-                  <input type="file" style={{ display: "none" }} disabled={attachingId === d.id}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) void attachReceivedFile(d.id, f); e.target.value = ""; }} />
-                </label>
-              )}
-            </div>
-          ))
-        )}
-      </section>
+        ) : null}
+      />
 
       <section className="card" style={{ marginBottom: 18 }}>
         <div className="ch"><h3>Certificates</h3><span className="muted">What this property must hold, by law</span></div>

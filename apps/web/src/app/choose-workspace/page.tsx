@@ -64,7 +64,7 @@ export default function ChooseLandlordPage() {
     <main style={s.page}>
       <div style={{ ...s.card, maxWidth: 520 }}>
         <h1 style={s.heading}>Which landlord?</h1>
-        <p style={s.subBrands}>Pick whose properties you&apos;re working on. Anyone added under Properties → Add landlord appears here straight away. You can switch from the top bar at any time.</p>
+        <p style={s.subBrands}>You can always add or remove a landlord once you are logged in.</p>
 
         {error && <div style={s.errorBox}>{error}</div>}
 
@@ -81,7 +81,8 @@ export default function ChooseLandlordPage() {
                 <span className="avatar" aria-hidden="true" style={{ background: "var(--navy)", color: "#fff", width: 34, height: 34, fontSize: 13 }}>{l.name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <b style={{ display: "block", fontSize: 15, fontWeight: 600 }}>{switching === l.id ? "Opening…" : l.name}</b>
-                  <small style={{ color: "#7A8499", fontSize: 12 }}>{l.propertiesCount} propert{l.propertiesCount === 1 ? "y" : "ies"} · {l.roomsCount} room{l.roomsCount === 1 ? "" : "s"}{landlords && new Set(landlords.map((x) => x.orgId)).size > 1 ? ` · ${l.orgName}` : ""}</small>
+                  {/* Just the landlord and its size — naming the organisation underneath read as a contradiction ("Dawson · Reliance"). */}
+                  <small style={{ color: "#7A8499", fontSize: 12 }}>{l.propertiesCount} propert{l.propertiesCount === 1 ? "y" : "ies"} · {l.roomsCount} room{l.roomsCount === 1 ? "" : "s"}</small>
                 </span>
                 <span aria-hidden="true" style={{ color: "#B9C4D2", fontSize: 20 }}>›</span>
               </button>

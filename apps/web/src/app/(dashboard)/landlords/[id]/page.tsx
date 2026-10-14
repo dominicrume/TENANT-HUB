@@ -10,7 +10,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { AvatarPhoto } from "../../../../components/AvatarPhoto";
-import { useParams } from "next/navigation";
+import { FilesPanel } from "../../../../components/files/FilesPanel";
+import { useParams, useRouter } from "next/navigation";
 import { formatShortDate } from "../../../../lib/format";
 
 interface Landlord { id: string; name: string; contact_email: string | null; contact_phone: string | null; notes: string | null; created_at: string }
@@ -22,6 +23,7 @@ const TYPE_LABEL: Record<string, string> = { supported: "Supported accommodation
 
 export default function LandlordPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -37,6 +39,21 @@ export default function LandlordPage() {
     setName(d.landlord.name); setEmail(d.landlord.contact_email ?? ""); setPhone(d.landlord.contact_phone ?? ""); setNotes(d.landlord.notes ?? "");
   }, [id]);
   useEffect(() => { void load(); }, [load]);
+
+  async function removeLandlord() {
+    if (!data) return;
+    const n = data.properties.length;
+    const msg = n > 0
+      ? `Remove ${data.landlord.name}? Their ${n} propert${n === 1 ? "y" : "ies"} stay in the system with the landlord set to "not set" — nothing else is deleted.`
+      : `Remove ${data.landlord.name}? They have no properties. This can't be undone.`;
+    if (!window.confirm(msg)) return;
+    setBusy(true); setSaveError(null);
+    const r = await fetch(`/api/landlords/${id}`, { method: "DELETE" });
+    setBusy(false);
+    if (!r.ok) { const b = await r.json().catch(() => null); setSaveError(b?.error ?? "Could not remove"); return; }
+    router.push("/landlords");
+    router.refresh();
+  }
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -107,9 +124,10 @@ export default function LandlordPage() {
             <label><span className="lbl">Contact phone</span><input value={phone} onChange={(e) => setPhone(e.target.value)} style={inp} /></label>
             <label style={{ gridColumn: "1 / -1" }}><span className="lbl">Notes</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Bank details for rent, preferred contact times, anything the team should know" style={{ ...inp, resize: "vertical" }} /></label>
             {saveError && <p style={{ color: "var(--brick)", margin: 0, fontSize: 13, gridColumn: "1 / -1" }}>{saveError}</p>}
-            <div style={{ display: "flex", gap: 8, gridColumn: "1 / -1" }}>
+            <div style={{ display: "flex", gap: 8, gridColumn: "1 / -1", flexWrap: "wrap" }}>
               <button type="submit" className="rel sm" disabled={busy || !name.trim()}>{busy ? "Saving…" : "Save"}</button>
               <button type="button" className="btn ghost sm" onClick={() => { setEditing(false); setSaveError(null); void load(); }}>Cancel</button>
+              <button type="button" className="btn ghost sm" style={{ marginLeft: "auto", color: "var(--brick)" }} disabled={busy} onClick={() => void removeLandlord()}>Remove landlord…</button>
             </div>
           </form>
         ) : (
@@ -137,6 +155,8 @@ export default function LandlordPage() {
           </Link>
         ))}
       </section>
+
+      <FilesPanel entity="landlord" id={id} mode="documents" title={`${landlord.name.split(/\s+/)[0]}'s documents`} />
 
       <section className="card">
         <div className="ch"><h3>Documents asked of {landlord.name.split(/\s+/)[0]}</h3></div>
