@@ -24,9 +24,9 @@ export const STATION_EVIDENCE: Partial<Record<StationKey, string>> = {
 };
 
 export const STATIONS: StationDef[] = [
-  { key: "lead_received", n: 1, label: "Lead received", what: "How they came to us — a referral or our own advertising." },
-  { key: "viewing", n: 2, label: "Viewing", what: "They've seen the room. Assign it to someone, tick it when done." },
-  { key: "signed_up", n: 3, label: "Signed up", what: "The agreement is signed (intake signature, or the signed tenancy agreement in Documents).", evidence: STATION_EVIDENCE.signed_up },
+  { key: "lead_received", n: 1, label: "Lead received", what: "Say how they came to us: self-referred, professionally referred, or via an advert." },
+  { key: "viewing", n: 2, label: "Viewing", what: "Assign the viewing to one of your people with a time — it goes into their diary. Tick it when it's done." },
+  { key: "signed_up", n: 3, label: "Signed up", what: "The sign-up pack (seven sections) — green once the licence agreement is signed and filed.", evidence: STATION_EVIDENCE.signed_up },
   { key: "moved_in", n: 4, label: "Moved in", what: "A move-in date on the record." },
   { key: "claim_done", n: 5, label: "Claim done", what: "Green only when the Housing Benefit form is in Documents — not when someone says so.", evidence: STATION_EVIDENCE.claim_done },
   { key: "email_sent", n: 6, label: "Email sent", what: "The documents went to Birmingham City Council. Upload the screenshot of the sent email as evidence.", evidence: STATION_EVIDENCE.email_sent },
@@ -35,6 +35,8 @@ export const STATIONS: StationDef[] = [
 ];
 
 export interface JourneyFacts {
+  /** How they came to us — self / professional / advert. Station 1 is green only once this is said. */
+  referralSource: string | null;
   hasLead: boolean; leadStage: string | null; leadViewingAt: string | null;
   signatureHash: string | null; movedIn: string | null; activeTenancy: boolean;
   documents: string[];                      // tenant_documents names (received)
@@ -52,9 +54,9 @@ export function computeJourney(f: JourneyFacts): Station[] {
     const tick = f.ticks[s.key];
     let status: StationStatus = "todo"; let doneAt: string | null = tick?.doneAt ?? null; let by: string | null = tick?.doneBy ?? null; let evidenceFound: string | null = null;
     switch (s.key) {
-      case "lead_received": status = "done"; doneAt = doneAt ?? null; break; // they exist in the system, so they were received
-      case "viewing": status = tick?.doneAt || f.leadStage === "viewing" || f.leadStage === "offer" || f.leadStage === "moved_in" || f.movedIn ? "done" : "todo"; if (!doneAt && f.leadViewingAt) doneAt = f.leadViewingAt; break;
-      case "signed_up": evidenceFound = hasDoc(f.documents, STATION_EVIDENCE.signed_up!); status = f.signatureHash || evidenceFound ? "done" : "todo"; break;
+      case "lead_received": status = f.referralSource ? "done" : "todo"; break; // "once you select one of the three, boom, it becomes green"
+      case "viewing": status = tick?.doneAt ? "done" : "todo"; if (!doneAt && f.leadViewingAt) doneAt = f.leadViewingAt; break;
+      case "signed_up": evidenceFound = hasDoc(f.documents, STATION_EVIDENCE.signed_up!) ?? f.documents.find((d) => /licence agreement|license agreement/i.test(d)) ?? null; status = f.signatureHash || evidenceFound ? "done" : "todo"; break;
       case "moved_in": status = f.movedIn || f.activeTenancy ? "done" : "todo"; doneAt = doneAt ?? f.movedIn; break;
       case "claim_done": evidenceFound = hasDoc(f.documents, STATION_EVIDENCE.claim_done!); status = evidenceFound ? "done" : "todo"; break;
       case "email_sent": evidenceFound = hasDoc(f.documents, STATION_EVIDENCE.email_sent!); status = evidenceFound ? "done" : "todo"; break;

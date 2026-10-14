@@ -31,17 +31,19 @@ export interface FileItem {
   uploadedBy: string | null;
   createdAt: string;
   expiresOn: string | null;
+  /** Tenant documents only: which of the seven sign-up sections (1–7) it belongs to. */
+  section: number | null;
 }
 
 type Raw = {
   id: string; kind: FileKind; tbl: FileItem["table"]; entity: FileEntity; entity_id: string; blob_id: string | null; name: string;
   file_name: string | null; mime_type: string | null; file_size: number | null; sha256: string | null; has_thumb: boolean | null; is_cover: boolean | null;
-  status: string | null; uploaded_by: string | null; created_at: string; expires_on: string | null;
+  status: string | null; uploaded_by: string | null; created_at: string; expires_on: string | null; section?: number | null;
 };
 const map = (r: Raw): FileItem => ({
   id: r.id, kind: r.kind, table: r.tbl, entity: r.entity, entityId: r.entity_id, blobId: r.blob_id, name: r.name,
   fileName: r.file_name, mimeType: r.mime_type, size: r.file_size === null ? null : Number(r.file_size), sha256: r.sha256, hasThumb: Boolean(r.has_thumb), isCover: Boolean(r.is_cover),
-  status: r.status === "requested" ? "requested" : "received", uploadedBy: r.uploaded_by, createdAt: r.created_at, expiresOn: r.expires_on,
+  status: r.status === "requested" ? "requested" : "received", uploadedBy: r.uploaded_by, createdAt: r.created_at, expiresOn: r.expires_on, section: r.section ?? null,
 });
 
 const BLOB_COLS = "b.file_name, b.mime_type, b.file_size, b.sha256, (b.thumb IS NOT NULL) AS has_thumb";
@@ -69,7 +71,7 @@ export async function listEntityFiles(client: Queryable, i: { orgId: string; ent
   if (i.entity === "tenant") {
     const r = await client.query<Raw>(
       `SELECT d.id, 'document' AS kind, 'tenant_documents' AS tbl, 'tenant' AS entity, d.tenant_id AS entity_id, d.blob_id, d.name,
-              ${BLOB_COLS}, FALSE AS is_cover, 'received' AS status, d.uploaded_by, d.created_at, NULL::date AS expires_on
+              ${BLOB_COLS}, FALSE AS is_cover, 'received' AS status, d.uploaded_by, d.created_at, NULL::date AS expires_on, d.section
        FROM tenant_documents d JOIN tenants t ON t.id = d.tenant_id LEFT JOIN document_blobs b ON b.id = d.blob_id
        WHERE t.org_id = $1 AND d.tenant_id = $2 ORDER BY d.created_at DESC`, [i.orgId, i.id]);
     out.push(...r.rows);

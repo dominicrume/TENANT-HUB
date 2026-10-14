@@ -29,6 +29,7 @@ import { DocumentsTab } from "../../../../components/tenant/DocumentsTab";
 import { IdCheckTab } from "../../../../components/tenant/IdCheckTab";
 import { ReferencesPanel } from "../../../../components/tenant/ReferencesPanel";
 import { JourneyStrip } from "../../../../components/tenant/JourneyStrip";
+import { SignupPackTab } from "../../../../components/tenant/SignupPackTab";
 import { NotesTab } from "../../../../components/tenant/NotesTab";
 import { MessagesTab } from "../../../../components/tenant/MessagesTab";
 import { AskTab } from "../../../../components/tenant/AskTab";
@@ -39,6 +40,7 @@ import { AvatarPhoto } from "../../../../components/AvatarPhoto";
 
 const CORE_TABS = [
   { key: "personal", label: "Personal Details" },
+  { key: "signup", label: "Sign-up pack" },
   { key: "housing-benefit", label: "Housing Benefit" },
   { key: "reliance-intake", label: "Reliance Intake" },
   { key: "support-plan", label: "Support Plan (Reliance)" },
@@ -558,6 +560,7 @@ export default function TenantDetailPage() {
 
       {tab === "support-plan" && <SupportPlanTab tenantId={id} tenant={tenant!} />}
       {tab === "reliance-intake" && <RelianceIntakeTab tenantId={id} tenant={tenant!} />}
+      {tab === "signup" && <SignupPackTab tenantId={id} onOpenTab={(t) => setTab(t)} />}
       {tab === "sessions" && <SessionsTab tenantId={id} />}
       {tab === "ledger" && <LedgerTab tenantId={id} />}
       {tab === "maintenance" && <MaintenanceTab tenantId={id} roomNumber={tenant?.room_number} />}

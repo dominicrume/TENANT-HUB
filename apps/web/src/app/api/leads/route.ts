@@ -39,7 +39,7 @@ export const POST = withRouteHandler({ resource: "tenants", action: "create" }, 
   const body = (await req.json().catch(() => null)) as { full_name?: string; phone?: string; email?: string; source?: string; notes?: string; property_id?: string | null; landlord_id?: string | null } | null;
   const fullName = typeof body?.full_name === "string" ? body.full_name.trim() : "";
   if (!fullName) return NextResponse.json({ error: "Name: who is this?" }, { status: 422 });
-  const source = LEAD_SOURCES.some((s) => s.key === body?.source) ? body!.source : "other";
+  const source = LEAD_SOURCES.some((s) => s.key === body?.source) ? body!.source : "professionally_referred";
   try {
     const { data } = await writeWithAudit({
       table: "leads",

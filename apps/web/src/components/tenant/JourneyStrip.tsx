@@ -5,6 +5,7 @@ import { formatShortDate } from "../../lib/format";
 import type { Station } from "../../lib/journey";
 import type { TenantJourney } from "../../lib/journey-server";
 import { uploadFile } from "../files/upload";
+import { REFERRAL_SOURCES } from "../../lib/signup";
 
 /**
  * The eight stations on the tenant's own page (Matloob, 2026-10-14):
@@ -94,14 +95,30 @@ export function JourneyStrip({ tenantId, onDocumentsChanged }: { tenantId: strin
             </div>
           )}
 
-          {/* A person's own act: viewing (assign + tick), moved out (date). */}
+          {/* Station 1: one of three, and it's green. */}
+          {sel.key === "lead_received" && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {REFERRAL_SOURCES.map((r) => (
+                <button key={r.key} type="button" className={j.referralSource === r.key ? "rel sm" : "btn ghost sm"} disabled={busy} title={r.hint} onClick={() => void tick("lead_received", true, { referralSource: r.key })}>{r.label}</button>
+              ))}
+            </div>
+          )}
+
+          {/* Station 2: assign to a person with a time → their diary; tick when done. */}
           {sel.key === "viewing" && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <select value={assignee || sel.assignedTo || ""} onChange={(e) => { setAssignee(e.target.value); void tick("viewing", sel.status === "done", { assignedTo: e.target.value }); }} style={inp} aria-label="Assign the viewing to">
-                <option value="">Assign to…</option>{people.map((p) => <option key={p.id} value={p.full_name}>{p.full_name}</option>)}
-              </select>
-              {sel.status === "todo" ? <button type="button" className="rel sm" disabled={busy} onClick={() => void tick("viewing", true)}>Viewing done ✓</button>
-                : <button type="button" className="btn ghost sm" disabled={busy} onClick={() => void tick("viewing", false)}>Undo</button>}
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <select value={assignee || sel.assignedTo || ""} onChange={(e) => setAssignee(e.target.value)} style={inp} aria-label="Assign the viewing to">
+                  <option value="">Assign to…</option>{people.map((p) => <option key={p.id} value={p.full_name}>{p.full_name}</option>)}
+                </select>
+                <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} style={inp} aria-label="When" />
+                <button type="button" className="rel sm" disabled={busy || !(assignee || sel.assignedTo) || !when} onClick={() => void tick("viewing", false, { assignedTo: assignee || sel.assignedTo, at: new Date(when).toISOString() })}>Assign → their diary</button>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {sel.status === "todo" ? <button type="button" className="btn ghost sm" disabled={busy} onClick={() => void tick("viewing", true, { assignedTo: assignee || sel.assignedTo || null })}>Viewing done ✓</button>
+                  : <button type="button" className="btn ghost sm" disabled={busy} onClick={() => void tick("viewing", false)}>Undo</button>}
+                {sel.assignedTo && <span className="muted" style={{ fontSize: 12.5 }}>Assigned to {sel.assignedTo}{sel.doneAt && sel.status !== "done" ? ` · ${formatShortDate(sel.doneAt)}` : ""}</span>}
+              </div>
             </div>
           )}
           {sel.key === "moved_out" && (

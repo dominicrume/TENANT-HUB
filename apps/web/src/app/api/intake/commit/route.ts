@@ -143,10 +143,16 @@ export async function POST(req: Request) {
 
     // Started from a lead → the timeline closes: moved in, and the lead now points at the tenant record.
     if (state.lead_id) {
+      const tenantId = (tenant as Record<string, unknown>)["id"];
       await writeWithAudit({
-        table: "leads", record: { id: state.lead_id, stage: "moved_in", tenant_id: (tenant as Record<string, unknown>)["id"] } as Record<string, unknown>,
+        table: "leads", record: { id: state.lead_id, stage: "moved_in", tenant_id: tenantId } as Record<string, unknown>,
         action: "UPDATE", org_id: auth.actor.org_id, ...auth.actor,
       }).catch((e) => console.warn("[intake/commit] lead not updated", e));
+      // Station 1 carries over: how the lead came to us is how the tenant came to us.
+      const src = (await db().query<{ source: string }>("SELECT source FROM leads WHERE id = $1", [state.lead_id])).rows[0]?.source;
+      if (src === "self_referred" || src === "professionally_referred" || src === "via_advert") {
+        await writeWithAudit({ table: "tenants", record: { id: tenantId, referral_source: src } as Record<string, unknown>, action: "UPDATE", org_id: auth.actor.org_id, tenant_id: String(tenantId), ...auth.actor }).catch(() => {});
+      }
     }
     emit(auth.actor.org_id, "tenant.created", { ...(tenant as Record<string, unknown>), linked_unit: linkedUnit });
     return NextResponse.json({ tenant, linked_unit: linkedUnit }, { status: 201 });

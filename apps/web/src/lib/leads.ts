@@ -8,8 +8,9 @@ export const LEAD_STAGES = [
 ] as const;
 export type LeadStage = (typeof LEAD_STAGES)[number]["key"] | "lost";
 
+/** The three ways in (Matloob, 2026-10-14) — same list as station 1 on the journey. */
 export const LEAD_SOURCES = [
-  { key: "council", label: "Council referral" }, { key: "self", label: "Self referral" }, { key: "agency", label: "Agency" }, { key: "charity", label: "Charity / support service" }, { key: "other", label: "Other" },
+  { key: "self_referred", label: "Self-referred" }, { key: "professionally_referred", label: "Professionally referred" }, { key: "via_advert", label: "Via advert" },
 ] as const;
 
 export interface Lead {

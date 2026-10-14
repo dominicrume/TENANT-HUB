@@ -1,6 +1,8 @@
 export interface DiaryItem {
   id: string; source: "diary" | "viewing" | "session" | "commitment" | "repair" | "certificate" | "move_in";
   kind: string; title: string; at: string; allDay: boolean; done: boolean; href: string | null; who: string | null; where: string | null; notes: string | null;
+  /** The member of staff this is for — "I need to know what my people are doing that day". */
+  assignedTo: string | null;
 }
 
 export const DIARY_KINDS = [

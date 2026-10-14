@@ -7,14 +7,14 @@ import { computeJourney, nextStation, type JourneyFacts, type Station, type Stat
  * source, batched — the dashboard list of 50 tenants is five queries, not
  * five hundred.
  */
-export interface TenantJourney { tenantId: string; name: string; room: string | null; landlord: string | null; landlordId: string | null; stations: Station[]; next: Station | null; done: number; total: number }
+export interface TenantJourney { tenantId: string; name: string; room: string | null; landlord: string | null; landlordId: string | null; referralSource: string | null; stations: Station[]; next: Station | null; done: number; total: number }
 
 export async function journeysForOrg(orgId: string, onlyTenantId?: string): Promise<TenantJourney[]> {
   const params: unknown[] = [orgId];
   let where = "t.org_id = $1 AND t.is_archived = false";
   if (onlyTenantId) { params.push(onlyTenantId); where += ` AND t.id = $${params.length}`; }
-  const tenants = await db().query<{ id: string; full_name: string; room_number: string | null; tenant_signature_hash: string | null; moved_in: string | null; is_active: boolean; landlord_id: string | null; landlord: string | null; has_portal: boolean | null; active_tenancy: boolean }>(
-    `SELECT t.id, t.full_name, t.room_number, t.tenant_signature_hash, t.moved_in::text, t.is_active,
+  const tenants = await db().query<{ id: string; full_name: string; room_number: string | null; tenant_signature_hash: string | null; moved_in: string | null; is_active: boolean; referral_source: string | null; landlord_id: string | null; landlord: string | null; has_portal: boolean | null; active_tenancy: boolean }>(
+    `SELECT t.id, t.full_name, t.room_number, t.tenant_signature_hash, t.moved_in::text, t.is_active, t.referral_source,
             l.id AS landlord_id, l.name AS landlord, l.has_portal,
             EXISTS (SELECT 1 FROM tenancies ty WHERE ty.tenant_id = t.id AND ty.status = 'active') AS active_tenancy
      FROM tenants t
@@ -37,11 +37,12 @@ export async function journeysForOrg(orgId: string, onlyTenantId?: string): Prom
   return tenants.rows.map((t) => {
     const lead = leadBy.get(t.id);
     const stations = computeJourney({
+      referralSource: t.referral_source,
       hasLead: Boolean(lead), leadStage: lead?.stage ?? null, leadViewingAt: lead?.viewing_at ?? null,
       signatureHash: t.tenant_signature_hash, movedIn: t.moved_in, activeTenancy: t.active_tenancy,
       documents: docsBy.get(t.id) ?? [], ticks: ticksBy.get(t.id) ?? {}, landlordHasPortal: t.landlord_id ? t.has_portal : null, isActive: t.is_active,
     });
     const applicable = stations.filter((s) => s.status !== "na" && s.key !== "moved_out");
-    return { tenantId: t.id, name: t.full_name, room: t.room_number, landlord: t.landlord, landlordId: t.landlord_id, stations, next: nextStation(stations), done: applicable.filter((s) => s.status === "done").length, total: applicable.length };
+    return { tenantId: t.id, name: t.full_name, room: t.room_number, landlord: t.landlord, landlordId: t.landlord_id, referralSource: t.referral_source, stations, next: nextStation(stations), done: applicable.filter((s) => s.status === "done").length, total: applicable.length };
   });
 }

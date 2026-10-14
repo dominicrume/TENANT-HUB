@@ -11,6 +11,7 @@ export interface FileItemView {
   id: string; kind: FileKind; table: "entity_media" | "tenant_documents" | "property_documents" | "landlord_documents";
   entity: FileEntity; entityId: string; blobId: string | null; name: string; fileName: string | null; mimeType: string | null; size: number | null;
   sha256: string | null; hasThumb: boolean; isCover: boolean; status: "received" | "requested"; uploadedBy: string | null; createdAt: string; expiresOn: string | null;
+  section?: number | null;
   url: string | null; downloadUrl: string | null; thumbUrl: string | null;
 }
 export interface ChecklistItem { type: string; status: "have" | "missing" | "expired" | "requested"; fileId?: string }
@@ -51,7 +52,7 @@ export function fileIcon(mime: string | null | undefined, name?: string | null):
 }
 
 /** Uploads one file through /api/files/upload with progress. Images are compressed first and get a thumbnail. */
-export function uploadFile(i: { entity: FileEntity; id: string; kind: FileKind; type: string; file: File; expiresOn?: string | null; onProgress?: (pct: number) => void }): Promise<{ item: FileItemView | null; items: FileItemView[] }> {
+export function uploadFile(i: { entity: FileEntity; id: string; kind: FileKind; type: string; file: File; expiresOn?: string | null; section?: number | null; onProgress?: (pct: number) => void }): Promise<{ item: FileItemView | null; items: FileItemView[] }> {
   return new Promise(async (resolve, reject) => {
     try {
       const isImage = i.file.type.startsWith("image/");
@@ -60,6 +61,7 @@ export function uploadFile(i: { entity: FileEntity; id: string; kind: FileKind; 
       const fd = new FormData();
       fd.append("entity", i.entity); fd.append("id", i.id); fd.append("kind", i.kind); fd.append("type", i.type);
       if (i.expiresOn) fd.append("expiresOn", i.expiresOn);
+      if (i.section) fd.append("section", String(i.section));
       fd.append("file", file, i.file.name);
       if (thumb) { fd.append("thumb", thumb.blob, "thumb.jpg"); fd.append("width", String(thumb.width)); fd.append("height", String(thumb.height)); }
       const xhr = new XMLHttpRequest();

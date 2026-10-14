@@ -63,6 +63,7 @@ export const STAFF_NAV: NavItem[] = [
   { href: "/properties",  label: "Properties",          icon: "properties", mobile: true },
   { href: "/diary",       label: "Diary",               icon: "diary",     mobile: true },
   { href: "/financials",  label: "Financials",          icon: "rent",      mobile: true, short: "Money" },
+  { href: "/reports",     label: "Reports",             icon: "reports" },
   { href: "/paperwork",   label: "Paperwork",           icon: "paperwork" },
   { href: "/files",       label: "Files",               icon: "handovers" },
   { href: "/maintenance", label: "Repairs",             icon: "repairs" },

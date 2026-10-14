@@ -64,9 +64,12 @@ export async function POST(req: Request) {
       });
       rowId = String((data as Record<string, unknown>)["id"]);
     } else if (entity === "tenant") {
+      // Sign-up pack: which of the seven sections this document belongs to (optional).
+      const sectionRaw = Number(form?.get("section") ?? 0);
+      const section = sectionRaw >= 1 && sectionRaw <= 7 ? sectionRaw : null;
       const { data } = await writeWithAudit({
         table: "tenant_documents",
-        record: { tenant_id: id, name: type, blob_id: blobId, uploaded_by: auth.actor.user_name, file_url: null } as Record<string, unknown>,
+        record: { tenant_id: id, name: type, blob_id: blobId, uploaded_by: auth.actor.user_name, file_url: null, section } as Record<string, unknown>,
         action: "CREATE", org_id: orgId, tenant_id: id, ...auth.actor,
       });
       rowId = String((data as Record<string, unknown>)["id"]);
