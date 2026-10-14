@@ -167,6 +167,7 @@ just the checklist line. Does not block, and is not blocked by, M6/M7.
 - [x] C55 ✓ 2026-10-09 — MFA, referencing, landlord upload link, ledger CSV/adjustments, outbound webhooks; migration 052 applied on Railway; all five slices live.
 - [x] C56 ✓ 2026-10-11 — the file layer per `docs/FILES_SPEC.md`; migration 057 applied on Railway (19 existing blobs hashed); FilesPanel/FileViewer on every surface, /files overview, share links.
 - [x] C57 ✓ 2026-10-14 — Matloob's walkthrough: admin-only user management (059), Leads / Diary / Financials / Support + People→Tenants (060), the eight-station tenant journey on every tenant and the dashboard (061). Landlords cut to Ash Shahada / Dawson / Reliance (056, 058); Gemini-grounded address lookup wired (needs billing or a Places key to answer).
+- [x] C58 ✓ 2026-10-15 — the workflow Matloob drew, end to end: Diary rebuilt as a planner (month / week / day / list / user views, mini-month jump, search, event-type legend, per-person calendars, statuses ✓ ? ✕, rent-due money chips, certificate tasks, New event / edit / cancel) on 063; dashboard "What to do today" per tenant; station 3 opens `/tenants/[id]/signup` — seven sections → forms → each filled from the record → signed on the pad → PDF built in the browser (pdf-lib) and filed into its section → slot green; stations go one at a time. Standard wording under the landlord's name until Osama's templates arrive (no Matty's Place templates duplicated).
 
 ## 8. Indicative timing
 

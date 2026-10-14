@@ -88,6 +88,20 @@ export default function TodayPage() {
         <Link href="/maintenance" className="stat"><div className="k">Repairs</div><div className="v">{data ? data.stats.repairsOpen : "—"}</div><div className="m">{data ? (data.stats.repairsOpen === 0 ? "nothing open" : "open right now") : " "}</div></Link>
       </div>
 
+      {/* "Every morning it tells you exactly what to do today — the HB form needs doing for this client" (Matloob, 2026-10-15). */}
+      {journeys && journeys.some((t) => t.next) && (
+        <section className="card" style={{ marginTop: 18, borderColor: "var(--amber)" }}>
+          <div className="ch"><h3>What to do today</h3><span className="muted">{journeys.filter((t) => t.next).length} tenant{journeys.filter((t) => t.next).length === 1 ? "" : "s"} waiting on a station</span></div>
+          {journeys.filter((t) => t.next).map((t) => (
+            <Link key={t.tenantId} href={`/tenants/${t.tenantId}${t.next!.key === "signed_up" ? "/signup" : t.next!.key === "claim_done" || t.next!.key === "email_sent" ? "?tab=signup" : ""}`} className="li row" style={{ alignItems: "center" }}>
+              <span aria-hidden="true" style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--brick)", color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 13, flex: "none" }}>{t.next!.n}</span>
+              <div className="body"><b>{t.next!.label} · {t.name}</b><p>{t.next!.what}</p></div>
+              <span className="act">Do it</span>
+            </Link>
+          ))}
+        </section>
+      )}
+
       {/* The tenant journey (Matloob, 2026-10-14): "when we click dashboard we see where we are — lead received, referenced…" */}
       <section className="card" style={{ marginTop: 18 }}>
         <div className="ch"><h3>Where every tenant is</h3><span className="muted" style={{ fontSize: 12 }}>1 lead · 2 viewing · 3 signed · 4 moved in · 5 claim · 6 email · 7 portal · 8 moved out</span></div>

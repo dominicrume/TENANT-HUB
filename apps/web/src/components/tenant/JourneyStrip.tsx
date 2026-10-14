@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { formatShortDate } from "../../lib/format";
 import type { Station } from "../../lib/journey";
 import type { TenantJourney } from "../../lib/journey-server";
@@ -51,6 +52,8 @@ export function JourneyStrip({ tenantId, onDocumentsChanged }: { tenantId: strin
 
   if (!j) return null;
   const sel = j.stations.find((s) => s.key === open) ?? null;
+  // One station at a time (Matloob): a to-do station is locked while any earlier required station is still to do.
+  const locked = !!sel && sel.status === "todo" && j.stations.some((s) => s.n < sel.n && s.status === "todo");
   const colour = (s: Station) => s.status === "done" ? "var(--live)" : s.status === "na" ? "#CBD2DB" : "var(--brick)";
 
   return (
@@ -80,15 +83,26 @@ export function JourneyStrip({ tenantId, onDocumentsChanged }: { tenantId: strin
             {sel.status === "done" && (sel.by || sel.evidenceFound) && <p className="muted" style={{ margin: "2px 0 0", fontSize: 12.5 }}>{sel.evidenceFound ? `Evidence on file: ${sel.evidenceFound}` : `Ticked by ${sel.by}`}{sel.note ? ` · ${sel.note}` : ""}</p>}
           </div>
 
+          {/* One station at a time: the next one opens only when the one before is done. */}
+          {locked && <p style={{ margin: 0, fontSize: 13, color: "var(--brick)" }}>Finish station {j.stations.find((s) => s.n < sel.n && s.status === "todo")!.n} ({j.stations.find((s) => s.n < sel.n && s.status === "todo")!.label}) first — the journey goes one station at a time.</p>}
+
+          {/* Station 3 opens the sign-up pack, full page. */}
+          {sel.key === "signed_up" && !locked && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <Link href={`/tenants/${tenantId}/signup`} className="rel sm">Open the sign-up pack →</Link>
+              <span className="muted" style={{ fontSize: 12.5 }}>Seven sections; each form filled from the record, signed on the pad, filed.</span>
+            </div>
+          )}
+
           {/* Evidence stations: the only way to green is the document. */}
-          {sel.evidenceType && sel.status !== "done" && (
+          {sel.evidenceType && sel.status !== "done" && !locked && sel.key !== "signed_up" && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <button type="button" className="rel sm" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? "Uploading…" : `Upload: ${sel.evidenceType}`}</button>
               <input ref={fileRef} type="file" accept="application/pdf,image/*" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void evidence(sel, f); }} />
               <span className="muted" style={{ fontSize: 12 }}>Goes into Documents as &ldquo;{sel.evidenceType}&rdquo;; this station turns green the moment it&apos;s there.</span>
             </div>
           )}
-          {sel.key === "onboarded" && sel.status === "todo" && (
+          {sel.key === "onboarded" && sel.status === "todo" && !locked && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Portal reference (optional)" style={inp} />
               <button type="button" className="btn ghost sm" disabled={busy} onClick={() => void tick("onboarded", true, { note })}>Or tick: added to the portal</button>
@@ -105,7 +119,7 @@ export function JourneyStrip({ tenantId, onDocumentsChanged }: { tenantId: strin
           )}
 
           {/* Station 2: assign to a person with a time → their diary; tick when done. */}
-          {sel.key === "viewing" && (
+          {sel.key === "viewing" && !locked && (
             <div style={{ display: "grid", gap: 8 }}>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <select value={assignee || sel.assignedTo || ""} onChange={(e) => setAssignee(e.target.value)} style={inp} aria-label="Assign the viewing to">
@@ -121,7 +135,7 @@ export function JourneyStrip({ tenantId, onDocumentsChanged }: { tenantId: strin
               </div>
             </div>
           )}
-          {sel.key === "moved_out" && (
+          {sel.key === "moved_out" && !locked && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               {sel.status === "todo" ? (<>
                 <input type="date" value={when} onChange={(e) => setWhen(e.target.value)} style={inp} aria-label="Move-out date" />
