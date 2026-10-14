@@ -166,6 +166,7 @@ just the checklist line. Does not block, and is not blocked by, M6/M7.
 - [x] C54 — **M9 gate** ✓ 2026-10-07 (parallel track, does not block/isn't blocked by anything else) — adapter, migration 049, routes and UI built and tested; simulated mode is live in production now, `ADAPTER_MODE_IDCHECK=live` is a deliberate vendor/cost decision for later, not done here.
 - [x] C55 ✓ 2026-10-09 — MFA, referencing, landlord upload link, ledger CSV/adjustments, outbound webhooks; migration 052 applied on Railway; all five slices live.
 - [x] C56 ✓ 2026-10-11 — the file layer per `docs/FILES_SPEC.md`; migration 057 applied on Railway (19 existing blobs hashed); FilesPanel/FileViewer on every surface, /files overview, share links.
+- [x] C57 ✓ 2026-10-14 — Matloob's walkthrough: admin-only user management (059), Leads / Diary / Financials / Support + People→Tenants (060), the eight-station tenant journey on every tenant and the dashboard (061). Landlords cut to Ash Shahada / Dawson / Reliance (056, 058); Gemini-grounded address lookup wired (needs billing or a Places key to answer).
 
 ## 8. Indicative timing
 
