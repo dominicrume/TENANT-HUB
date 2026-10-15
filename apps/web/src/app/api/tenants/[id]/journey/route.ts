@@ -7,7 +7,7 @@ import { REFERRAL_SOURCES } from "../../../../../lib/signup";
 
 export const dynamic = "force-dynamic";
 
-const TICKABLE = new Set(["viewing", "moved_out", "onboarded", "lead_received"]);
+const TICKABLE = new Set(["viewing", "moved_in", "moved_out", "onboarded", "lead_received"]);
 
 /** GET — this tenant's eight stations, coloured. */
 export const GET = withRouteHandler({ resource: "tenants", action: "read" }, async (_req, { params }: { params: { id: string } }, auth) => {
@@ -64,6 +64,10 @@ export const POST = withRouteHandler({ resource: "tenants", action: "update" }, 
     // Viewing done → the diary entry is ticked too.
     if (station === "viewing" && typeof body?.done === "boolean") {
       await db().query("UPDATE diary_entries SET done_at = CASE WHEN $2 THEN COALESCE(done_at, NOW()) ELSE NULL END WHERE tenant_id = $1 AND kind = 'viewing'", [params.id, body.done]);
+    }
+    // Station 4: confirming the move-in puts the date on the record (Matloob: "moved in should give us the option to confirm it").
+    if (station === "moved_in" && typeof body?.done === "boolean") {
+      await writeWithAudit({ table: "tenants", record: { id: params.id, moved_in: body.done ? (record["done_at"] as string).slice(0, 10) : null } as Record<string, unknown>, action: "UPDATE", org_id: auth.actor.org_id, tenant_id: params.id, ...auth.actor });
     }
     // Moving out closes the active tenancy's room too — the room becomes free on the board.
     if (station === "moved_out" && body?.done) {

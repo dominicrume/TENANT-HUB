@@ -27,7 +27,7 @@ export const STATIONS: StationDef[] = [
   { key: "lead_received", n: 1, label: "Lead received", what: "Say how they came to us: self-referred, professionally referred, or via an advert." },
   { key: "viewing", n: 2, label: "Viewing", what: "Assign the viewing to one of your people with a time — it goes into their diary. Tick it when it's done." },
   { key: "signed_up", n: 3, label: "Signed up", what: "The sign-up pack (seven sections) — green once the licence agreement is signed and filed.", evidence: STATION_EVIDENCE.signed_up },
-  { key: "moved_in", n: 4, label: "Moved in", what: "A move-in date on the record." },
+  { key: "moved_in", n: 4, label: "Moved in", what: "Confirm the day they moved in — it goes on the record and the room shows as taken." },
   { key: "claim_done", n: 5, label: "Claim done", what: "Green only when the Housing Benefit form is in Documents — not when someone says so.", evidence: STATION_EVIDENCE.claim_done },
   { key: "email_sent", n: 6, label: "Email sent", what: "The documents went to Birmingham City Council. Upload the screenshot of the sent email as evidence.", evidence: STATION_EVIDENCE.email_sent },
   { key: "onboarded", n: 7, label: "On the landlord's portal", what: "Added to the landlord's own portal (Reliance, Dawson). Upload a screenshot or note the reference.", evidence: STATION_EVIDENCE.onboarded },

@@ -135,6 +135,16 @@ export function JourneyStrip({ tenantId, onDocumentsChanged }: { tenantId: strin
               </div>
             </div>
           )}
+          {/* Station 4: confirm the move-in with its date. */}
+          {sel.key === "moved_in" && !locked && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              {sel.status === "todo" ? (<>
+                <input type="date" value={when} onChange={(e) => setWhen(e.target.value)} style={inp} aria-label="Move-in date" />
+                <button type="button" className="rel sm" disabled={busy} onClick={() => void tick("moved_in", true, { doneAt: when || null })}>Confirm moved in ✓</button>
+                <span className="muted" style={{ fontSize: 12.5 }}>Puts the move-in date on the record.</span>
+              </>) : <button type="button" className="btn ghost sm" disabled={busy} onClick={() => void tick("moved_in", false)}>Undo</button>}
+            </div>
+          )}
           {sel.key === "moved_out" && !locked && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               {sel.status === "todo" ? (<>
