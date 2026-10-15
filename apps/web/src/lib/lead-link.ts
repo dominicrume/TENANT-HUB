@@ -13,11 +13,11 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 type Actor = Omit<Parameters<typeof writeWithAudit>[0], "table" | "record" | "action" | "entry_method">;
 const digits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "").replace(/^44/, "0");
 
-interface OpenLead { id: string; source: string | null; phone: string | null; email: string | null; full_name: string }
+interface OpenLead { id: string; source: string | null; phone: string | null; email: string | null; full_name: string; viewing_done_at: string | null; assigned_to: string | null }
 
 async function openLeads(orgId: string): Promise<OpenLead[]> {
   return (await db().query<OpenLead>(
-    "SELECT id, source, phone, email, full_name FROM leads WHERE org_id = $1 AND tenant_id IS NULL AND stage NOT IN ('moved_in','lost') ORDER BY updated_at DESC", [orgId])).rows;
+    "SELECT id, source, phone, email, full_name, viewing_done_at, assigned_to FROM leads WHERE org_id = $1 AND tenant_id IS NULL AND stage NOT IN ('moved_in','lost') ORDER BY updated_at DESC", [orgId])).rows;
 }
 
 function pick(leads: OpenLead[], t: { fullName: string; phone?: string | null; email?: string | null }): OpenLead | null {
@@ -33,6 +33,13 @@ async function close(lead: OpenLead, tenantId: string, orgId: string, actor: Act
   const src = lead.source;
   if (!referralSource && (src === "self_referred" || src === "professionally_referred" || src === "via_advert")) {
     await writeWithAudit({ table: "tenants", record: { id: tenantId, referral_source: src } as Record<string, unknown>, action: "UPDATE", ...actor, org_id: orgId, tenant_id: tenantId }).catch(() => {});
+  }
+  // Station 2 carries over: the viewing done as a lead is the viewing done as a tenant.
+  if (lead.viewing_done_at) {
+    const have = await db().query("SELECT 1 FROM tenant_stations WHERE tenant_id = $1 AND station = 'viewing'", [tenantId]);
+    if ((have.rowCount ?? 0) === 0) {
+      await writeWithAudit({ table: "tenant_stations", record: { org_id: orgId, tenant_id: tenantId, station: "viewing", done_at: lead.viewing_done_at, done_by: lead.assigned_to ?? actor.user_name, assigned_to: lead.assigned_to } as Record<string, unknown>, action: "CREATE", ...actor, org_id: orgId, tenant_id: tenantId }).catch(() => {});
+    }
   }
 }
 

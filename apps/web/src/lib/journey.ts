@@ -45,11 +45,29 @@ export interface JourneyFacts {
   isActive: boolean;
 }
 
-export interface Station { key: StationKey; n: number; label: string; what: string; status: StationStatus; doneAt: string | null; by: string | null; assignedTo: string | null; note: string | null; evidenceType: string | null; evidenceFound: string | null }
+export interface Station { key: StationKey; n: number; label: string; what: string; status: StationStatus; doneAt: string | null; by: string | null; assignedTo: string | null; note: string | null; evidenceType: string | null; evidenceFound: string | null;
+  /** The thing this station stands for exists, but an earlier station is still open — it goes green in order (Rume, 2026-10-15: "point A to point B to point C"). */
+  heldBy: number | null;
+  /** True for the first open station — the one to do now. */
+  current: boolean }
 
 const hasDoc = (docs: string[], type: string) => docs.find((d) => d.toLowerCase().startsWith(type.toLowerCase())) ?? null;
 
 export function computeJourney(f: JourneyFacts): Station[] {
+  const raw = computeRaw(f);
+  // Chronological: green fills from the left and never skips. A later station whose evidence is
+  // already on file stays amber-held ("on file — waiting for station N") until the earlier one is done.
+  let open: Station | null = null;
+  for (const s of raw) {
+    if (s.status === "na") continue;
+    if (s.key === "moved_out") continue; // the end is the end; it is never "held"
+    if (open && s.status === "done") { s.status = "todo"; s.heldBy = open.n; }
+    if (!open && s.status === "todo") { open = s; s.current = true; }
+  }
+  return raw;
+}
+
+function computeRaw(f: JourneyFacts): Station[] {
   return STATIONS.map((s) => {
     const tick = f.ticks[s.key];
     let status: StationStatus = "todo"; let doneAt: string | null = tick?.doneAt ?? null; let by: string | null = tick?.doneBy ?? null; let evidenceFound: string | null = null;
@@ -63,7 +81,7 @@ export function computeJourney(f: JourneyFacts): Station[] {
       case "onboarded": evidenceFound = hasDoc(f.documents, STATION_EVIDENCE.onboarded!); status = f.landlordHasPortal === false ? "na" : (evidenceFound || tick?.doneAt) ? "done" : "todo"; break;
       case "moved_out": status = tick?.doneAt || !f.isActive ? "done" : "todo"; break;
     }
-    return { key: s.key, n: s.n, label: s.label, what: s.what, status, doneAt, by, assignedTo: tick?.assignedTo ?? null, note: tick?.note ?? null, evidenceType: s.evidence ?? null, evidenceFound };
+    return { key: s.key, n: s.n, label: s.label, what: s.what, status, doneAt, by, assignedTo: tick?.assignedTo ?? null, note: tick?.note ?? null, evidenceType: s.evidence ?? null, evidenceFound, heldBy: null, current: false };
   });
 }
 
