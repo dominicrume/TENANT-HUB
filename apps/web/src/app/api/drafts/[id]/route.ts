@@ -33,12 +33,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Permission denied" }, { status: 403 });
   }
 
-  const owned = await db().query("SELECT 1 FROM drafts WHERE id = $1 AND created_by = $2", [params.id, auth.actor.user_id]);
+  const owned = await db().query<{ machine_state: DraftState | null }>("SELECT machine_state FROM drafts WHERE id = $1 AND created_by = $2", [params.id, auth.actor.user_id]);
   if (!owned.rows[0]) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
   const record: Record<string, unknown> = { id: params.id };
-  if (body.machine_state) record["machine_state"] = body.machine_state as DraftState;
+  // Merge, never replace: a step sends the part it owns (extracted, signature…) and what the
+  // draft already carries — lead_id, unit_id — survives whichever step writes (2026-10-15 fix).
+  if (body.machine_state && typeof body.machine_state === "object") record["machine_state"] = { ...(owned.rows[0].machine_state ?? {}), ...(body.machine_state as Partial<DraftState>) } as DraftState;
   if (typeof body.step === "number") record["step"] = body.step;
   if (typeof body.canonical_hash === "string") record["canonical_hash"] = body.canonical_hash;
 

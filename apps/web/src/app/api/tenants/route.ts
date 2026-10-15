@@ -6,6 +6,7 @@ import { getApiAuth } from "../../../lib/api-auth";
 import { generateSupportPlan } from "../../../lib/generate-plan";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { emit } from "../../../lib/webhooks";
+import { linkTenantToLead } from "../../../lib/lead-link";
 
 const TENANT_FIELD_LABELS: Record<string, string> = {
   title: "Title", full_name: "Full name", dob: "Date of birth", nino: "National Insurance number", nationality: "Nationality",
@@ -111,7 +112,10 @@ export async function POST(req: Request) {
         .catch(err => console.error(`[AI Pipeline] Failed to generate support plan for OCR tenant ${tenantId}:`, err));
     }
 
-    emit(auth.actor.org_id, "tenant.created", (Array.isArray(data) ? data[0] : data) as Record<string, unknown>);
+    const created = (Array.isArray(data) ? data[0] : data) as Record<string, unknown>;
+    // Quick-added straight from a lead's details? The lead closes too.
+    if (created?.["id"]) await linkTenantToLead({ orgId: auth.actor.org_id, tenantId: String(created["id"]), fullName: String(created["full_name"] ?? ""), phone: (created["mobile"] as string | null) ?? null, email: (created["email"] as string | null) ?? null, referralSource: (created["referral_source"] as string | null) ?? null, actor: auth.actor });
+    emit(auth.actor.org_id, "tenant.created", created);
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     const message = toSafeErrorMessage(err, "Unknown error");

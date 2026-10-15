@@ -24,4 +24,7 @@ export interface Lead {
   assigned_to: string | null; viewing_done_at: string | null;
   referee_name: string | null; referee_contact: string | null; reference_requested_at: string | null; reference_received_at: string | null; reference_notes: string | null;
   created_by: string; created_at: string; updated_at: string; property_name?: string | null; unit_reference?: string | null;
+  /** An intake started from this lead and not yet committed — "Continue sign-up" instead of starting again. */
+  draft_id?: string | null;
+  tenant_room?: string | null;
 }

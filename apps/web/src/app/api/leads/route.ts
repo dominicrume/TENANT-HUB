@@ -4,6 +4,7 @@ import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { LEAD_STAGES, LEAD_SOURCES } from "../../../lib/leads";
 import { emit } from "../../../lib/webhooks";
+import { reconcileLeads } from "../../../lib/lead-link";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +17,16 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
   if (!auth.actor.org_id) return NextResponse.json({ leads: [], counts: {} });
   const stage = new URL(req.url).searchParams.get("stage");
   try {
+    // Anyone on the board who is already a tenant is closed off first — the board never contradicts Tenants.
+    await reconcileLeads(auth.actor.org_id, auth.actor);
     const params: unknown[] = [auth.actor.org_id];
     let where = "l.org_id = $1";
     if (stage && stage !== "all") { params.push(stage); where += ` AND l.stage = $${params.length}`; }
     const r = await db().query(
-      `SELECT l.*, p.name AS property_name, u.reference AS unit_reference
-       FROM leads l LEFT JOIN properties p ON p.id = l.property_id LEFT JOIN units u ON u.id = l.unit_id
+      `SELECT l.*, p.name AS property_name, u.reference AS unit_reference,
+              (SELECT d.id FROM drafts d WHERE d.machine_state->>'lead_id' = l.id::text AND d.step < 5 ORDER BY d.created_at DESC LIMIT 1) AS draft_id,
+              t.room_number AS tenant_room
+       FROM leads l LEFT JOIN properties p ON p.id = l.property_id LEFT JOIN units u ON u.id = l.unit_id LEFT JOIN tenants t ON t.id = l.tenant_id
        WHERE ${where} ORDER BY CASE l.stage WHEN 'lost' THEN 1 ELSE 0 END, l.updated_at DESC`, params);
     const c = await db().query<{ stage: string; n: string }>("SELECT stage, count(*) AS n FROM leads WHERE org_id = $1 GROUP BY stage", [auth.actor.org_id]);
     const counts: Record<string, number> = {};

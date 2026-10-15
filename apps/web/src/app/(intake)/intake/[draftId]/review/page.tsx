@@ -18,6 +18,9 @@ export default function ReviewPage() {
   const router = useRouter();
   const { profile, loading: authLoading } = useAuth();
   const [data, setData] = useState<Record<string, unknown>>({});
+  // Everything else the draft carries (lead_id, unit_id…) rides along untouched — rewriting
+  // machine_state from scratch here is what lost the lead on 2026-10-15.
+  const [carried, setCarried] = useState<Record<string, unknown>>({});
   const [mode, setMode] = useState("manual");
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -28,6 +31,7 @@ export default function ReviewPage() {
     if (res.ok) {
       const d = (await res.json()) as Draft;
       setData((d.machine_state?.extracted as Record<string, unknown>) ?? {});
+      setCarried((d.machine_state as unknown as Record<string, unknown>) ?? {});
       setMode(d.machine_state?.input_mode ?? "manual");
     }
     setLoaded(true);
@@ -86,6 +90,7 @@ export default function ReviewPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         machine_state: {
+          ...carried,
           input_mode: mode,
           extracted: data,
           confirmed_by: profile?.id,

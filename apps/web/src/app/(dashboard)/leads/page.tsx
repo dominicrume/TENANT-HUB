@@ -68,6 +68,8 @@ export default function LeadsPage() {
   }
 
   async function convert(l: Lead) {
+    // An intake already started from this lead continues; nothing starts twice.
+    if (l.draft_id) { router.push(`/intake/${l.draft_id}/review`); return; }
     const b = await patch(l.id, { action: "convert" });
     if (b && typeof b["draftId"] === "string") router.push(`/intake/${b["draftId"]}/review`);
   }
@@ -179,13 +181,13 @@ function LeadCard({ l, busy, properties, onBook, onViewingDone, onViewingCancel,
     : viewingPending ? { label: "Viewing done ✓", go: onViewingDone }
     : !refAsked && !refBack ? { label: "Ask for a reference", go: onReference }
     : refAsked ? { label: "Reference back ✓", go: onReferenceBack }
-    : { label: "Sign up →", go: onConvert };
+    : { label: l.draft_id ? "Continue sign-up →" : "Sign up →", go: onConvert };
 
   return (
     <div className="li" style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
       <span className="avatar" aria-hidden="true" style={{ background: "var(--navy)", color: "#fff" }}>{l.full_name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</span>
       <div className="body" style={{ minWidth: 240 }}>
-        <b>{l.full_name}{l.tenant_id && <Link href={`/tenants/${l.tenant_id}`} className="tag" style={{ marginLeft: 8, background: "rgba(30,127,79,.12)", color: "#1E7F4F", textDecoration: "none" }}>open tenant record</Link>}</b>
+        <b>{l.full_name}{l.tenant_id && <Link href={`/tenants/${l.tenant_id}`} className="tag" style={{ marginLeft: 8, background: "rgba(30,127,79,.12)", color: "#1E7F4F", textDecoration: "none" }}>now a tenant{l.tenant_room ? ` · ${l.tenant_room}` : ""} → open record</Link>}</b>
         <p>{[l.phone, l.email].filter(Boolean).join(" · ") || "No contact details"} · {src} · added {formatShortDate(l.created_at)} by {l.created_by}</p>
         <Road stage={l.stage} />
         {l.viewing_at && (
@@ -210,7 +212,7 @@ function LeadCard({ l, busy, properties, onBook, onViewingDone, onViewingCancel,
         <div className="btns" style={{ alignSelf: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
           {next && <button type="button" className="rel sm" disabled={busy} onClick={next.go}>{next.label}</button>}
           {viewed && !refAsked && !refBack && <button type="button" className="btn ghost sm" disabled={busy} onClick={onSkipReference} title="Professionally referred people often need none">No reference needed</button>}
-          {next?.label !== "Sign up →" && <button type="button" className="btn ghost sm" disabled={busy} onClick={onConvert} title="Opens the full intake with their details filled in">Sign up anyway</button>}
+          {!next?.label.includes("ign") && <button type="button" className="btn ghost sm" disabled={busy} onClick={onConvert} title="Opens the full intake with their details filled in">{l.draft_id ? "Continue sign-up" : "Sign up anyway"}</button>}
           <button type="button" className="btn ghost sm" disabled={busy} onClick={onLost} style={{ color: "var(--brick)" }}>Lost</button>
         </div>
       )}

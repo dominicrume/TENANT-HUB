@@ -7,6 +7,7 @@ import { hashRecord } from "../../../../lib/hash";
 import { canonicalSubset, type DraftState } from "../../../../lib/intake";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
 import { emit } from "../../../../lib/webhooks";
+import { linkTenantToLead } from "../../../../lib/lead-link";
 
 /**
  * POST /api/intake/commit — finalize a draft into a tenant record.
@@ -141,18 +142,10 @@ export async function POST(req: Request) {
       ...auth.actor,
     });
 
-    // Started from a lead → the timeline closes: moved in, and the lead now points at the tenant record.
-    if (state.lead_id) {
-      const tenantId = (tenant as Record<string, unknown>)["id"];
-      await writeWithAudit({
-        table: "leads", record: { id: state.lead_id, stage: "moved_in", tenant_id: tenantId } as Record<string, unknown>,
-        action: "UPDATE", org_id: auth.actor.org_id, ...auth.actor,
-      }).catch((e) => console.warn("[intake/commit] lead not updated", e));
-      // Station 1 carries over: how the lead came to us is how the tenant came to us.
-      const src = (await db().query<{ source: string }>("SELECT source FROM leads WHERE id = $1", [state.lead_id])).rows[0]?.source;
-      if (src === "self_referred" || src === "professionally_referred" || src === "via_advert") {
-        await writeWithAudit({ table: "tenants", record: { id: tenantId, referral_source: src } as Record<string, unknown>, action: "UPDATE", org_id: auth.actor.org_id, tenant_id: String(tenantId), ...auth.actor }).catch(() => {});
-      }
+    // The lead closes — the one the draft carried, or the open lead this plainly is (same phone / email / name).
+    {
+      const t = tenant as Record<string, unknown>;
+      await linkTenantToLead({ orgId: auth.actor.org_id, tenantId: String(t["id"]), leadId: state.lead_id ?? null, fullName: String(t["full_name"] ?? ""), phone: (t["mobile"] as string | null) ?? null, email: (t["email"] as string | null) ?? null, referralSource: (t["referral_source"] as string | null) ?? null, actor: auth.actor });
     }
     emit(auth.actor.org_id, "tenant.created", { ...(tenant as Record<string, unknown>), linked_unit: linkedUnit });
     return NextResponse.json({ tenant, linked_unit: linkedUnit }, { status: 201 });
