@@ -36,7 +36,7 @@ export default function DiaryPage() {
   const [hiddenPeople, setHiddenPeople] = useState<Set<string>>(new Set());
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<DiaryItem | null>(null);
-  const [editor, setEditor] = useState<{ open: boolean; date?: string; item?: DiaryItem | null }>({ open: false });
+  const [editor, setEditor] = useState<{ open: boolean; date?: string; time?: string; item?: DiaryItem | null }>({ open: false });
   const [tenants, setTenants] = useState<Array<{ id: string; full_name: string; room_number?: string | null }>>([]);
   const [properties, setProperties] = useState<Array<{ id: string; name: string; postcode?: string | null; landlordName?: string | null }>>([]);
 
@@ -104,6 +104,56 @@ export default function DiaryPage() {
         </div>
         {rows.slice(0, max).map((it) => <Chip key={`${it.source}-${it.id}`} it={it} dense />)}
         {rows.length > max && <button type="button" onClick={() => { setAnchor(k); setView("day"); }} className="muted" style={{ background: "none", border: "none", textAlign: "left", fontSize: 11.5, cursor: "pointer", fontFamily: "inherit", padding: "0 6px" }}>+{rows.length - max} more</button>}
+      </div>
+    );
+  };
+
+  // Day and week as a planner: hour rows 07:00–21:00, an all-day shelf on top, events placed by
+  // time and length, side by side when they clash, a line for "now". Click an empty slot to add there.
+  const H0 = 7, H1 = 21, ROW = 52;
+  const TimeGrid = ({ days }: { days: string[] }) => {
+    const nowD = new Date(); const nowY = ((nowD.getHours() + nowD.getMinutes() / 60) - H0) * ROW;
+    const timed = (k: string) => (byDay.get(k) ?? []).filter((i) => !i.allDay).map((i) => {
+      const s = new Date(i.at); const e = i.endAt ? new Date(i.endAt) : new Date(s.getTime() + 60 * 60 * 1000);
+      const start = Math.max(H0, s.getHours() + s.getMinutes() / 60); const end = Math.min(H1, Math.max(start + 0.5, e.getHours() + e.getMinutes() / 60 + (e.getDate() !== s.getDate() ? 24 : 0)));
+      return { i, start, end, lane: 0, lanes: 1 };
+    }).sort((a, b) => a.start - b.start);
+    const laid = (k: string) => { // clash → side by side
+      const rows = timed(k); const active: typeof rows = [];
+      for (const r of rows) {
+        for (let x = active.length - 1; x >= 0; x--) if (active[x]!.end <= r.start) active.splice(x, 1);
+        const used = new Set(active.map((a) => a.lane)); let lane = 0; while (used.has(lane)) lane++;
+        r.lane = lane; active.push(r); const n = Math.max(...active.map((a) => a.lane)) + 1; for (const a of active) a.lanes = Math.max(a.lanes, n);
+      }
+      return rows;
+    };
+    return (
+      <div className="card" style={{ overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `56px repeat(${days.length}, minmax(0, 1fr))`, background: "var(--cream)", borderBottom: "1px solid var(--line)" }}>
+          <div />
+          {days.map((k) => <button key={k} type="button" onClick={() => { setAnchor(k); setView("day"); }} style={{ padding: "8px 6px", fontSize: 12.5, fontWeight: 600, color: k === today ? "var(--amber-deep)" : "var(--slate)", textAlign: "center", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{parse(k).toLocaleDateString("en-GB", { weekday: "short", day: "numeric" })}</button>)}
+          <div className="muted" style={{ fontSize: 10.5, padding: "4px 6px", textAlign: "right" }}>all day</div>
+          {days.map((k) => <div key={k} style={{ padding: 4, minHeight: 30, borderLeft: "1px solid var(--line-soft)", display: "grid", gap: 3 }}>{(byDay.get(k) ?? []).filter((i) => i.allDay).map((it) => <Chip key={`${it.source}-${it.id}`} it={it} dense />)}</div>)}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: `56px repeat(${days.length}, minmax(0, 1fr))`, maxHeight: 640, overflowY: "auto", position: "relative" }}>
+          <div style={{ position: "relative", height: (H1 - H0) * ROW }}>
+            {Array.from({ length: H1 - H0 }, (_, h) => <div key={h} className="muted" style={{ position: "absolute", top: h * ROW - 7, right: 8, fontSize: 10.5, fontFamily: "'JetBrains Mono', monospace" }}>{String(H0 + h).padStart(2, "0")}:00</div>)}
+          </div>
+          {days.map((k) => (
+            <div key={k} style={{ position: "relative", height: (H1 - H0) * ROW, borderLeft: "1px solid var(--line-soft)", background: k === today ? "rgba(232,168,76,.05)" : undefined }}>
+              {Array.from({ length: H1 - H0 }, (_, h) => (
+                <div key={h} onClick={() => setEditor({ open: true, date: k, time: `${String(H0 + h).padStart(2, "0")}:00` })} title={`New event at ${String(H0 + h).padStart(2, "0")}:00`}
+                  style={{ position: "absolute", top: h * ROW, left: 0, right: 0, height: ROW, borderTop: "1px solid var(--line-soft)", cursor: "copy" }} />
+              ))}
+              {laid(k).map(({ i, start, end, lane, lanes }) => (
+                <div key={`${i.source}-${i.id}`} style={{ position: "absolute", top: (start - H0) * ROW + 1, height: Math.max(22, (end - start) * ROW - 2), left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)`, overflow: "hidden", zIndex: 1 }}>
+                  <div style={{ height: "100%" }}><Chip it={i} dense /></div>
+                </div>
+              ))}
+              {k === today && nowY > 0 && nowY < (H1 - H0) * ROW && <div style={{ position: "absolute", top: nowY, left: 0, right: 0, height: 2, background: "var(--brick)", zIndex: 2 }}><span style={{ position: "absolute", left: -4, top: -3, width: 8, height: 8, borderRadius: "50%", background: "var(--brick)" }} /></div>}
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
@@ -194,16 +244,11 @@ export default function DiaryPage() {
               </div>
             </div>
           ) : view === "week" ? (
-            <div className="card" style={{ overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
-                {weekKeys.map((k) => <div key={k} style={{ padding: "8px 6px", fontSize: 12.5, fontWeight: 600, color: k === today ? "var(--amber-deep)" : "var(--slate)", textAlign: "center", background: "var(--cream)", borderBottom: "1px solid var(--line)" }}>{parse(k).toLocaleDateString("en-GB", { weekday: "short", day: "numeric" })}</div>)}
-                {weekKeys.map((k) => <DayCell key={k} k={k} max={12} />)}
-              </div>
-            </div>
+            <TimeGrid days={weekKeys} />
           ) : view === "day" ? (
-            <div className="card">
-              {(byDay.get(anchor) ?? []).length === 0 ? <div className="li"><p className="muted">{hiddenCount > 0 ? "Nothing on that your ticks on the left allow — untick fewer types, or Show everything." : "Nothing on. Double-click a day in month view, or + New event."}</p></div>
-                : (byDay.get(anchor) ?? []).map((it) => <div key={`${it.source}-${it.id}`} className="li" style={{ padding: "6px 12px" }}><Chip it={it} /></div>)}
+            <div style={{ display: "grid", gap: 10 }}>
+              {(byDay.get(anchor) ?? []).length === 0 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>{hiddenCount > 0 ? "Nothing on that your ticks on the left allow — untick fewer types, or Show everything." : "Nothing on. Click a time below to add something."}</p>}
+              <TimeGrid days={[anchor]} />
             </div>
           ) : view === "list" ? (
             <div style={{ display: "grid", gap: 10 }}>
@@ -233,13 +278,13 @@ export default function DiaryPage() {
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 10, fontSize: 12, color: "var(--slate)" }}>
             {Object.entries(STATUS_MARK).map(([k, v]) => <span key={k}><b style={{ color: v.colour }}>{v.mark}</b> {v.label}</span>)}
             <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#D63384", borderRadius: 3, verticalAlign: "middle" }} /> Rent due (faded = paid)</span>
-            <span className="muted">Double-click a day to add. Click an event for details.</span>
+            <span className="muted">Month: double-click a day to add. Week / Day: click a time. Click an event for details.</span>
           </div>
         </div>
       </div>
 
       {sel && <EventPopover it={sel} onClose={() => setSel(null)} onPatch={(b) => patch(sel, b)} onRemove={() => remove(sel)} onEdit={() => { setEditor({ open: true, item: sel }); setSel(null); }} />}
-      {editor.open && <EventEditor date={editor.date} item={editor.item ?? null} staff={staff} tenants={tenants} properties={properties} onClose={() => setEditor({ open: false })} onSaved={(at, k) => {
+      {editor.open && <EventEditor date={editor.date} time={editor.time} item={editor.item ?? null} staff={staff} tenants={tenants} properties={properties} onClose={() => setEditor({ open: false })} onSaved={(at, k) => {
         // Land on the day you just saved, with its type visible — you must see what you saved.
         setEditor({ open: false });
         setHiddenKinds((s) => { if (!s.has(k)) return s; const n = new Set(s); n.delete(k); return n; });
@@ -282,11 +327,11 @@ function EventPopover({ it, onClose, onPatch, onRemove, onEdit }: { it: DiaryIte
     </div>, document.body);
 }
 
-function EventEditor({ date, item, staff, tenants, properties, onClose, onSaved }: { date?: string; item: DiaryItem | null; staff: Array<{ id: string; full_name: string }>; tenants: Array<{ id: string; full_name: string; room_number?: string | null }>; properties: Array<{ id: string; name: string; postcode?: string | null; landlordName?: string | null }>; onClose: () => void; onSaved: (at: string, kind: string) => void }) {
+function EventEditor({ date, time, item, staff, tenants, properties, onClose, onSaved }: { date?: string; time?: string; item: DiaryItem | null; staff: Array<{ id: string; full_name: string }>; tenants: Array<{ id: string; full_name: string; room_number?: string | null }>; properties: Array<{ id: string; name: string; postcode?: string | null; landlordName?: string | null }>; onClose: () => void; onSaved: (at: string, kind: string) => void }) {
   const { profile } = useAuth();
   const toLocal = (iso: string) => { const d = new Date(iso); return `${ymd(d)}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
   const [kind, setKind] = useState(item?.kind ?? "viewing"); const [title, setTitle] = useState(item?.title ?? "");
-  const [start, setStart] = useState(item ? toLocal(item.at) : `${date ?? ymd(new Date())}T10:00`); const [end, setEnd] = useState(item?.endAt ? toLocal(item.endAt) : "");
+  const [start, setStart] = useState(item ? toLocal(item.at) : `${date ?? ymd(new Date())}T${time ?? "10:00"}`); const [end, setEnd] = useState(item?.endAt ? toLocal(item.endAt) : "");
   const [who, setWho] = useState(item?.assignedTo ?? profile?.full_name ?? ""); const [status, setStatus] = useState<DiaryStatus>(item?.status ?? "confirmed"); const [notes, setNotes] = useState(item?.notes ?? "");
   const [tenantId, setTenantId] = useState(""); const [propertyId, setPropertyId] = useState("");
   // A sensible title writes itself from what's picked; typing your own always wins.
