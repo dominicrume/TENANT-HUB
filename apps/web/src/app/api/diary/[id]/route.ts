@@ -8,11 +8,18 @@ export const dynamic = "force-dynamic";
 /** PATCH { done } — tick a diary entry off (or back on). DELETE — remove one. Hand-made entries only; the rest are ticked where they live. */
 export const PATCH = withRouteHandler({ resource: "tenants", action: "update" }, async (req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
-  const body = (await req.json().catch(() => null)) as { done?: boolean; notes?: string; starts_at?: string; ends_at?: string | null; status?: string; assigned_to?: string | null; title?: string; kind?: string } | null;
+  const body = (await req.json().catch(() => null)) as { done?: boolean; notes?: string; starts_at?: string; ends_at?: string | null; status?: string; assigned_to?: string | null; title?: string; kind?: string; recurrence?: string; recur_until?: string | null; accompanied_by?: string | null; feedback?: string; feedback_notes?: string } | null;
+  // An occurrence of a repeating event is addressed as `${seriesId}@${day}` — changes apply to the series.
+  const id = params.id.split("@")[0]!;
   try {
-    const owned = await db().query("SELECT 1 FROM diary_entries WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
+    const owned = await db().query("SELECT 1 FROM diary_entries WHERE id = $1 AND org_id = $2", [id, auth.actor.org_id]);
     if (!owned.rows[0]) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    const record: Record<string, unknown> = { id: params.id };
+    const record: Record<string, unknown> = { id };
+    if (typeof body?.recurrence === "string" && ["none", "daily", "weekdays", "weekly", "fortnightly", "monthly"].includes(body.recurrence)) record["recurrence"] = body.recurrence;
+    if (body && "recur_until" in body) record["recur_until"] = body.recur_until && !Number.isNaN(Date.parse(body.recur_until)) ? body.recur_until.slice(0, 10) : null;
+    if (body && "accompanied_by" in body) record["accompanied_by"] = body.accompanied_by && ["agent", "landlord", "both"].includes(body.accompanied_by) ? body.accompanied_by : null;
+    if (typeof body?.feedback === "string" && ["none", "not_received", "received", "shared", "skipped"].includes(body.feedback)) record["feedback"] = body.feedback;
+    if (typeof body?.feedback_notes === "string") record["feedback_notes"] = body.feedback_notes.trim() || null;
     if (typeof body?.done === "boolean") record["done_at"] = body.done ? new Date().toISOString() : null;
     if (typeof body?.notes === "string") record["notes"] = body.notes.trim() || null;
     if (typeof body?.title === "string" && body.title.trim()) record["title"] = body.title.trim();
@@ -30,6 +37,6 @@ export const PATCH = withRouteHandler({ resource: "tenants", action: "update" },
 
 export const DELETE = withRouteHandler({ resource: "tenants", action: "delete" }, async (_req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
-  await db().query("DELETE FROM diary_entries WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
+  await db().query("DELETE FROM diary_entries WHERE id = $1 AND org_id = $2", [params.id.split("@")[0], auth.actor.org_id]);
   return NextResponse.json({ ok: true });
 });

@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
-import { DIARY_KINDS, type DiaryItem } from "../../../lib/diary";
+import { DIARY_KINDS, RECURRENCES, occurrences, type DiaryItem, type Recurrence, type Feedback } from "../../../lib/diary";
 
 export const dynamic = "force-dynamic";
 
 const KINDS = new Set<string>(DIARY_KINDS.map((k) => k.key));
 const STATUSES = new Set(["confirmed", "unconfirmed", "cancelled"]);
+const RECUR = new Set<string>(RECURRENCES.map((r) => r.key));
+const ACCOMP = new Set(["agent", "landlord", "both"]);
 
 
 /**
@@ -28,9 +30,13 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
   const org = auth.actor.org_id;
   try {
     const [entries, sessions, commitments, repairs, certs, moveIns, rent] = await Promise.all([
-      db().query<{ id: string; kind: string; title: string; starts_at: string; ends_at: string | null; done_at: string | null; status: string; notes: string | null; tenant_id: string | null; property_id: string | null; lead_id: string | null; created_by: string; assigned_to: string | null; tenant: string | null; property: string | null }>(
+      db().query<{ id: string; kind: string; title: string; starts_at: string; ends_at: string | null; done_at: string | null; status: string; notes: string | null; tenant_id: string | null; property_id: string | null; lead_id: string | null; created_by: string; assigned_to: string | null; tenant: string | null; property: string | null; recurrence: Recurrence; recur_until: string | null; accompanied_by: "agent" | "landlord" | "both" | null; feedback: Feedback }>(
+        // One-off events in the window, plus every repeating series that started before the window ends and hasn't run out.
         `SELECT d.*, t.full_name AS tenant, p.name AS property FROM diary_entries d LEFT JOIN tenants t ON t.id = d.tenant_id LEFT JOIN properties p ON p.id = d.property_id
-         WHERE d.org_id = $1 AND d.starts_at >= $2::date AND d.starts_at < ($3::date + 1) ORDER BY d.starts_at`, [org, from, to]),
+         WHERE d.org_id = $1 AND (
+           (d.starts_at >= $2::date AND d.starts_at < ($3::date + 1))
+           OR (d.recurrence <> 'none' AND d.starts_at < ($3::date + 1) AND (d.recur_until IS NULL OR d.recur_until >= $2::date))
+         ) ORDER BY d.starts_at`, [org, from, to]),
       db().query<{ id: string; session_date: string; tenant_id: string; full_name: string; session_type: string | null; entered_by_name: string | null }>(
         `SELECT s.id, s.session_date, s.tenant_id, t.full_name, s.session_type, s.entered_by_name FROM sessions s JOIN tenants t ON t.id = s.tenant_id
          WHERE t.org_id = $1 AND s.session_date BETWEEN $2::date AND $3::date`, [org, from, to]).catch(() => ({ rows: [] })),
@@ -55,13 +61,23 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
     // a 00:30 viewing in British Summer Time was landing on the day before.
     const dayKey = (at: string, allDay: boolean) => (allDay ? at.slice(0, 10) : new Date(at).toLocaleDateString("en-CA", { timeZone: "Europe/London" }));
     const raw: Array<Omit<DiaryItem, "day">> = [
-      ...entries.rows.map((d) => ({ id: d.id, source: (d.kind === "viewing" && (d.lead_id || d.tenant_id) ? "viewing" : "diary") as DiaryItem["source"], kind: d.kind, title: d.title, at: d.starts_at, endAt: d.ends_at, allDay: false, done: Boolean(d.done_at), status: (d.status || "confirmed") as DiaryItem["status"], href: d.lead_id ? "/leads" : d.tenant_id ? `/tenants/${d.tenant_id}` : d.property_id ? `/properties/${d.property_id}` : null, who: d.tenant, where: d.property, notes: d.notes, assignedTo: d.assigned_to, amount: null })),
-      ...sessions.rows.map((s) => ({ id: s.id, source: "session" as const, kind: "session", title: `Support session · ${s.full_name}${s.session_type ? ` · ${s.session_type}` : ""}`, at: s.session_date, endAt: null, allDay: true, done: new Date(s.session_date) < today0, status: "confirmed" as const, href: `/tenants/${s.tenant_id}?tab=sessions`, who: s.full_name, where: null, notes: null, assignedTo: s.entered_by_name, amount: null })),
-      ...commitments.rows.map((c) => ({ id: c.id, source: "commitment" as const, kind: "promise", title: `${c.owner === "tenant" ? "They promised" : "We promised"}: ${c.text}`, at: c.due_on, endAt: null, allDay: true, done: c.status !== "open", status: "confirmed" as const, href: c.tenant_id ? `/tenants/${c.tenant_id}` : null, who: c.full_name, where: null, notes: null, assignedTo: null, amount: null })),
-      ...repairs.rows.map((r) => ({ id: r.id, source: "repair" as const, kind: "maintenance", title: `Repair · ${r.issue_type}${r.room_number ? ` · ${r.room_number}` : ""}`, at: r.created_at, endAt: null, allDay: false, done: false, status: (r.assignee ? "confirmed" : "unconfirmed") as DiaryItem["status"], href: "/maintenance", who: null, where: r.room_number, notes: `Status: ${r.status}`, assignedTo: r.assignee, amount: null })),
-      ...certs.rows.map((c) => ({ id: c.id, source: "certificate" as const, kind: "task", title: `Task: renew ${c.name} · ${c.property}`, at: c.expires_on, endAt: null, allDay: true, done: false, status: "unconfirmed" as const, href: `/properties/${c.property_id}`, who: null, where: c.property, notes: `Runs out ${c.expires_on}`, assignedTo: null, amount: null })),
-      ...moveIns.rows.map((t) => ({ id: t.id, source: "move_in" as const, kind: "move_in", title: `Move in · ${t.full_name}${t.room_number ? ` · ${t.room_number}` : ""}`, at: t.moved_in, endAt: null, allDay: true, done: new Date(t.moved_in) < today0, status: "confirmed" as const, href: `/tenants/${t.id}`, who: t.full_name, where: t.room_number, notes: null, assignedTo: null, amount: null })),
-      ...rent.rows.map((r) => ({ id: r.id, source: "rent_due" as const, kind: "rent_due", title: `£${Number(r.amount).toFixed(2)} rent due from ${r.full_name}`, at: r.due_date, endAt: null, allDay: true, done: r.is_paid, status: "confirmed" as const, href: `/tenants/${r.tenant_id}?tab=ledger`, who: r.full_name, where: r.room_number, notes: r.is_paid ? "Paid" : "Not yet paid", assignedTo: null, amount: Number(r.amount) })),
+      ...entries.rows.flatMap((d) => {
+        const base = { source: (d.kind === "viewing" && (d.lead_id || d.tenant_id) ? "viewing" : "diary") as DiaryItem["source"], kind: d.kind, title: d.title, allDay: false, status: (d.status || "confirmed") as DiaryItem["status"], href: d.lead_id ? "/leads" : d.tenant_id ? `/tenants/${d.tenant_id}` : d.property_id ? `/properties/${d.property_id}` : null, who: d.tenant, where: d.property, notes: d.notes, assignedTo: d.assigned_to, amount: null, recurrence: d.recurrence ?? "none", accompaniedBy: d.accompanied_by ?? null, feedback: d.feedback ?? "none" };
+        if (!d.recurrence || d.recurrence === "none") return [{ ...base, id: d.id, at: d.starts_at, endAt: d.ends_at, done: Boolean(d.done_at), occurrence: false }];
+        // A repeating series: one row per day it lands on in the window. Its length carries over; "done" belongs to the first date only.
+        const len = d.ends_at ? new Date(d.ends_at).getTime() - new Date(d.starts_at).getTime() : 0;
+        const firstDay = new Date(d.starts_at).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+        return occurrences(d.starts_at, d.recurrence, d.recur_until, from, to).map((at) => {
+          const day = at.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+          return { ...base, id: day === firstDay ? d.id : `${d.id}@${day}`, at: at.toISOString(), endAt: len ? new Date(at.getTime() + len).toISOString() : null, done: day === firstDay ? Boolean(d.done_at) : false, occurrence: day !== firstDay };
+        });
+      }),
+      ...sessions.rows.map((s) => ({ id: s.id, source: "session" as const, kind: "session", title: `Support session · ${s.full_name}${s.session_type ? ` · ${s.session_type}` : ""}`, at: s.session_date, endAt: null, allDay: true, done: new Date(s.session_date) < today0, status: "confirmed" as const, href: `/tenants/${s.tenant_id}?tab=sessions`, who: s.full_name, where: null, notes: null, assignedTo: s.entered_by_name, amount: null, recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
+      ...commitments.rows.map((c) => ({ id: c.id, source: "commitment" as const, kind: "promise", title: `${c.owner === "tenant" ? "They promised" : "We promised"}: ${c.text}`, at: c.due_on, endAt: null, allDay: true, done: c.status !== "open", status: "confirmed" as const, href: c.tenant_id ? `/tenants/${c.tenant_id}` : null, who: c.full_name, where: null, notes: null, assignedTo: null, amount: null, recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
+      ...repairs.rows.map((r) => ({ id: r.id, source: "repair" as const, kind: "maintenance", title: `Repair · ${r.issue_type}${r.room_number ? ` · ${r.room_number}` : ""}`, at: r.created_at, endAt: null, allDay: false, done: false, status: (r.assignee ? "confirmed" : "unconfirmed") as DiaryItem["status"], href: "/maintenance", who: null, where: r.room_number, notes: `Status: ${r.status}`, assignedTo: r.assignee, amount: null, recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
+      ...certs.rows.map((c) => ({ id: c.id, source: "certificate" as const, kind: "task", title: `Task: renew ${c.name} · ${c.property}`, at: c.expires_on, endAt: null, allDay: true, done: false, status: "unconfirmed" as const, href: `/properties/${c.property_id}`, who: null, where: c.property, notes: `Runs out ${c.expires_on}`, assignedTo: null, amount: null, recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
+      ...moveIns.rows.map((t) => ({ id: t.id, source: "move_in" as const, kind: "move_in", title: `Move in · ${t.full_name}${t.room_number ? ` · ${t.room_number}` : ""}`, at: t.moved_in, endAt: null, allDay: true, done: new Date(t.moved_in) < today0, status: "confirmed" as const, href: `/tenants/${t.id}`, who: t.full_name, where: t.room_number, notes: null, assignedTo: null, amount: null, recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
+      ...rent.rows.map((r) => ({ id: r.id, source: "rent_due" as const, kind: "rent_due", title: `£${Number(r.amount).toFixed(2)} rent due from ${r.full_name}`, at: r.due_date, endAt: null, allDay: true, done: r.is_paid, status: "confirmed" as const, href: `/tenants/${r.tenant_id}?tab=ledger`, who: r.full_name, where: r.room_number, notes: r.is_paid ? "Paid" : "Not yet paid", assignedTo: null, amount: Number(r.amount), recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
     ];
     const all: DiaryItem[] = raw.map((i) => ({ ...i, day: dayKey(i.at, i.allDay) })).filter((i) => i.day >= from && i.day <= to).sort((a, b) => a.at.localeCompare(b.at));
 
@@ -78,7 +94,10 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
 /** POST — a new event: kind, title, when (start, optional end), who does it, tenant/property, status, notes. */
 export const POST = withRouteHandler({ resource: "tenants", action: "create" }, async (req, _ctx, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
-  const body = (await req.json().catch(() => null)) as { kind?: string; title?: string; starts_at?: string; ends_at?: string | null; tenant_id?: string | null; property_id?: string | null; notes?: string; assigned_to?: string | null; status?: string } | null;
+  const body = (await req.json().catch(() => null)) as { kind?: string; title?: string; starts_at?: string; ends_at?: string | null; tenant_id?: string | null; property_id?: string | null; notes?: string; assigned_to?: string | null; status?: string; recurrence?: string; recur_until?: string | null; accompanied_by?: string | null } | null;
+  const recurrence = RECUR.has(body?.recurrence ?? "") ? body!.recurrence! : "none";
+  const recurUntil = recurrence !== "none" && body?.recur_until && !Number.isNaN(Date.parse(body.recur_until)) ? body.recur_until.slice(0, 10) : null;
+  const accompanied = ACCOMP.has(body?.accompanied_by ?? "") ? body!.accompanied_by! : null;
   const title = typeof body?.title === "string" ? body.title.trim() : "";
   const kind = KINDS.has(body?.kind ?? "") ? body!.kind! : "other";
   const status = STATUSES.has(body?.status ?? "") ? body!.status! : "confirmed";
@@ -88,7 +107,7 @@ export const POST = withRouteHandler({ resource: "tenants", action: "create" }, 
   try {
     const { data } = await writeWithAudit({
       table: "diary_entries",
-      record: { org_id: auth.actor.org_id, kind, title, starts_at: body.starts_at, ends_at: body.ends_at || null, tenant_id: body.tenant_id || null, property_id: body.property_id || null, notes: body.notes?.trim() || null, assigned_to: body.assigned_to?.trim() || null, status, created_by: auth.actor.user_name } as Record<string, unknown>,
+      record: { org_id: auth.actor.org_id, kind, title, starts_at: body.starts_at, ends_at: body.ends_at || null, tenant_id: body.tenant_id || null, property_id: body.property_id || null, notes: body.notes?.trim() || null, assigned_to: body.assigned_to?.trim() || null, status, recurrence, recur_until: recurUntil, accompanied_by: accompanied, created_by: auth.actor.user_name } as Record<string, unknown>,
       action: "CREATE", org_id: auth.actor.org_id, ...auth.actor,
     });
     return NextResponse.json(data, { status: 201 });

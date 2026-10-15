@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { DIARY_KINDS, STATUS_MARK, kindMeta, type DiaryItem, type DiaryStatus } from "../../../lib/diary";
+import { DIARY_KINDS, STATUS_MARK, RECURRENCES, FEEDBACK, ACCOMPANIED, kindMeta, type DiaryItem, type DiaryStatus, type Recurrence } from "../../../lib/diary";
 import { useAuth } from "../../../contexts/AuthContext";
 import { DateTimeField } from "../../../components/form/DateTimeField";
 
@@ -90,7 +90,7 @@ export default function DiaryPage() {
           background: money ? (it.done ? "rgba(214,51,132,.18)" : "#D63384") : "var(--surface)", color: money ? (it.done ? "#8a1f55" : "#fff") : "var(--navy)", borderLeft: money ? "none" : `4px solid ${it.assignedTo ? colourFor(it.assignedTo) : k.colour}`, boxShadow: money ? "none" : "0 1px 2px rgba(15,28,46,.08)", opacity: it.done && !money ? 0.55 : 1, textDecoration: it.status === "cancelled" ? "line-through" : undefined }}>
         {!money && <span style={{ color: st.colour, fontWeight: 700, flex: "none" }}>{st.mark}</span>}
         {!money && timeOf(it) && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, color: "var(--slate)", flex: "none" }}>{timeOf(it)}</span>}
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: money ? 600 : 500 }}>{money ? it.title : `${k.icon} ${it.title}`}</span>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: money ? 600 : 500 }}>{money ? it.title : `${k.icon}${it.accompaniedBy ? ACCOMPANIED.find((a) => a.key === it.accompaniedBy)?.icon ?? "" : ""}${it.feedback !== "none" ? FEEDBACK.find((f) => f.key === it.feedback)?.icon ?? "" : ""}${it.recurrence !== "none" ? "↻" : ""} ${it.title}`}</span>
       </button>
     );
   };
@@ -278,6 +278,9 @@ export default function DiaryPage() {
 
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 10, fontSize: 12, color: "var(--slate)" }}>
             {Object.entries(STATUS_MARK).map(([k, v]) => <span key={k}><b style={{ color: v.colour }}>{v.mark}</b> {v.label}</span>)}
+            {ACCOMPANIED.slice(0, 2).map((a) => <span key={a.key}>{a.icon} {a.label}</span>)}
+            {FEEDBACK.filter((f) => f.key !== "none").map((f) => <span key={f.key}>{f.icon} {f.label}</span>)}
+            <span>↻ Repeats</span>
             <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#D63384", borderRadius: 3, verticalAlign: "middle" }} /> Rent due (faded = paid)</span>
             <span className="muted">Month: double-click a day to add. Week / Day: click a time. Click an event for details.</span>
           </div>
@@ -313,6 +316,16 @@ function EventPopover({ it, onClose, onPatch, onRemove, onEdit }: { it: DiaryIte
           {it.where && <div><span className="muted">Where</span> · {it.where}</div>}
           {it.notes && <div><span className="muted">Notes</span> · {it.notes}</div>}
           {it.amount !== null && <div><span className="muted">Amount</span> · £{it.amount.toFixed(2)} · {it.done ? "paid" : "not yet paid"}</div>}
+          {it.recurrence !== "none" && <div><span className="muted">Repeats</span> · {RECURRENCES.find((r) => r.key === it.recurrence)?.label.toLowerCase()}{it.occurrence ? " · this is one occurrence; changes apply to the whole series" : ""}</div>}
+          {it.accompaniedBy && <div><span className="muted">Accompanied</span> · {ACCOMPANIED.find((a) => a.key === it.accompaniedBy)?.label}</div>}
+          {own && it.kind === "viewing" && (
+            <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
+              <span className="lbl" style={{ margin: 0 }}>Feedback after the viewing</span>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {FEEDBACK.filter((f) => f.key !== "none").map((f) => <button key={f.key} type="button" className={it.feedback === f.key ? "rel sm" : "btn ghost sm"} onClick={() => onPatch({ feedback: it.feedback === f.key ? "none" : f.key })}>{f.icon} {f.label.replace("Feedback ", "")}</button>)}
+              </div>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
             {it.href && <Link href={it.href} className="rel sm">Open</Link>}
             {own && <button type="button" className="btn ghost sm" onClick={() => onPatch({ done: !it.done })}>{it.done ? "Not done" : "Done ✓"}</button>}
@@ -335,6 +348,8 @@ function EventEditor({ date, time, item, staff, tenants, properties, onClose, on
   const [start, setStart] = useState(item ? toLocal(item.at) : `${date ?? ymd(new Date())}T${time ?? "10:00"}`); const [end, setEnd] = useState(item?.endAt ? toLocal(item.endAt) : "");
   const [who, setWho] = useState(item?.assignedTo ?? profile?.full_name ?? ""); const [status, setStatus] = useState<DiaryStatus>(item?.status ?? "confirmed"); const [notes, setNotes] = useState(item?.notes ?? "");
   const [tenantId, setTenantId] = useState(""); const [propertyId, setPropertyId] = useState("");
+  const [recurrence, setRecurrence] = useState<Recurrence>(item?.recurrence ?? "none"); const [until, setUntil] = useState("");
+  const [accompanied, setAccompanied] = useState<"" | "agent" | "landlord" | "both">(item?.accompaniedBy ?? "");
   // A sensible title writes itself from what's picked; typing your own always wins.
   const [auto, setAuto] = useState(!item);
   const suggest = (k: string, tId: string, pId: string) => {
@@ -346,7 +361,7 @@ function EventEditor({ date, time, item, staff, tenants, properties, onClose, on
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null);
   async function save(e: FormEvent) {
     e.preventDefault(); setBusy(true); setError(null);
-    const body = { kind, title, starts_at: new Date(start).toISOString(), ends_at: end ? new Date(end).toISOString() : null, assigned_to: who || null, status, notes, ...(item ? {} : { tenant_id: tenantId || null, property_id: propertyId || null }) };
+    const body = { kind, title, starts_at: new Date(start).toISOString(), ends_at: end ? new Date(end).toISOString() : null, assigned_to: who || null, status, notes, recurrence, recur_until: recurrence !== "none" && until ? until : null, accompanied_by: kind === "viewing" && accompanied ? accompanied : null, ...(item ? {} : { tenant_id: tenantId || null, property_id: propertyId || null }) };
     try {
       const r = await fetch(item ? `/api/diary/${item.id}` : "/api/diary", { method: item ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const b = await r.json().catch(() => null);
@@ -370,7 +385,14 @@ function EventEditor({ date, time, item, staff, tenants, properties, onClose, on
           {!item && <label><span className="lbl">For which tenant</span><select value={tenantId} onChange={(e) => { setTenantId(e.target.value); pick(kind, e.target.value, propertyId); }} style={inp}><option value="">No tenant — general</option>{tenants.map((t) => <option key={t.id} value={t.id}>{t.full_name}{t.room_number ? ` · ${t.room_number}` : ""}</option>)}</select></label>}
           {!item && <label><span className="lbl">At which property</span><select value={propertyId} onChange={(e) => { setPropertyId(e.target.value); pick(kind, tenantId, e.target.value); }} style={inp}><option value="">No property — anywhere</option>{properties.map((p) => <option key={p.id} value={p.id}>{p.name}{p.postcode ? ` · ${p.postcode}` : ""}{p.landlordName ? ` · ${p.landlordName}` : ""}</option>)}</select></label>}
         </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <label><span className="lbl">Repeats</span><select value={recurrence} onChange={(e) => setRecurrence(e.target.value as Recurrence)} style={inp}>{RECURRENCES.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}</select></label>
+          {recurrence !== "none" ? <label><span className="lbl">Until (optional)</span><input type="date" value={until} onChange={(e) => setUntil(e.target.value)} style={inp} /></label>
+            : kind === "viewing" ? <label><span className="lbl">Accompanied by</span><select value={accompanied} onChange={(e) => setAccompanied(e.target.value as typeof accompanied)} style={inp}><option value="">Not accompanied</option>{ACCOMPANIED.map((a) => <option key={a.key} value={a.key}>{a.icon} {a.label}</option>)}</select></label> : <span />}
+        </div>
+        {recurrence !== "none" && kind === "viewing" && <label><span className="lbl">Accompanied by</span><select value={accompanied} onChange={(e) => setAccompanied(e.target.value as typeof accompanied)} style={inp}><option value="">Not accompanied</option>{ACCOMPANIED.map((a) => <option key={a.key} value={a.key}>{a.icon} {a.label}</option>)}</select></label>}
         <label><span className="lbl">Notes</span><input value={notes} onChange={(e) => setNotes(e.target.value)} style={inp} /></label>
+        {item?.occurrence && <p className="muted" style={{ margin: 0, fontSize: 12 }}>This is one occurrence of a repeating event — your changes apply to the whole series.</p>}
         {error && <p style={{ color: "var(--brick)", margin: 0, fontSize: 13 }}>{error}</p>}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}><button type="button" className="btn ghost sm" onClick={onClose}>Cancel</button><button type="submit" className="rel sm" disabled={busy || !title.trim() || !start}>{busy ? "Saving…" : "Save"}</button></div>
       </form>

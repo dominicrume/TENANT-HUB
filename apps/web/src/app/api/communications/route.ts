@@ -48,6 +48,14 @@ export async function POST(req: Request) {
   if (!body || !body.channel || !body.message_type || !body.content) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
   }
+  // The table only accepts these exact values; say so in words instead of failing deep inside the write.
+  const CHANNELS: Record<string, string> = { email: "Email", sms: "SMS" };
+  const TYPES: Record<string, string> = { "arrears reminder": "Arrears Reminder", "missing intake form": "Missing Intake Form", "general update": "General Update", general: "General Update" };
+  const channel = CHANNELS[String(body.channel).trim().toLowerCase()];
+  const messageType = TYPES[String(body.message_type).trim().toLowerCase()];
+  if (!channel) return NextResponse.json({ error: "Channel must be Email or SMS" }, { status: 422 });
+  if (!messageType) return NextResponse.json({ error: "Message type must be Arrears Reminder, Missing Intake Form or General Update" }, { status: 422 });
+  body.channel = channel; body.message_type = messageType;
 
   // Attempt to send communication via Twilio if it's SMS
   if (body.channel.toLowerCase() === "sms" && body.to_phone) {
