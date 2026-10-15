@@ -59,25 +59,35 @@ export default function SettingsPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   // The link itself comes back to the admin too (2026-10-15): email can't be the only road in,
   // so it's shown here to copy or send by WhatsApp. Pending invites can be given a fresh link.
-  const [inviteLink, setInviteLink] = useState<{ email: string; url: string; delivered: boolean } | null>(null);
-  const [copied, setCopied] = useState(false);
-  interface PendingInvite { id: string; email: string; role: string; full_name: string | null; created_at: string; expires_at: string | null }
-  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
-  function loadInvites() {
-    fetch("/api/auth/invite").then((r) => (r.ok ? r.json() : [])).then((d) => setPendingInvites(Array.isArray(d) ? d : [])).catch(() => {});
-  }
-  async function reissue(p: PendingInvite) {
-    setInviteBusy(true); setInviteError(null);
-    try {
-      const res = await fetch("/api/auth/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: p.email, role: p.role, fullName: p.full_name || undefined }) });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) { setInviteError(body?.error ?? "Could not make a new link."); return; }
-      setInviteLink({ email: p.email, url: body.inviteUrl, delivered: !!body.delivered }); setCopied(false); loadInvites();
-    } catch { setInviteError("Could not reach the server."); } finally { setInviteBusy(false); }
-  }
-  async function copyLink() {
+  // Accounts are issued (067): the admin gets the sign-in link AND the generated password back,
+  // shows/copies/WhatsApps them, and can reveal or re-issue a password from the people list.
+  const [inviteLink, setInviteLink] = useState<{ email: string; url: string; delivered: boolean; password: string | null; title?: string } | null>(null);
+  const [copied, setCopied] = useState<"link" | "password" | "both" | null>(null);
+  function loadInvites() { /* invites no longer wait on anyone — accounts exist the moment they're issued */ }
+  async function copyText(what: "link" | "password" | "both") {
     if (!inviteLink) return;
-    try { await navigator.clipboard.writeText(inviteLink.url); setCopied(true); } catch { window.prompt("Copy this link:", inviteLink.url); }
+    const text = what === "link" ? inviteLink.url : what === "password" ? (inviteLink.password ?? "") : `Sign in: ${inviteLink.url}\nPassword: ${inviteLink.password ?? ""}`;
+    try { await navigator.clipboard.writeText(text); setCopied(what); } catch { window.prompt("Copy this:", text); }
+  }
+  async function revealPassword(p: Profile) {
+    setUserBusy(p.id); setUserNotice(null);
+    try {
+      const r = await fetch(`/api/profiles/${p.id}/password`); const b = await r.json().catch(() => null);
+      if (!r.ok) { setUserNotice(b?.error ?? "Could not reveal."); return; }
+      setInviteLink({ email: b.email, url: `${window.location.origin}/login?email=${encodeURIComponent(b.email)}`, delivered: true, password: b.password, title: `Password on record for ${p.full_name} · issued by ${b.issuedBy ?? "—"} ${formatDateTime(b.issuedAt)} · revealed ${b.reveals}×` }); setCopied(null);
+      document.getElementById("issued-credential")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch { setUserNotice("Could not reach the server."); } finally { setUserBusy(null); }
+  }
+  async function newPassword(p: Profile) {
+    if (!window.confirm(`Issue ${p.full_name} a new password? The old one stops working everywhere, now.`)) return;
+    setUserBusy(p.id); setUserNotice(null);
+    try {
+      const r = await fetch(`/api/profiles/${p.id}/password`, { method: "POST" }); const b = await r.json().catch(() => null);
+      if (!r.ok) { setUserNotice(b?.error ?? "Could not issue."); return; }
+      setInviteLink({ email: b.email, url: b.url, delivered: !!b.delivered, password: b.password, title: `New password for ${p.full_name}` }); setCopied(null);
+      setUserNotice(`New password issued to ${p.full_name}${b.vaulted ? " and kept in the vault" : ""}.`);
+      document.getElementById("issued-credential")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch { setUserNotice("Could not reach the server."); } finally { setUserBusy(null); }
   }
   const [orgCount, setOrgCount] = useState(0);
   // People who asked to join via /register (migration 055). Approving issues
@@ -96,8 +106,8 @@ export default function SettingsPage() {
       const b = await r.json().catch(() => null);
       if (!r.ok) { setRequestNotice(b?.error ?? "Could not record that decision."); return; }
       const who = accessRequests.find((x) => x.id === id);
-      if (decision === "approve" && b?.inviteUrl && who) { setInviteLink({ email: who.email, url: b.inviteUrl, delivered: !!b.invited }); setCopied(false); }
-      setRequestNotice(decision === "approve" ? `Approved ${who?.fullName ?? ""}. Their link is below — ${b?.invited ? "it was emailed too." : "send it to them yourself; the email did not go out."}` : `Declined ${who?.fullName ?? ""}.`);
+      if (decision === "approve" && b?.inviteUrl && who) { setInviteLink({ email: who.email, url: b.inviteUrl, delivered: !!b.invited, password: b.password ?? null, title: `Account for ${who.fullName}` }); setCopied(null); }
+      setRequestNotice(decision === "approve" ? `Approved ${who?.fullName ?? ""}. Their sign-in link and password are below — ${b?.invited ? "they were emailed too." : "hand them over yourself; the email did not go out."}` : `Declined ${who?.fullName ?? ""}.`);
       loadAccessRequests(); loadProfiles(); loadInvites();
     } catch { setRequestNotice("Could not reach the server."); }
     finally { setDecidingId(null); }
@@ -156,7 +166,7 @@ export default function SettingsPage() {
         setInviteError(body?.error ?? "Could not send the invite. Try again.");
         return;
       }
-      setInviteLink({ email: inviteEmail, url: body?.inviteUrl ?? "", delivered: !!body?.delivered }); setCopied(false);
+      setInviteLink({ email: inviteEmail, url: body?.inviteUrl ?? "", delivered: !!body?.delivered, password: body?.password ?? null, title: `Account for ${inviteName || inviteEmail}` }); setCopied(null);
       setInviteName("");
       setInviteEmail("");
       setInviteRole("manager");
@@ -277,7 +287,7 @@ export default function SettingsPage() {
             )}
             {canManage && (
             <section className="card" style={{ marginBottom: 18 }}>
-              <div className="ch"><h3>Invite someone</h3><span className="muted">They get a one-time link and set their own password</span></div>
+              <div className="ch"><h3>Add someone</h3><span className="muted">The account is made now, with a password the system generates and keeps on record</span></div>
               <form onSubmit={handleSendInvite} className="li" style={{ display: "grid", gap: 10 }}>
                 <label><span className="lbl">Full name (optional)</span>
                   <input value={inviteName} onChange={(e) => setInviteName(e.target.value)} type="text" style={inp} /></label>
@@ -289,29 +299,25 @@ export default function SettingsPage() {
                   </select>
                 </label>
                 {inviteError && <p style={{ color: "var(--brick)", margin: 0, fontSize: 13 }}>{inviteError}</p>}
-                <div><button type="submit" className="rel sm" disabled={inviteBusy || !inviteEmail}>{inviteBusy ? "Working…" : "Make the invite"}</button></div>
+                <div><button type="submit" className="rel sm" disabled={inviteBusy || !inviteEmail}>{inviteBusy ? "Working…" : "Create the account"}</button></div>
               </form>
               {inviteLink && (
-                <div className="li" style={{ display: "grid", gap: 8, background: "rgba(30,127,79,.07)" }}>
-                  <b style={{ fontSize: 13.5 }}>Link for {inviteLink.email} <span className="muted" style={{ fontWeight: 500 }}>· works once, for 14 days</span></b>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <input readOnly value={inviteLink.url} onFocus={(e) => e.currentTarget.select()} style={{ ...inp, flex: 1, minWidth: 260, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }} />
-                    <button type="button" className="rel sm" onClick={() => void copyLink()}>{copied ? "Copied ✓" : "Copy link"}</button>
-                    <a className="btn ghost sm" href={`https://wa.me/?text=${encodeURIComponent(`You've been invited to Tenant Hub. Set your password here (works once, 14 days): ${inviteLink.url}`)}`} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+                <div id="issued-credential" className="li" style={{ display: "grid", gap: 8, background: "rgba(30,127,79,.07)" }}>
+                  <b style={{ fontSize: 13.5 }}>{inviteLink.title ?? `Account for ${inviteLink.email}`}</b>
+                  <div style={{ display: "grid", gridTemplateColumns: "90px 1fr auto", gap: 8, alignItems: "center" }}>
+                    <span className="lbl" style={{ margin: 0 }}>Sign in</span>
+                    <input readOnly value={inviteLink.url} onFocus={(e) => e.currentTarget.select()} style={{ ...inp, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }} />
+                    <button type="button" className="btn ghost sm" onClick={() => void copyText("link")}>{copied === "link" ? "Copied ✓" : "Copy"}</button>
+                    <span className="lbl" style={{ margin: 0 }}>Password</span>
+                    <input readOnly value={inviteLink.password ?? "— not available —"} onFocus={(e) => e.currentTarget.select()} style={{ ...inp, fontFamily: "'JetBrains Mono', monospace", fontSize: 14, letterSpacing: ".04em", fontWeight: 600 }} />
+                    <button type="button" className="btn ghost sm" onClick={() => void copyText("password")} disabled={!inviteLink.password}>{copied === "password" ? "Copied ✓" : "Copy"}</button>
                   </div>
-                  <p style={{ margin: 0, fontSize: 12.5, color: inviteLink.delivered ? "var(--live)" : "var(--brick)" }}>{inviteLink.delivered ? "It was emailed to them as well." : "The email did not go out (the sending domain isn't verified yet) — send them this link yourself."}</p>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button type="button" className="rel sm" onClick={() => void copyText("both")} disabled={!inviteLink.password}>{copied === "both" ? "Copied ✓" : "Copy both"}</button>
+                    <a className="btn ghost sm" href={`https://wa.me/?text=${encodeURIComponent(`Your Tenant Hub account is ready.\nSign in: ${inviteLink.url}\nPassword: ${inviteLink.password ?? ""}\nKeep it safe — only the admin can issue a new one.`)}`} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 12.5, color: inviteLink.delivered ? "var(--live)" : "var(--brick)" }}>{inviteLink.delivered ? "Emailed to them as well." : "The email did not go out (the sending domain isn't verified yet) — hand these over yourself."} They can&apos;t change this password; you can reveal or re-issue it from the list below.</p>
                 </div>
-              )}
-              {pendingInvites.length > 0 && (
-                <>
-                  <div className="ch"><h3>Waiting to set a password · {pendingInvites.length}</h3><span className="muted">Lost the email? Make a new link.</span></div>
-                  {pendingInvites.map((p) => (
-                    <div className="li" key={p.id} style={{ alignItems: "center" }}>
-                      <div className="body"><b>{p.full_name || p.email}</b><p>{p.email} · {p.role.replace("_", " ")} · invited {formatDateTime(p.created_at)}{p.expires_at && new Date(p.expires_at) < new Date() ? " · link expired" : ""}</p></div>
-                      <div className="btns"><button type="button" className="btn ghost sm" disabled={inviteBusy} onClick={() => void reissue(p)}>New link</button></div>
-                    </div>
-                  ))}
-                </>
               )}
             </section>
             )}
@@ -330,6 +336,8 @@ export default function SettingsPage() {
                         <select value={p.role} onChange={(e) => void changeRole(p.id, e.target.value)} disabled={userBusy === p.id} aria-label={`Role for ${p.full_name}`} style={{ ...inp, maxWidth: 170, minHeight: 36, padding: "6px 10px" }}>
                           {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                         </select>
+                        {p.role !== "admin" && <button type="button" className="btn ghost sm" disabled={userBusy === p.id} onClick={() => void revealPassword(p)} title="Show the password on record for this person">Reveal password</button>}
+                        {p.role !== "admin" && <button type="button" className="btn ghost sm" disabled={userBusy === p.id} onClick={() => void newPassword(p)} title="Issue a new password; the old one stops working">New password</button>}
                         <button type="button" className="btn ghost sm" disabled={userBusy === p.id} onClick={() => void removeUser(p)} style={{ color: "var(--brick)" }}>Remove</button>
                       </div>
                     ) : (

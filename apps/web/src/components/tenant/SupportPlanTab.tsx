@@ -4,8 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { CanonicalTenant } from "@tenant-hub/validation";
 import { SUPPORT_PLAN_PRESETS, SupportPlan, SupportPlanObjective, SupportPlanStep } from "@tenant-hub/validation";
 import { DigitalSignaturePad } from "../form/DigitalSignaturePad";
+import { useAuth } from "../../contexts/AuthContext";
 
 export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?: CanonicalTenant }) {
+  const { profile } = useAuth();
   const [data, setData] = useState<SupportPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,7 +28,7 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
           tenant_id: tenantId,
           initial_date: new Date().toISOString().slice(0, 10),
           review_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), // 3 months
-          support_workers: ["Staff"], // Could pull from assigned workers if we had that field
+          support_workers: [profile?.full_name ?? "Staff"], // whoever is signed in and opening the plan — it's their initials on it
           categories: SUPPORT_PLAN_PRESETS.map(preset => ({
             category: preset.category,
             objectives: preset.objectives.map(obj => ({
@@ -45,7 +47,7 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
       }
     }
     setLoading(false);
-  }, [tenantId, tenant]);
+  }, [tenantId, tenant, profile?.full_name]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -60,7 +62,8 @@ export function SupportPlanTab({ tenantId, tenant }: { tenantId: string; tenant?
     });
     setSaving(false);
     if (!res.ok) {
-      setSaveMsg("✗ Save failed");
+      const b = await res.json().catch(() => null);
+      setSaveMsg(`✗ Save failed${b?.error ? ` — ${b.error}` : ""}`);
       return;
     }
     setSaveMsg(`✓ Saved at ${new Date().toLocaleTimeString("en-GB")}`);

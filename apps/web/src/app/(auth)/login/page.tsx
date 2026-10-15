@@ -18,6 +18,8 @@ export default function LoginPage() {
   const [googleEnabled, setGoogleEnabled] = useState(false);
   useEffect(() => {
     fetch("/api/auth/google?status=1").then((r) => (r.ok ? r.json() : null)).then((j) => setGoogleEnabled(Boolean(j?.enabled))).catch(() => {});
+    // The sign-in link the admin hands out carries the email, so the person only types the password they were given.
+    try { const e = new URLSearchParams(window.location.search).get("email"); if (e) setEmail(e); } catch { /* fine */ }
   }, []);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -122,7 +124,7 @@ export default function LoginPage() {
                   <Link href="/reset-password" style={{ ...s.link, fontSize: 12.5 }}>Forgot it?</Link>
                 </div>
                 <div style={{ position: "relative" }}>
-                  <input id="password" type={showPassword ? "text" : "password"} required autoComplete="current-password" style={{ ...s.input, paddingRight: "44px" }}
+                  <input id="password" type={showPassword ? "text" : "password"} required autoComplete="current-password" autoFocus={!!email} style={{ ...s.input, paddingRight: "44px" }}
                     value={password} onChange={(e) => setPassword(e.target.value)} onKeyUp={(e) => setCaps(e.getModifierState && e.getModifierState("CapsLock"))} />
                   <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? "Hide password" : "Show password"} title={showPassword ? "Hide password" : "Show password"}
                     style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#64748B", padding: "4px" }}>{eye(showPassword)}</button>

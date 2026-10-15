@@ -21,6 +21,8 @@ export async function POST(req: Request) {
 
   const client = db();
   const profile = await findProfileByEmail(client, email);
+  // Staff passwords are issued by the admin and kept in the vault (067) — only an admin resets their own.
+  if (profile && profile.role !== "admin") return NextResponse.json({ ok: true, adminOnly: true });
   if (profile) {
     const token = generateToken();
     await createPasswordReset(client, { profileId: profile.id, tokenHash: hashToken(token) });

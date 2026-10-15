@@ -53,8 +53,10 @@ export async function GET(_req: Request, { params }: Params) {
       [params.id],
     );
 
+    // The UI knows forms by their key ("reliance-support-plan"), the table by the template's UUID.
+    // Hand back the key as template_id so every tab's `.find(f => f.template_id === key)` is true.
     const data = r.rows.map(({ tpl_id, tpl_org_id, tpl_name, tpl_key, tpl_schema, tpl_created_at, ...rest }) => ({
-      ...rest,
+      ...rest, template_id: tpl_key, template_uuid: tpl_id,
       template: { id: tpl_id, org_id: tpl_org_id, name: tpl_name, key: tpl_key, schema: tpl_schema, created_at: tpl_created_at },
     }));
 
@@ -88,14 +90,30 @@ export async function POST(req: Request, { params }: Params) {
     const tenantCheck = await db().query("SELECT id FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
     if (!tenantCheck.rows[0]) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
 
+    // template_id arrives as a key ("reliance-support-plan") or a UUID. A key resolves to this
+    // organisation's template row, created on first use — the save must never fail because a
+    // seed row is missing (2026-10-15: the table was empty in production and every plan save failed).
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(body.template_id));
+    let templateId: string = String(body.template_id);
+    if (!isUuid) {
+      const key = String(body.template_id).trim().toLowerCase();
+      const found = await db().query<{ id: string }>("SELECT id FROM form_templates WHERE org_id = $1 AND key = $2", [auth.actor.org_id, key]);
+      if (found.rows[0]) templateId = found.rows[0].id;
+      else {
+        const name = key.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        const { data: tpl } = await writeWithAudit({ table: "form_templates", record: { org_id: auth.actor.org_id, key, name, schema: {} } as Record<string, unknown>, action: "CREATE", ...auth.actor });
+        templateId = String(((Array.isArray(tpl) ? tpl[0] : tpl) as Record<string, unknown>)["id"]);
+      }
+    }
+
     const existing = await db().query<{ id: string }>(
       "SELECT id FROM tenant_forms WHERE tenant_id = $1 AND template_id = $2",
-      [params.id, body.template_id],
+      [params.id, templateId],
     );
 
     const record: Record<string, unknown> = {
       tenant_id: params.id,
-      template_id: body.template_id,
+      template_id: templateId,
       data: body.data,
       status: body.status || "draft",
     };

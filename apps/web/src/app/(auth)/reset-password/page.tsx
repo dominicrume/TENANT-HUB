@@ -18,11 +18,12 @@ export default function ResetPasswordPage() {
       const res = await fetch("/api/auth/password/reset-request", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
       });
+      const b = await res.json().catch(() => null);
       if (!res.ok) {
-        const b = await res.json().catch(() => null);
         setError(b?.error ?? "Could not send the reset link.");
         return;
       }
+      if (b?.adminOnly) { setError("Your password is issued by your admin and kept on record — it can't be reset from here. Ask them for a new one; they can hand it to you in a minute."); return; }
       setSent(true);
     } catch {
       setError("Could not reach the server. Try again.");

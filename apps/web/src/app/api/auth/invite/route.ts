@@ -38,7 +38,7 @@ export const POST = withRouteHandler({ resource: "sessions", action: "create", r
     email, role, orgId: auth.actor.org_id, brand: auth.actor.brand, invitedBy: auth.actor.user_id,
     fullName: typeof body?.fullName === "string" ? body.fullName : null,
     tenantId: typeof body?.tenantId === "string" ? body.tenantId : null,
-    origin: publicOrigin(req),
+    origin: publicOrigin(req), actor: auth.actor,
   });
-  return NextResponse.json({ success: true, delivered: r.delivered, inviteUrl: r.url });
+  return NextResponse.json({ success: true, delivered: r.delivered, inviteUrl: r.url, password: r.password, vaulted: r.vaulted });
 });
