@@ -18,6 +18,11 @@ export const SessionSchema = z.object({
   entered_by_name: z.string().optional(),
   blockchain_hash: z.string().optional(),
   created_at: z.string().datetime().optional(),
+  /** Sign-off (migration 066): both people in the room sign under the note. Data-URL PNGs. */
+  worker_signature: z.string().nullable().optional(),
+  worker_signed_at: z.string().nullable().optional(),
+  tenant_signature: z.string().nullable().optional(),
+  tenant_signed_at: z.string().nullable().optional(),
 });
 
 export const SessionCreateSchema = SessionSchema.omit({

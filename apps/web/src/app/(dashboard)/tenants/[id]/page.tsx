@@ -561,7 +561,7 @@ export default function TenantDetailPage() {
       {tab === "support-plan" && <SupportPlanTab tenantId={id} tenant={tenant!} />}
       {tab === "reliance-intake" && <RelianceIntakeTab tenantId={id} tenant={tenant!} />}
       {tab === "signup" && <SignupPackTab tenantId={id} onOpenTab={(t) => setTab(t)} />}
-      {tab === "sessions" && <SessionsTab tenantId={id} />}
+      {tab === "sessions" && <SessionsTab tenantId={id} tenantName={tenant?.full_name} />}
       {tab === "ledger" && <LedgerTab tenantId={id} />}
       {tab === "maintenance" && <MaintenanceTab tenantId={id} roomNumber={tenant?.room_number} />}
       {tab === "documents" && <DocumentsTab tenantId={id} />}

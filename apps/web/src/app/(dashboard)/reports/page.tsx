@@ -17,6 +17,37 @@ interface ReportData {
   charges: ServiceCharge[];
 }
 
+/** The report as plain text, for the body of an email. */
+function reportAsText(r: ReportData, month: string): string {
+  const lines = [`Monthly report — ${r.tenant.full_name} · ${r.tenant.room_number ?? ""} · ${month}`, ""];
+  lines.push("SESSIONS");
+  if (r.sessions.length === 0) lines.push("No sessions this month.");
+  for (const s of r.sessions) {
+    lines.push(`${formatShortDate(s.session_date)} · ${s.session_type} · by ${s.entered_by_name ?? "—"}`);
+    lines.push(s.notes);
+    lines.push(`Signed: support worker ${s.worker_signed_at ? "✓ " + formatShortDate(s.worker_signed_at) : "—"} · tenant ${s.tenant_signed_at ? "✓ " + formatShortDate(s.tenant_signed_at) : "—"}`);
+    lines.push("");
+  }
+  lines.push("SERVICE CHARGES");
+  if (r.charges.length === 0) lines.push("No charges this month.");
+  for (const c of r.charges) lines.push(`${c.week_label} · due ${formatShortDate(c.due_date)} · ${formatMoney(c.amount)} · ${c.is_paid ? "paid" : "unpaid"}`);
+  lines.push("", "Sent from Tenant Hub.");
+  return lines.join("\n");
+}
+
+function SigLine({ label, src, at }: { label: string; src: string | null; at: string | null }) {
+  return (
+    <div style={{ minWidth: 180 }}>
+      <div style={{ fontSize: 10, color: "#7A8499", textTransform: "uppercase", letterSpacing: ".04em" }}>{label}</div>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="signature" style={{ height: 34, display: "block" }} />
+      ) : <div style={{ height: 34, borderBottom: "1px solid #CBD2DB", width: 160 }} />}
+      <div style={{ fontSize: 10, color: at ? "#1E7F4F" : "#B24A31" }}>{at ? `signed ${formatShortDate(at)}` : "not signed"}</div>
+    </div>
+  );
+}
+
 export default function ReportsPage() {
   const { activeTenants } = useTenants();
   const [tenantId, setTenantId] = useState("");
@@ -49,6 +80,10 @@ export default function ReportsPage() {
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="btn ghost sm" />
         <button type="button" className="rel sm" onClick={generate} disabled={busy || !tenantId}>{busy ? "Generating…" : "Generate report"}</button>
         {report && <button type="button" className="btn ghost sm" onClick={() => window.print()}>Print / Export PDF</button>}
+        {report && (
+          // Hands the report to whatever mail app this device uses — Gmail, Outlook, Yahoo, Apple Mail — with the content already in the body.
+          <a className="btn ghost sm" href={`mailto:?subject=${encodeURIComponent(`Monthly report · ${report.tenant.full_name} · ${month}`)}&body=${encodeURIComponent(reportAsText(report, month))}`}>Send by email</a>
+        )}
       </div>
 
       {report && (
@@ -70,10 +105,17 @@ export default function ReportsPage() {
               <thead><tr style={{ textAlign: "left", color: "#7A8499" }}><th style={{ padding: "4px" }}>Date</th><th style={{ padding: "4px" }}>Type</th><th style={{ padding: "4px" }}>Notes</th></tr></thead>
               <tbody>
                 {report.sessions.map((s) => (
-                  <tr key={s.id} style={{ borderTop: "1px solid #F3EEE7" }}>
+                  <tr key={s.id} style={{ borderTop: "1px solid #F3EEE7", verticalAlign: "top" }}>
                     <td style={{ padding: "4px", fontFamily: "'JetBrains Mono',monospace" }}>{formatShortDate(s.session_date)}</td>
                     <td style={{ padding: "4px" }}>{s.session_type}</td>
-                    <td style={{ padding: "4px" }}>{s.notes}</td>
+                    <td style={{ padding: "4px" }}>
+                      <div style={{ whiteSpace: "pre-wrap" }}>{s.notes}</div>
+                      {/* Signed off by both people in the room (066) — printed under the note, as on paper. */}
+                      <div style={{ display: "flex", gap: 18, marginTop: 6, flexWrap: "wrap" }}>
+                        <SigLine label={`Support worker · ${s.entered_by_name ?? ""}`} src={s.worker_signature ?? null} at={s.worker_signed_at ?? null} />
+                        <SigLine label={`Tenant · ${report.tenant.full_name}`} src={s.tenant_signature ?? null} at={s.tenant_signed_at ?? null} />
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

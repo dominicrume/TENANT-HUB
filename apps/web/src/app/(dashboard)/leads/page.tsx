@@ -29,7 +29,9 @@ export default function LeadsPage() {
   const [properties, setProperties] = useState<PropertyOpt[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [adding, setAdding] = useState(false);
-  const [name, setName] = useState(""); const [phone, setPhone] = useState(""); const [email, setEmail] = useState(""); const [source, setSource] = useState("self_referred"); const [notes, setNotes] = useState(""); const [propertyId, setPropertyId] = useState("");
+  const [name, setName] = useState(""); const [phone, setPhone] = useState(""); const [email, setEmail] = useState(""); const [source, setSource] = useState("self_referred"); const [notes, setNotes] = useState(""); const [propertyId, setPropertyId] = useState(""); const [unitId, setUnitId] = useState("");
+  const roomsOf = (pid: string) => (properties.find((p) => p.id === pid)?.units ?? []).slice().sort((a, b) => a.reference.localeCompare(b.reference, undefined, { numeric: true }));
+  const roomLabel = (u: { reference: string; status: string }) => `${/^\d+$/.test(u.reference) ? `Room ${u.reference}` : u.reference}${u.status === "occupied" ? " · taken" : " · free"}`;
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showLost, setShowLost] = useState(false);
@@ -49,10 +51,10 @@ export default function LeadsPage() {
     e.preventDefault();
     setBusy("add"); setError(null);
     try {
-      const r = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ full_name: name, phone, email, source, notes, property_id: propertyId || null }) });
+      const r = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ full_name: name, phone, email, source, notes, property_id: propertyId || null, unit_id: unitId || null }) });
       const b = await r.json().catch(() => null);
       if (!r.ok) { setError(b?.error ?? "Could not add"); return; }
-      setName(""); setPhone(""); setEmail(""); setNotes(""); setPropertyId(""); setAdding(false);
+      setName(""); setPhone(""); setEmail(""); setNotes(""); setPropertyId(""); setUnitId(""); setAdding(false);
       await load();
     } catch { setError("Could not reach the server."); } finally { setBusy(null); }
   }
@@ -105,7 +107,8 @@ export default function LeadsPage() {
           <label><span className="lbl">Phone</span><input value={phone} onChange={(e) => setPhone(e.target.value)} style={inp} /></label>
           <label><span className="lbl">Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inp} /></label>
           <label><span className="lbl">How they came to us</span><select value={source} onChange={(e) => setSource(e.target.value)} style={inp}>{LEAD_SOURCES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></label>
-          <label><span className="lbl">Interested in</span><select value={propertyId} onChange={(e) => setPropertyId(e.target.value)} style={inp}><option value="">Any property</option>{properties.map((p) => <option key={p.id} value={p.id}>{p.name}{p.landlordName ? ` · ${p.landlordName}` : ""}</option>)}</select></label>
+          <label><span className="lbl">Interested in</span><select value={propertyId} onChange={(e) => { setPropertyId(e.target.value); setUnitId(""); }} style={inp}><option value="">Any property</option>{properties.map((p) => <option key={p.id} value={p.id}>{p.name}{p.landlordName ? ` · ${p.landlordName}` : ""}</option>)}</select></label>
+          <label><span className="lbl">Which room</span><select value={unitId} onChange={(e) => setUnitId(e.target.value)} style={inp} disabled={!propertyId}><option value="">{propertyId ? "Any free room" : "Pick a property first"}</option>{roomsOf(propertyId).map((u) => <option key={u.id} value={u.id}>{roomLabel(u)}</option>)}</select></label>
           <label style={{ gridColumn: "1 / -1" }}><span className="lbl">Notes</span><input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Needs ground floor · referred by Sarah at the council · moving date…" style={inp} /></label>
           {error && <p style={{ color: "var(--brick)", margin: 0, fontSize: 13, gridColumn: "1 / -1" }}>{error}</p>}
           <div style={{ gridColumn: "1 / -1" }}><button type="submit" className="rel" disabled={busy === "add" || !name.trim()}>{busy === "add" ? "Adding…" : "Add lead"}</button></div>
@@ -133,7 +136,7 @@ export default function LeadsPage() {
                 onRefToggle={() => setRefOpen((v) => (v === l.id ? null : l.id))}
                 onPatch={(b) => patch(l.id, b)}
                 onLost={() => { const why = window.prompt("Why was this lead lost? (one line)") ?? ""; void patch(l.id, { stage: "lost", lost_reason: why }); }}
-                onProperty={(property_id) => void patch(l.id, { property_id, unit_id: null })}
+                onProperty={(property_id, unit_id) => void patch(l.id, { property_id, unit_id })}
                 onConvert={() => void convert(l)} />)}
             </section>
           );
@@ -164,8 +167,9 @@ function Road({ stage }: { stage: string }) {
 
 function LeadCard({ l, busy, properties, refOpen, onBook, onViewingDone, onViewingCancel, onRefToggle, onPatch, onLost, onProperty, onConvert }: {
   l: Lead; busy: boolean; properties: PropertyOpt[]; refOpen: boolean;
-  onBook: () => void; onViewingDone: () => void; onViewingCancel: () => void; onRefToggle: () => void; onPatch: (b: Record<string, unknown>) => Promise<unknown>; onLost: () => void; onProperty: (p: string | null) => void; onConvert: () => void;
+  onBook: () => void; onViewingDone: () => void; onViewingCancel: () => void; onRefToggle: () => void; onPatch: (b: Record<string, unknown>) => Promise<unknown>; onLost: () => void; onProperty: (p: string | null, u: string | null) => void; onConvert: () => void;
 }) {
+  const rooms = (properties.find((p) => p.id === l.property_id)?.units ?? []).slice().sort((a, b) => a.reference.localeCompare(b.reference, undefined, { numeric: true }));
   const src = LEAD_SOURCES.find((s) => s.key === l.source)?.label ?? l.source.replace(/_/g, " ");
   const viewingPending = !!l.viewing_at && !l.viewing_done_at;
   const viewed = !!l.viewing_done_at;
@@ -204,9 +208,14 @@ function LeadCard({ l, busy, properties, refOpen, onBook, onViewingDone, onViewi
         {refOpen && showRefPanel && <ReferencingPanel l={l} busy={busy} onPatch={onPatch} />}
         {l.notes && <p style={{ fontStyle: "italic" }}>{l.notes}</p>}
         <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <select value={l.property_id ?? ""} onChange={(e) => onProperty(e.target.value || null)} disabled={busy} aria-label="Property" style={{ ...inp, maxWidth: 260, minHeight: 34, padding: "4px 8px", fontSize: 12.5 }}>
+          <select value={l.property_id ?? ""} onChange={(e) => onProperty(e.target.value || null, null)} disabled={busy || l.stage === "moved_in"} aria-label="Property" style={{ ...inp, maxWidth: 260, minHeight: 34, padding: "4px 8px", fontSize: 12.5 }}>
             <option value="">Any property</option>{properties.map((p) => <option key={p.id} value={p.id}>{p.name}{p.landlordName ? ` · ${p.landlordName}` : ""}</option>)}
           </select>
+          {l.property_id && (
+            <select value={l.unit_id ?? ""} onChange={(e) => onProperty(l.property_id, e.target.value || null)} disabled={busy || l.stage === "moved_in"} aria-label="Room" style={{ ...inp, maxWidth: 170, minHeight: 34, padding: "4px 8px", fontSize: 12.5 }}>
+              <option value="">Any free room</option>{rooms.map((u) => <option key={u.id} value={u.id}>{/^\d+$/.test(u.reference) ? `Room ${u.reference}` : u.reference}{u.status === "occupied" ? " · taken" : " · free"}</option>)}
+            </select>
+          )}
         </div>
       </div>
       {l.stage !== "moved_in" && (

@@ -43,7 +43,7 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
 
 export const POST = withRouteHandler({ resource: "tenants", action: "create" }, async (req, _ctx, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
-  const body = (await req.json().catch(() => null)) as { full_name?: string; phone?: string; email?: string; source?: string; notes?: string; property_id?: string | null; landlord_id?: string | null } | null;
+  const body = (await req.json().catch(() => null)) as { full_name?: string; phone?: string; email?: string; source?: string; notes?: string; property_id?: string | null; unit_id?: string | null; landlord_id?: string | null } | null;
   const fullName = typeof body?.full_name === "string" ? body.full_name.trim() : "";
   if (!fullName) return NextResponse.json({ error: "Name: who is this?" }, { status: 422 });
   const source = LEAD_SOURCES.some((s) => s.key === body?.source) ? body!.source : "professionally_referred";
@@ -52,7 +52,7 @@ export const POST = withRouteHandler({ resource: "tenants", action: "create" }, 
       table: "leads",
       record: {
         org_id: auth.actor.org_id, full_name: fullName, phone: body?.phone?.trim() || null, email: body?.email?.trim().toLowerCase() || null,
-        source, notes: body?.notes?.trim() || null, property_id: body?.property_id || null, landlord_id: body?.landlord_id || null,
+        source, notes: body?.notes?.trim() || null, property_id: body?.property_id || null, unit_id: body?.unit_id || null, landlord_id: body?.landlord_id || null,
         stage: "received", created_by: auth.actor.user_name,
       } as Record<string, unknown>,
       action: "CREATE", org_id: auth.actor.org_id, ...auth.actor,

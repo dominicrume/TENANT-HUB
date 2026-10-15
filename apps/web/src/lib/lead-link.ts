@@ -13,20 +13,26 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 type Actor = Omit<Parameters<typeof writeWithAudit>[0], "table" | "record" | "action" | "entry_method">;
 const digits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "").replace(/^44/, "0");
 
-interface OpenLead { id: string; source: string | null; phone: string | null; email: string | null; full_name: string; viewing_done_at: string | null; assigned_to: string | null }
+interface OpenLead { id: string; source: string | null; phone: string | null; email: string | null; full_name: string; stage: string; viewing_done_at: string | null; assigned_to: string | null }
 
 async function openLeads(orgId: string): Promise<OpenLead[]> {
   return (await db().query<OpenLead>(
-    "SELECT id, source, phone, email, full_name, viewing_done_at, assigned_to FROM leads WHERE org_id = $1 AND tenant_id IS NULL AND stage NOT IN ('moved_in','lost') ORDER BY updated_at DESC", [orgId])).rows;
+    "SELECT id, source, phone, email, full_name, stage, viewing_done_at, assigned_to FROM leads WHERE org_id = $1 AND tenant_id IS NULL AND stage NOT IN ('moved_in','lost') ORDER BY updated_at DESC", [orgId])).rows;
 }
 
+/**
+ * Which open lead IS this tenant. The name is the identity; a phone or email only confirms it
+ * (2026-10-15: matching on phone alone married three test leads to one tenant because they shared
+ * a number). And only a lead whose sign-up has started (stage "offer") can close — the gate is
+ * viewing → referencing → sign-up, nothing jumps it.
+ */
 function pick(leads: OpenLead[], t: { fullName: string; phone?: string | null; email?: string | null }): OpenLead | null {
-  const ph = digits(t.phone); const em = (t.email ?? "").trim().toLowerCase(); const nm = t.fullName.trim().toLowerCase().replace(/\s+/g, " ");
-  return (ph && leads.find((l) => digits(l.phone) === ph))
-    || (em && leads.find((l) => (l.email ?? "").toLowerCase() === em))
-    || leads.find((l) => l.full_name.trim().toLowerCase().replace(/\s+/g, " ") === nm)
-    || null;
+  const ph = digits(t.phone); const em = (t.email ?? "").trim().toLowerCase(); const nm = norm(t.fullName);
+  const byName = leads.filter((l) => l.stage === "offer" && norm(l.full_name) === nm);
+  if (byName.length === 0) return null;
+  return byName.find((l) => (ph && digits(l.phone) === ph) || (em && (l.email ?? "").toLowerCase() === em)) ?? (byName.length === 1 ? byName[0]! : null);
 }
+const norm = (s: string) => s.trim().toLowerCase().replace(/[’']/g, "").replace(/\s+/g, " ");
 
 async function close(lead: OpenLead, tenantId: string, orgId: string, actor: Actor, referralSource: string | null | undefined) {
   await writeWithAudit({ table: "leads", record: { id: lead.id, stage: "moved_in", tenant_id: tenantId } as Record<string, unknown>, action: "UPDATE", ...actor, org_id: orgId });
