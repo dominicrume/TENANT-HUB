@@ -30,6 +30,9 @@ export const POST = withRouteHandler({ resource: "sessions", action: "create", r
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   const role = typeof body?.role === "string" ? body.role : "";
   if (!email || !ROLES.has(role)) return NextResponse.json({ error: "A valid email and role are required" }, { status: 400 });
+  // Someone who already has an account doesn't need an invite — they sign in (or reset their password).
+  const existing = await db().query<{ full_name: string }>("SELECT full_name FROM profiles WHERE lower(email) = lower($1)", [email]);
+  if (existing.rows[0]) return NextResponse.json({ error: `${existing.rows[0].full_name} already has an account with ${email.toLowerCase()} — they can sign in, or reset their password from the sign-in page.` }, { status: 409 });
 
   const r = await issueInvite({
     email, role, orgId: auth.actor.org_id, brand: auth.actor.brand, invitedBy: auth.actor.user_id,

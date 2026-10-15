@@ -15,6 +15,7 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { DIARY_KINDS, STATUS_MARK, kindMeta, type DiaryItem, type DiaryStatus } from "../../../lib/diary";
 import { useAuth } from "../../../contexts/AuthContext";
+import { DateTimeField } from "../../../components/form/DateTimeField";
 
 type View = "month" | "week" | "day" | "list" | "user";
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -362,8 +363,8 @@ function EventEditor({ date, time, item, staff, tenants, properties, onClose, on
         </div>
         <label><span className="lbl">What</span><input value={title} onChange={(e) => { setTitle(e.target.value); setAuto(e.target.value.trim() === ""); }} required placeholder="Pick a tenant or property and this writes itself — or type it" style={inp} /></label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <label><span className="lbl">Starts</span><input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} required style={inp} /></label>
-          <label><span className="lbl">Ends (optional)</span><input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} style={inp} /></label>
+          <DateTimeField label="Starts" value={start} onChange={setStart} required />
+          <DateTimeField label="Ends (optional)" value={end} onChange={setEnd} allowEmptyTime />
           <label><span className="lbl">Who does it</span><select value={who} onChange={(e) => setWho(e.target.value)} style={inp}><option value="">Unassigned</option>{staff.map((s) => <option key={s.id} value={s.full_name}>{s.full_name}</option>)}</select></label>
           <label><span className="lbl">Status</span><select value={status} onChange={(e) => setStatus(e.target.value as DiaryStatus)} style={inp}><option value="confirmed">✓ Confirmed</option><option value="unconfirmed">? Unconfirmed</option><option value="cancelled">✕ Cancelled</option></select></label>
           {!item && <label><span className="lbl">For which tenant</span><select value={tenantId} onChange={(e) => { setTenantId(e.target.value); pick(kind, e.target.value, propertyId); }} style={inp}><option value="">No tenant — general</option>{tenants.map((t) => <option key={t.id} value={t.id}>{t.full_name}{t.room_number ? ` · ${t.room_number}` : ""}</option>)}</select></label>}

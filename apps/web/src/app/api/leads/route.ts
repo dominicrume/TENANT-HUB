@@ -25,6 +25,8 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
     const r = await db().query(
       `SELECT l.*, p.name AS property_name, u.reference AS unit_reference,
               (SELECT d.id FROM drafts d WHERE d.machine_state->>'lead_id' = l.id::text AND d.step < 5 ORDER BY d.created_at DESC LIMIT 1) AS draft_id,
+              COALESCE((SELECT json_agg(json_build_object('id', r.id, 'kind', r.kind, 'referee_name', r.referee_name, 'contact', r.contact, 'method', r.method, 'requested_at', r.requested_at, 'received_at', r.received_at, 'outcome', r.outcome, 'notes', r.notes, 'created_by', r.created_by) ORDER BY r.requested_at)
+                        FROM lead_references r WHERE r.lead_id = l.id), '[]'::json) AS "references",
               t.room_number AS tenant_room
        FROM leads l LEFT JOIN properties p ON p.id = l.property_id LEFT JOIN units u ON u.id = l.unit_id LEFT JOIN tenants t ON t.id = l.tenant_id
        WHERE ${where} ORDER BY CASE l.stage WHEN 'lost' THEN 1 ELSE 0 END, l.updated_at DESC`, params);
