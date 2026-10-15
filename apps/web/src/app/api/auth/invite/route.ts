@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasDatabaseUrl } from "@tenant-hub/db";
+import { db, hasDatabaseUrl, listPendingInvites } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
 import { isSameOriginPost } from "../../../../lib/csrf";
 import { issueInvite } from "../../../../lib/issue-invite";
@@ -8,11 +8,17 @@ import { canManageUsers } from "../../../../lib/user-admin";
 
 const ROLES = new Set(["admin", "manager", "support_worker", "contractor", "tenant"]);
 
+/** GET /api/auth/invite — the invites still waiting to be accepted (admin). */
+export const GET = withRouteHandler({ resource: "sessions", action: "create" }, async (_req, _ctx, auth) => {
+  if (!(await canManageUsers(auth.actor)) || !auth.actor.org_id || !hasDatabaseUrl()) return NextResponse.json([]);
+  return NextResponse.json(await listPendingInvites(db(), auth.actor.org_id), { headers: { "Cache-Control": "no-store" } });
+});
+
 /**
- * POST /api/auth/invite — a manager issues an own-session invite (BUILD_PLAN C31): the emailed link
- * carries a one-time token, and accepting it creates the account with no Supabase auth.users row
- * involved. The manager is identified with the CURRENT login (Supabase) — the two systems coexist
- * until the cutover (DECISIONS D26).
+ * POST /api/auth/invite — the admin issues an own-session invite (BUILD_PLAN C31): a one-time
+ * link that creates the account when accepted. The link is emailed AND returned, so the admin
+ * can send it by WhatsApp when email can't reach the person. Re-inviting an email replaces the
+ * old link.
  */
 export const POST = withRouteHandler({ resource: "sessions", action: "create", rateLimit: true }, async (req, _ctx, auth) => {
   if (!isSameOriginPost(req)) return NextResponse.json({ error: "Refused" }, { status: 403 });
@@ -25,11 +31,11 @@ export const POST = withRouteHandler({ resource: "sessions", action: "create", r
   const role = typeof body?.role === "string" ? body.role : "";
   if (!email || !ROLES.has(role)) return NextResponse.json({ error: "A valid email and role are required" }, { status: 400 });
 
-  await issueInvite({
+  const r = await issueInvite({
     email, role, orgId: auth.actor.org_id, brand: auth.actor.brand, invitedBy: auth.actor.user_id,
     fullName: typeof body?.fullName === "string" ? body.fullName : null,
     tenantId: typeof body?.tenantId === "string" ? body.tenantId : null,
     origin: publicOrigin(req),
   });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, delivered: r.delivered, inviteUrl: r.url });
 });

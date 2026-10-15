@@ -257,6 +257,14 @@ export async function acceptInvite(client: DbClient, i: { tokenHash: string; pas
   });
 }
 
+/** The invites still open for an organisation — so the admin can see who hasn't set a password yet and hand them a fresh link. */
+export async function listPendingInvites(client: Queryable, orgId: string): Promise<Array<{ id: string; email: string; role: string; full_name: string | null; created_at: string; expires_at: string | null }>> {
+  const r = await client.query<{ id: string; email: string; role: string; full_name: string | null; created_at: string; expires_at: string | null }>(
+    `SELECT id, email, role, full_name, created_at, expires_at FROM pending_invites
+     WHERE org_id = $1 AND consumed_at IS NULL ORDER BY created_at DESC`, [orgId]);
+  return r.rows;
+}
+
 /** Issues an invite, replacing any outstanding one for the same email (mirrors createPendingInvite in invite.ts, minus the Supabase call). */
 export async function createInvite(client: Queryable, i: { email: string; role: string; orgId: string; fullName?: string | null; brand?: string | null; tenantId?: string | null; invitedBy?: string | null }): Promise<void> {
   const email = i.email.trim().toLowerCase();

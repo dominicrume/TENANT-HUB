@@ -45,18 +45,22 @@ export default function RegisterPage() {
         <h1 style={s.heading}>Request access</h1>
         {done ? (
           <>
-            <p style={s.subBrands}>Thanks, {fullName.split(/\s+/)[0]}. A manager at {orgs.find((o) => o.id === orgId)?.name ?? "the organisation"} has been told. When they approve, you&apos;ll get an email with a one-time link to set your password.</p>
+            <p style={s.subBrands}>Thanks, {fullName.split(/\s+/)[0]}. The admin at {orgs.find((o) => o.id === orgId)?.name ?? "the organisation"} has been told. When they approve, they&apos;ll send you a one-time link (by email or WhatsApp) to set your password.</p>
             <p style={{ fontSize: 13, color: "#64748B" }}>Nothing more to do here — you can close this page.</p>
             <div style={{ marginTop: 16, textAlign: "center" }}><Link href="/login" style={s.link}>Back to sign in</Link></div>
           </>
         ) : (
           <form onSubmit={onSubmit}>
-            <p style={s.subBrands}>Accounts are approved by a manager, not created on the spot. Tell us who you are and where you work; they&apos;ll get an email to approve you.</p>
-            <label style={s.label} htmlFor="org">Organisation</label>
-            <select id="org" required value={orgId} onChange={(e) => setOrgId(e.target.value)} style={s.input}>
-              <option value="">Choose…</option>
-              {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+            <p style={s.subBrands}>Accounts are approved by the admin, not created on the spot. Tell us who you are; they&apos;ll approve you and send your link.</p>
+            {orgs.length === 1 ? (
+              <p style={{ ...s.label, marginBottom: 12 }}>Joining <b style={{ color: "#0F1C2E" }}>{orgs[0]!.name}</b></p>
+            ) : (<>
+              <label style={s.label} htmlFor="org">Organisation</label>
+              <select id="org" required value={orgId} onChange={(e) => setOrgId(e.target.value)} style={s.input}>
+                <option value="">Choose…</option>
+                {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+            </>)}
             <label style={s.label} htmlFor="name">Your full name</label>
             <input id="name" required autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} style={s.input} />
             <label style={s.label} htmlFor="email">Work email</label>

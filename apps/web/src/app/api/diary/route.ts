@@ -44,10 +44,10 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
         `SELECT c.id, c.expires_on, ct.name, c.property_id, p.name AS property FROM certificates c JOIN certificate_types ct ON ct.id = c.certificate_type_id JOIN properties p ON p.id = c.property_id
          WHERE c.org_id = $1 AND c.expires_on BETWEEN $2::date AND ($3::date + 30)`, [org, from, to]).catch(() => ({ rows: [] })),
       db().query<{ id: string; full_name: string; moved_in: string; room_number: string | null }>(
-        `SELECT id, full_name, moved_in, room_number FROM tenants WHERE org_id = $1 AND moved_in BETWEEN $2::date AND $3::date`, [org, from, to]).catch(() => ({ rows: [] })),
+        `SELECT id, full_name, moved_in, room_number FROM tenants WHERE org_id = $1 AND is_archived = false AND moved_in BETWEEN $2::date AND $3::date`, [org, from, to]).catch(() => ({ rows: [] })),
       db().query<{ id: string; amount: string; due_date: string; is_paid: boolean; tenant_id: string; full_name: string; room_number: string | null }>(
         `SELECT sc.id, sc.amount, sc.due_date, sc.is_paid, sc.tenant_id, t.full_name, t.room_number FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id
-         WHERE t.org_id = $1 AND sc.due_date BETWEEN $2::date AND $3::date ORDER BY sc.due_date`, [org, from, to]).catch(() => ({ rows: [] })),
+         WHERE t.org_id = $1 AND t.is_archived = false AND sc.due_date BETWEEN $2::date AND $3::date ORDER BY sc.due_date`, [org, from, to]).catch(() => ({ rows: [] })),
     ]);
 
     const today0 = new Date(new Date().toDateString());

@@ -37,8 +37,8 @@ export default function DiaryPage() {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<DiaryItem | null>(null);
   const [editor, setEditor] = useState<{ open: boolean; date?: string; item?: DiaryItem | null }>({ open: false });
-  const [tenants, setTenants] = useState<Array<{ id: string; full_name: string }>>([]);
-  const [properties, setProperties] = useState<Array<{ id: string; name: string }>>([]);
+  const [tenants, setTenants] = useState<Array<{ id: string; full_name: string; room_number?: string | null }>>([]);
+  const [properties, setProperties] = useState<Array<{ id: string; name: string; postcode?: string | null; landlordName?: string | null }>>([]);
 
   // The window the current view needs.
   const range = useMemo(() => {
@@ -265,12 +265,21 @@ function EventPopover({ it, onClose, onPatch, onRemove, onEdit }: { it: DiaryIte
     </div>, document.body);
 }
 
-function EventEditor({ date, item, staff, tenants, properties, onClose, onSaved }: { date?: string; item: DiaryItem | null; staff: Array<{ id: string; full_name: string }>; tenants: Array<{ id: string; full_name: string }>; properties: Array<{ id: string; name: string }>; onClose: () => void; onSaved: () => void }) {
+function EventEditor({ date, item, staff, tenants, properties, onClose, onSaved }: { date?: string; item: DiaryItem | null; staff: Array<{ id: string; full_name: string }>; tenants: Array<{ id: string; full_name: string; room_number?: string | null }>; properties: Array<{ id: string; name: string; postcode?: string | null; landlordName?: string | null }>; onClose: () => void; onSaved: () => void }) {
+  const { profile } = useAuth();
   const toLocal = (iso: string) => { const d = new Date(iso); return `${ymd(d)}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
   const [kind, setKind] = useState(item?.kind ?? "viewing"); const [title, setTitle] = useState(item?.title ?? "");
   const [start, setStart] = useState(item ? toLocal(item.at) : `${date ?? ymd(new Date())}T10:00`); const [end, setEnd] = useState(item?.endAt ? toLocal(item.endAt) : "");
-  const [who, setWho] = useState(item?.assignedTo ?? ""); const [status, setStatus] = useState<DiaryStatus>(item?.status ?? "confirmed"); const [notes, setNotes] = useState(item?.notes ?? "");
+  const [who, setWho] = useState(item?.assignedTo ?? profile?.full_name ?? ""); const [status, setStatus] = useState<DiaryStatus>(item?.status ?? "confirmed"); const [notes, setNotes] = useState(item?.notes ?? "");
   const [tenantId, setTenantId] = useState(""); const [propertyId, setPropertyId] = useState("");
+  // A sensible title writes itself from what's picked; typing your own always wins.
+  const [auto, setAuto] = useState(!item);
+  const suggest = (k: string, tId: string, pId: string) => {
+    const t = tenants.find((x) => x.id === tId); const p = properties.find((x) => x.id === pId);
+    const where = p ? p.name : t?.room_number ? `${t.room_number}` : "";
+    return [kindMeta(k).label, t?.full_name, where].filter(Boolean).join(" · ");
+  };
+  const pick = (k = kind, tId = tenantId, pId = propertyId) => { if (auto) setTitle(suggest(k, tId, pId)); };
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null);
   async function save(e: FormEvent) {
     e.preventDefault(); setBusy(true); setError(null);
@@ -287,16 +296,16 @@ function EventEditor({ date, item, staff, tenants, properties, onClose, onSaved 
       <form onClick={(e) => e.stopPropagation()} onSubmit={save} style={{ background: "var(--surface)", borderRadius: 14, width: "100%", maxWidth: 520, padding: 20, display: "grid", gap: 10, boxShadow: "0 20px 50px rgba(15,28,46,.25)" }}>
         <h3 style={{ margin: 0 }}>{item ? "Edit event" : "New event"}</h3>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {DIARY_KINDS.filter((k) => !["rent_due", "session", "promise"].includes(k.key)).map((k) => <button key={k.key} type="button" onClick={() => setKind(k.key)} className={kind === k.key ? "rel sm" : "btn ghost sm"} style={{ borderLeft: `4px solid ${k.colour}` }}>{k.icon} {k.label}</button>)}
+          {DIARY_KINDS.filter((k) => !["rent_due", "session", "promise"].includes(k.key)).map((k) => <button key={k.key} type="button" onClick={() => { setKind(k.key); pick(k.key); }} className={kind === k.key ? "rel sm" : "btn ghost sm"} style={{ borderLeft: `4px solid ${k.colour}` }}>{k.icon} {k.label}</button>)}
         </div>
-        <label><span className="lbl">What</span><input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. Viewing — 72 Knowle Road, Room 2" style={inp} /></label>
+        <label><span className="lbl">What</span><input value={title} onChange={(e) => { setTitle(e.target.value); setAuto(e.target.value.trim() === ""); }} required placeholder="Pick a tenant or property and this writes itself — or type it" style={inp} /></label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <label><span className="lbl">Starts</span><input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} required style={inp} /></label>
           <label><span className="lbl">Ends (optional)</span><input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} style={inp} /></label>
           <label><span className="lbl">Who does it</span><select value={who} onChange={(e) => setWho(e.target.value)} style={inp}><option value="">Unassigned</option>{staff.map((s) => <option key={s.id} value={s.full_name}>{s.full_name}</option>)}</select></label>
           <label><span className="lbl">Status</span><select value={status} onChange={(e) => setStatus(e.target.value as DiaryStatus)} style={inp}><option value="confirmed">✓ Confirmed</option><option value="unconfirmed">? Unconfirmed</option><option value="cancelled">✕ Cancelled</option></select></label>
-          {!item && <label><span className="lbl">Tenant (optional)</span><select value={tenantId} onChange={(e) => setTenantId(e.target.value)} style={inp}><option value="">—</option>{tenants.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}</select></label>}
-          {!item && <label><span className="lbl">Property (optional)</span><select value={propertyId} onChange={(e) => setPropertyId(e.target.value)} style={inp}><option value="">—</option>{properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
+          {!item && <label><span className="lbl">For which tenant</span><select value={tenantId} onChange={(e) => { setTenantId(e.target.value); pick(kind, e.target.value, propertyId); }} style={inp}><option value="">No tenant — general</option>{tenants.map((t) => <option key={t.id} value={t.id}>{t.full_name}{t.room_number ? ` · ${t.room_number}` : ""}</option>)}</select></label>}
+          {!item && <label><span className="lbl">At which property</span><select value={propertyId} onChange={(e) => { setPropertyId(e.target.value); pick(kind, tenantId, e.target.value); }} style={inp}><option value="">No property — anywhere</option>{properties.map((p) => <option key={p.id} value={p.id}>{p.name}{p.postcode ? ` · ${p.postcode}` : ""}{p.landlordName ? ` · ${p.landlordName}` : ""}</option>)}</select></label>}
         </div>
         <label><span className="lbl">Notes</span><input value={notes} onChange={(e) => setNotes(e.target.value)} style={inp} /></label>
         {error && <p style={{ color: "var(--brick)", margin: 0, fontSize: 13 }}>{error}</p>}

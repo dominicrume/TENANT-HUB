@@ -30,13 +30,13 @@ export const POST = withRouteHandler({ resource: "sessions", action: "create" },
     if (!reqRow) return NextResponse.json({ error: "Request not found" }, { status: 404 });
     if (reqRow.status !== "pending") return NextResponse.json({ error: "Already decided" }, { status: 409 });
 
-    let delivered: boolean | null = null;
+    let delivered: boolean | null = null; let inviteUrl: string | null = null;
     if (decision === "approved") {
       const r = await issueInvite({ email: reqRow.email, role: reqRow.roleWanted, orgId: auth.actor.org_id, brand: auth.actor.brand, invitedBy: auth.actor.user_id, fullName: reqRow.fullName, origin: publicOrigin(req) });
-      delivered = r.delivered;
+      delivered = r.delivered; inviteUrl = r.url;
     }
     await decideAccessRequest(db(), { id, orgId: auth.actor.org_id, status: decision, decidedBy: auth.actor.user_id });
-    return NextResponse.json({ ok: true, status: decision, invited: delivered });
+    return NextResponse.json({ ok: true, status: decision, invited: delivered, inviteUrl });
   } catch (err) {
     console.error("[access-requests:POST]", err);
     return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });

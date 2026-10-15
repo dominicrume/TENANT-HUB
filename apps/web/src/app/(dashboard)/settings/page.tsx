@@ -57,7 +57,28 @@ export default function SettingsPage() {
   const [inviteRole, setInviteRole] = useState<(typeof INVITE_ROLES)[number]["value"]>("manager");
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteSentTo, setInviteSentTo] = useState<string | null>(null);
+  // The link itself comes back to the admin too (2026-10-15): email can't be the only road in,
+  // so it's shown here to copy or send by WhatsApp. Pending invites can be given a fresh link.
+  const [inviteLink, setInviteLink] = useState<{ email: string; url: string; delivered: boolean } | null>(null);
+  const [copied, setCopied] = useState(false);
+  interface PendingInvite { id: string; email: string; role: string; full_name: string | null; created_at: string; expires_at: string | null }
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  function loadInvites() {
+    fetch("/api/auth/invite").then((r) => (r.ok ? r.json() : [])).then((d) => setPendingInvites(Array.isArray(d) ? d : [])).catch(() => {});
+  }
+  async function reissue(p: PendingInvite) {
+    setInviteBusy(true); setInviteError(null);
+    try {
+      const res = await fetch("/api/auth/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: p.email, role: p.role, fullName: p.full_name || undefined }) });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) { setInviteError(body?.error ?? "Could not make a new link."); return; }
+      setInviteLink({ email: p.email, url: body.inviteUrl, delivered: !!body.delivered }); setCopied(false); loadInvites();
+    } catch { setInviteError("Could not reach the server."); } finally { setInviteBusy(false); }
+  }
+  async function copyLink() {
+    if (!inviteLink) return;
+    try { await navigator.clipboard.writeText(inviteLink.url); setCopied(true); } catch { window.prompt("Copy this link:", inviteLink.url); }
+  }
   const [orgCount, setOrgCount] = useState(0);
   // People who asked to join via /register (migration 055). Approving issues
   // the invite email on the spot — the same path as "Invite someone" below.
@@ -75,8 +96,9 @@ export default function SettingsPage() {
       const b = await r.json().catch(() => null);
       if (!r.ok) { setRequestNotice(b?.error ?? "Could not record that decision."); return; }
       const who = accessRequests.find((x) => x.id === id);
-      setRequestNotice(decision === "approve" ? (b?.invited ? `Invite sent to ${who?.email}. The link works once, for 14 days.` : `Approved — but the invite email could not be sent (email isn't configured here). Use "Invite someone" below to resend.`) : `Declined ${who?.fullName ?? ""}.`);
-      loadAccessRequests(); loadProfiles();
+      if (decision === "approve" && b?.inviteUrl && who) { setInviteLink({ email: who.email, url: b.inviteUrl, delivered: !!b.invited }); setCopied(false); }
+      setRequestNotice(decision === "approve" ? `Approved ${who?.fullName ?? ""}. Their link is below — ${b?.invited ? "it was emailed too." : "send it to them yourself; the email did not go out."}` : `Declined ${who?.fullName ?? ""}.`);
+      loadAccessRequests(); loadProfiles(); loadInvites();
     } catch { setRequestNotice("Could not reach the server."); }
     finally { setDecidingId(null); }
   }
@@ -122,7 +144,7 @@ export default function SettingsPage() {
     e.preventDefault();
     setInviteBusy(true);
     setInviteError(null);
-    setInviteSentTo(null);
+    setInviteLink(null);
     try {
       const res = await fetch("/api/auth/invite", {
         method: "POST",
@@ -134,10 +156,11 @@ export default function SettingsPage() {
         setInviteError(body?.error ?? "Could not send the invite. Try again.");
         return;
       }
-      setInviteSentTo(inviteEmail);
+      setInviteLink({ email: inviteEmail, url: body?.inviteUrl ?? "", delivered: !!body?.delivered }); setCopied(false);
       setInviteName("");
       setInviteEmail("");
       setInviteRole("manager");
+      loadInvites();
     } catch {
       setInviteError("Could not reach the server. The invite was not sent.");
     } finally {
@@ -148,6 +171,7 @@ export default function SettingsPage() {
   useEffect(() => {
     loadProfiles();
     loadAccessRequests();
+    loadInvites();
     fetch("/api/stamp-queue").then((r) => (r.ok ? r.json() : [])).then((d) => setStamps(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/tenants").then((r) => (r.ok ? r.json() : [])).then((d) => setActiveTenantsCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
     fetch("/api/drafts").then((r) => (r.ok ? r.json() : [])).then((d) => setAiExtractionsCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
@@ -265,9 +289,30 @@ export default function SettingsPage() {
                   </select>
                 </label>
                 {inviteError && <p style={{ color: "var(--brick)", margin: 0, fontSize: 13 }}>{inviteError}</p>}
-                {inviteSentTo && !inviteError && <p style={{ color: "var(--live)", margin: 0, fontSize: 13 }}>Invite sent to {inviteSentTo}. The link works once, for 14 days.</p>}
-                <div><button type="submit" className="rel sm" disabled={inviteBusy || !inviteEmail}>{inviteBusy ? "Sending…" : "Send invite"}</button></div>
+                <div><button type="submit" className="rel sm" disabled={inviteBusy || !inviteEmail}>{inviteBusy ? "Working…" : "Make the invite"}</button></div>
               </form>
+              {inviteLink && (
+                <div className="li" style={{ display: "grid", gap: 8, background: "rgba(30,127,79,.07)" }}>
+                  <b style={{ fontSize: 13.5 }}>Link for {inviteLink.email} <span className="muted" style={{ fontWeight: 500 }}>· works once, for 14 days</span></b>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <input readOnly value={inviteLink.url} onFocus={(e) => e.currentTarget.select()} style={{ ...inp, flex: 1, minWidth: 260, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }} />
+                    <button type="button" className="rel sm" onClick={() => void copyLink()}>{copied ? "Copied ✓" : "Copy link"}</button>
+                    <a className="btn ghost sm" href={`https://wa.me/?text=${encodeURIComponent(`You've been invited to Tenant Hub. Set your password here (works once, 14 days): ${inviteLink.url}`)}`} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 12.5, color: inviteLink.delivered ? "var(--live)" : "var(--brick)" }}>{inviteLink.delivered ? "It was emailed to them as well." : "The email did not go out (the sending domain isn't verified yet) — send them this link yourself."}</p>
+                </div>
+              )}
+              {pendingInvites.length > 0 && (
+                <>
+                  <div className="ch"><h3>Waiting to set a password · {pendingInvites.length}</h3><span className="muted">Lost the email? Make a new link.</span></div>
+                  {pendingInvites.map((p) => (
+                    <div className="li" key={p.id} style={{ alignItems: "center" }}>
+                      <div className="body"><b>{p.full_name || p.email}</b><p>{p.email} · {p.role.replace("_", " ")} · invited {formatDateTime(p.created_at)}{p.expires_at && new Date(p.expires_at) < new Date() ? " · link expired" : ""}</p></div>
+                      <div className="btns"><button type="button" className="btn ghost sm" disabled={inviteBusy} onClick={() => void reissue(p)}>New link</button></div>
+                    </div>
+                  ))}
+                </>
+              )}
             </section>
             )}
 

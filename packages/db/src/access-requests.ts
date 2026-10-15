@@ -44,7 +44,13 @@ export async function decideAccessRequest(client: Queryable, i: { id: string; or
 
 /** Organisation names only — what the public "request access" form needs to offer. */
 export async function listOrganisationNames(client: Queryable): Promise<Array<{ id: string; name: string }>> {
-  const r = await client.query<{ id: string; name: string }>("SELECT id, name FROM organisations ORDER BY name");
+  // Only organisations with someone who can approve — a request to an organisation with
+  // no admin or manager would sit unseen forever.
+  const r = await client.query<{ id: string; name: string }>(
+    `SELECT o.id, o.name FROM organisations o
+     WHERE EXISTS (SELECT 1 FROM profiles p WHERE p.role IN ('admin','manager')
+                   AND (p.org_id = o.id OR p.id IN (SELECT profile_id FROM profile_organisations WHERE org_id = o.id)))
+     ORDER BY o.name`);
   return r.rows;
 }
 
