@@ -32,7 +32,7 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
   try {
     [props, units, alerts, tenancies, arrears, landlords, certs] = await Promise.all([
       db().query<PropertyRow>("SELECT id, name, address_line1, city, postcode, asset_class, floors, landlord_id, created_at FROM properties WHERE org_id = $1 ORDER BY name", [orgId]),
-      db().query<UnitRow>("SELECT id, property_id, status, unit_class FROM units WHERE org_id = $1", [orgId]),
+      db().query<UnitRow & { reference: string }>("SELECT id, property_id, status, unit_class, reference FROM units WHERE org_id = $1 ORDER BY reference", [orgId]),
       db().query<{ property_id: string }>("SELECT property_id FROM compliance_alerts WHERE org_id = $1 AND resolved_at IS NULL", [orgId]),
       db().query<TenancyRow>("SELECT unit_id, tenant_id FROM tenancies WHERE org_id = $1 AND status = 'active'", [orgId]),
       db().query<ArrearsRow>("SELECT tenant_id, balance FROM tenancy_arrears WHERE org_id = $1", [orgId]),
@@ -46,7 +46,7 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
 
   const landlordName = new Map(landlords.rows.map((l) => [l.id, l.name]));
 
-  const unitsByProperty = new Map<string, UnitRow[]>();
+  const unitsByProperty = new Map<string, Array<UnitRow & { reference: string }>>();
   for (const u of units.rows) unitsByProperty.set(u.property_id, [...(unitsByProperty.get(u.property_id) ?? []), u]);
   const alertsByProperty = new Map<string, number>();
   for (const a of alerts.rows) alertsByProperty.set(a.property_id, (alertsByProperty.get(a.property_id) ?? 0) + 1);
@@ -75,6 +75,8 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
 
     return {
       ...p, unitsCount: us.length, occupiedCount: us.filter((u) => u.status === "occupied").length,
+      // The rooms themselves, so a viewing or an event can be booked at a room without another round trip.
+      units: us.map((u) => ({ id: u.id, reference: u.reference, status: u.status })),
       openAlerts: alertsByProperty.get(p.id) ?? 0, arrearsCount,
       landlordName: p.landlord_id ? (landlordName.get(p.landlord_id) ?? null) : null,
       status: pendingReasons.length > 0 ? ("pending" as const) : ("active" as const),

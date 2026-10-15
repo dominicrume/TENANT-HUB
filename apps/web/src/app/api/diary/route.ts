@@ -51,7 +51,10 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
     ]);
 
     const today0 = new Date(new Date().toDateString());
-    const all: DiaryItem[] = [
+    // The day an event belongs to is its UK calendar day, not the UTC date of its timestamp —
+    // a 00:30 viewing in British Summer Time was landing on the day before.
+    const dayKey = (at: string, allDay: boolean) => (allDay ? at.slice(0, 10) : new Date(at).toLocaleDateString("en-CA", { timeZone: "Europe/London" }));
+    const raw: Array<Omit<DiaryItem, "day">> = [
       ...entries.rows.map((d) => ({ id: d.id, source: (d.kind === "viewing" && (d.lead_id || d.tenant_id) ? "viewing" : "diary") as DiaryItem["source"], kind: d.kind, title: d.title, at: d.starts_at, endAt: d.ends_at, allDay: false, done: Boolean(d.done_at), status: (d.status || "confirmed") as DiaryItem["status"], href: d.lead_id ? "/leads" : d.tenant_id ? `/tenants/${d.tenant_id}` : d.property_id ? `/properties/${d.property_id}` : null, who: d.tenant, where: d.property, notes: d.notes, assignedTo: d.assigned_to, amount: null })),
       ...sessions.rows.map((s) => ({ id: s.id, source: "session" as const, kind: "session", title: `Support session · ${s.full_name}${s.session_type ? ` · ${s.session_type}` : ""}`, at: s.session_date, endAt: null, allDay: true, done: new Date(s.session_date) < today0, status: "confirmed" as const, href: `/tenants/${s.tenant_id}?tab=sessions`, who: s.full_name, where: null, notes: null, assignedTo: s.entered_by_name, amount: null })),
       ...commitments.rows.map((c) => ({ id: c.id, source: "commitment" as const, kind: "promise", title: `${c.owner === "tenant" ? "They promised" : "We promised"}: ${c.text}`, at: c.due_on, endAt: null, allDay: true, done: c.status !== "open", status: "confirmed" as const, href: c.tenant_id ? `/tenants/${c.tenant_id}` : null, who: c.full_name, where: null, notes: null, assignedTo: null, amount: null })),
@@ -59,7 +62,8 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
       ...certs.rows.map((c) => ({ id: c.id, source: "certificate" as const, kind: "task", title: `Task: renew ${c.name} · ${c.property}`, at: c.expires_on, endAt: null, allDay: true, done: false, status: "unconfirmed" as const, href: `/properties/${c.property_id}`, who: null, where: c.property, notes: `Runs out ${c.expires_on}`, assignedTo: null, amount: null })),
       ...moveIns.rows.map((t) => ({ id: t.id, source: "move_in" as const, kind: "move_in", title: `Move in · ${t.full_name}${t.room_number ? ` · ${t.room_number}` : ""}`, at: t.moved_in, endAt: null, allDay: true, done: new Date(t.moved_in) < today0, status: "confirmed" as const, href: `/tenants/${t.id}`, who: t.full_name, where: t.room_number, notes: null, assignedTo: null, amount: null })),
       ...rent.rows.map((r) => ({ id: r.id, source: "rent_due" as const, kind: "rent_due", title: `£${Number(r.amount).toFixed(2)} rent due from ${r.full_name}`, at: r.due_date, endAt: null, allDay: true, done: r.is_paid, status: "confirmed" as const, href: `/tenants/${r.tenant_id}?tab=ledger`, who: r.full_name, where: r.room_number, notes: r.is_paid ? "Paid" : "Not yet paid", assignedTo: null, amount: Number(r.amount) })),
-    ].filter((i) => i.at.slice(0, 10) >= from && i.at.slice(0, 10) <= to).sort((a, b) => a.at.localeCompare(b.at));
+    ];
+    const all: DiaryItem[] = raw.map((i) => ({ ...i, day: dayKey(i.at, i.allDay) })).filter((i) => i.day >= from && i.day <= to).sort((a, b) => a.at.localeCompare(b.at));
 
     const people = [...new Set(all.map((i) => i.assignedTo).filter((x): x is string => Boolean(x)))].sort();
     let items = who ? all.filter((i) => i.assignedTo === who) : all;

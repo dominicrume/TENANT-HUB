@@ -4,6 +4,8 @@ export type DiaryStatus = "confirmed" | "unconfirmed" | "cancelled";
 export interface DiaryItem {
   id: string; source: DiarySource;
   kind: string; title: string; at: string; endAt: string | null; allDay: boolean; done: boolean; status: DiaryStatus;
+  /** The calendar day it belongs to, YYYY-MM-DD in Europe/London — never the UTC date of `at`. */
+  day: string;
   href: string | null; who: string | null; where: string | null; notes: string | null;
   /** The member of staff this is for — "I need to know what my people are doing that day". */
   assignedTo: string | null;

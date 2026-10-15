@@ -62,7 +62,8 @@ export default function DiaryPage() {
   const allPeople = useMemo(() => [...new Set([...people, ...staff.map((s) => s.full_name)])].sort(), [people, staff]);
   const colourFor = (name: string | null) => (name ? PERSON_COLOURS[Math.max(0, allPeople.indexOf(name)) % PERSON_COLOURS.length] : "#8FA0B4");
   const visible = (items ?? []).filter((i) => !hiddenKinds.has(i.kind) && !(i.assignedTo && hiddenPeople.has(i.assignedTo)));
-  const byDay = useMemo(() => { const m = new Map<string, DiaryItem[]>(); for (const it of visible) { const k = it.at.slice(0, 10); m.set(k, [...(m.get(k) ?? []), it]); } return m; }, [visible]);
+  const hiddenCount = (items ?? []).length - visible.length;
+  const byDay = useMemo(() => { const m = new Map<string, DiaryItem[]>(); for (const it of visible) { m.set(it.day, [...(m.get(it.day) ?? []), it]); } return m; }, [visible]);
   const today = ymd(new Date());
 
   const go = (n: number) => { const a = parse(anchor); setAnchor(ymd(view === "month" ? new Date(a.getFullYear(), a.getMonth() + n, 1) : view === "day" ? addDays(a, n) : view === "list" ? addDays(a, 30 * n) : addDays(a, 7 * n))); };
@@ -135,7 +136,9 @@ export default function DiaryPage() {
             </div>
           </div>
           <div>
-            <div className="lbl">Event types</div>
+            <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>Event types
+              <span><button type="button" onClick={() => setHiddenKinds(new Set())} style={miniNav}>all</button>·<button type="button" onClick={() => setHiddenKinds(new Set(DIARY_KINDS.map((k) => k.key)))} style={miniNav}>none</button></span>
+            </div>
             <div style={{ display: "grid", gap: 3 }}>
               {DIARY_KINDS.map((k) => (
                 <label key={k.key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, cursor: "pointer" }}>
@@ -146,7 +149,9 @@ export default function DiaryPage() {
             </div>
           </div>
           <div>
-            <div className="lbl">{profile?.org_name ?? "Workspace"} · calendars</div>
+            <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>{profile?.org_name ?? "Workspace"} · calendars
+              {allPeople.length > 1 && <span><button type="button" onClick={() => setHiddenPeople(new Set())} style={miniNav}>all</button>·<button type="button" onClick={() => setHiddenPeople(new Set(allPeople))} style={miniNav}>none</button></span>}
+            </div>
             <div style={{ display: "grid", gap: 3 }}>
               {allPeople.length === 0 && <span className="muted" style={{ fontSize: 12 }}>Assign something to someone and their calendar appears here.</span>}
               {allPeople.map((p) => (
@@ -173,6 +178,12 @@ export default function DiaryPage() {
             </div>
           </div>
 
+          {hiddenCount > 0 && (
+            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8, fontSize: 12.5, color: "var(--amber-deep)" }}>
+              <span>{hiddenCount} event{hiddenCount === 1 ? "" : "s"} in this range {hiddenCount === 1 ? "is" : "are"} hidden by the ticks on the left.</span>
+              <button type="button" className="btn ghost sm" onClick={() => { setHiddenKinds(new Set()); setHiddenPeople(new Set()); }}>Show everything</button>
+            </div>
+          )}
           {items === null ? <div className="card"><div className="li"><p className="muted">Loading the diary…</p></div></div> : view === "month" ? (
             <div className="card" style={{ overflow: "hidden" }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "var(--cream)", borderBottom: "1px solid var(--line)" }}>
@@ -191,7 +202,7 @@ export default function DiaryPage() {
             </div>
           ) : view === "day" ? (
             <div className="card">
-              {(byDay.get(anchor) ?? []).length === 0 ? <div className="li"><p className="muted">Nothing on. Double-click a day in month view, or + New event.</p></div>
+              {(byDay.get(anchor) ?? []).length === 0 ? <div className="li"><p className="muted">{hiddenCount > 0 ? "Nothing on that your ticks on the left allow — untick fewer types, or Show everything." : "Nothing on. Double-click a day in month view, or + New event."}</p></div>
                 : (byDay.get(anchor) ?? []).map((it) => <div key={`${it.source}-${it.id}`} className="li" style={{ padding: "6px 12px" }}><Chip it={it} /></div>)}
             </div>
           ) : view === "list" ? (
@@ -228,7 +239,13 @@ export default function DiaryPage() {
       </div>
 
       {sel && <EventPopover it={sel} onClose={() => setSel(null)} onPatch={(b) => patch(sel, b)} onRemove={() => remove(sel)} onEdit={() => { setEditor({ open: true, item: sel }); setSel(null); }} />}
-      {editor.open && <EventEditor date={editor.date} item={editor.item ?? null} staff={staff} tenants={tenants} properties={properties} onClose={() => setEditor({ open: false })} onSaved={() => { setEditor({ open: false }); void load(); }} />}
+      {editor.open && <EventEditor date={editor.date} item={editor.item ?? null} staff={staff} tenants={tenants} properties={properties} onClose={() => setEditor({ open: false })} onSaved={(at, k) => {
+        // Land on the day you just saved, with its type visible — you must see what you saved.
+        setEditor({ open: false });
+        setHiddenKinds((s) => { if (!s.has(k)) return s; const n = new Set(s); n.delete(k); return n; });
+        setAnchor(ymd(new Date(at)));
+        void load();
+      }} />}
       <style jsx global>{`@media (max-width: 900px) { .diary-grid { grid-template-columns: 1fr !important; } }`}</style>
     </div>
   );
@@ -265,7 +282,7 @@ function EventPopover({ it, onClose, onPatch, onRemove, onEdit }: { it: DiaryIte
     </div>, document.body);
 }
 
-function EventEditor({ date, item, staff, tenants, properties, onClose, onSaved }: { date?: string; item: DiaryItem | null; staff: Array<{ id: string; full_name: string }>; tenants: Array<{ id: string; full_name: string; room_number?: string | null }>; properties: Array<{ id: string; name: string; postcode?: string | null; landlordName?: string | null }>; onClose: () => void; onSaved: () => void }) {
+function EventEditor({ date, item, staff, tenants, properties, onClose, onSaved }: { date?: string; item: DiaryItem | null; staff: Array<{ id: string; full_name: string }>; tenants: Array<{ id: string; full_name: string; room_number?: string | null }>; properties: Array<{ id: string; name: string; postcode?: string | null; landlordName?: string | null }>; onClose: () => void; onSaved: (at: string, kind: string) => void }) {
   const { profile } = useAuth();
   const toLocal = (iso: string) => { const d = new Date(iso); return `${ymd(d)}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
   const [kind, setKind] = useState(item?.kind ?? "viewing"); const [title, setTitle] = useState(item?.title ?? "");
@@ -288,7 +305,7 @@ function EventEditor({ date, item, staff, tenants, properties, onClose, onSaved 
       const r = await fetch(item ? `/api/diary/${item.id}` : "/api/diary", { method: item ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const b = await r.json().catch(() => null);
       if (!r.ok) { setError(b?.error ?? "Could not save"); return; }
-      onSaved();
+      onSaved(body.starts_at, kind);
     } catch { setError("Could not reach the server."); } finally { setBusy(false); }
   }
   return createPortal(

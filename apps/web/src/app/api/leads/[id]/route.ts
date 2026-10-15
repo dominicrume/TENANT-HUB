@@ -18,7 +18,7 @@ const STAGES = new Set<string>([...LEAD_STAGES.map((s) => s.key), "lost"]);
  */
 export const PATCH = withRouteHandler({ resource: "tenants", action: "update" }, async (req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
-  const body = (await req.json().catch(() => null)) as { action?: string; stage?: string; viewing_at?: string | null; property_id?: string | null; unit_id?: string | null; notes?: string; lost_reason?: string; phone?: string; email?: string; full_name?: string } | null;
+  const body = (await req.json().catch(() => null)) as { action?: string; stage?: string; viewing_at?: string | null; assigned_to?: string | null; property_id?: string | null; unit_id?: string | null; notes?: string; lost_reason?: string; phone?: string; email?: string; full_name?: string; referee_name?: string; referee_contact?: string; reference_notes?: string } | null;
   try {
     const lead = (await db().query<{ id: string; full_name: string; phone: string | null; email: string | null; stage: string; property_id: string | null; unit_id: string | null; viewing_at: string | null }>(
       "SELECT id, full_name, phone, email, stage, property_id, unit_id, viewing_at FROM leads WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id])).rows[0];
@@ -44,6 +44,16 @@ export const PATCH = withRouteHandler({ resource: "tenants", action: "update" },
     }
 
     const record: Record<string, unknown> = { id: lead.id };
+    const now = new Date().toISOString();
+    // The three named steps between the viewing and sign-up.
+    if (body?.action === "viewing_done") { if (!lead.viewing_at) return NextResponse.json({ error: "Book the viewing first" }, { status: 422 }); record["viewing_done_at"] = now; }
+    if (body?.action === "reference_requested") {
+      if (!body.referee_name?.trim()) return NextResponse.json({ error: "Who are you asking for the reference?" }, { status: 422 });
+      record["referee_name"] = body.referee_name.trim(); record["referee_contact"] = body.referee_contact?.trim() || null; record["reference_notes"] = body.reference_notes?.trim() || null; record["reference_requested_at"] = now;
+    }
+    if (body?.action === "reference_received") { record["reference_received_at"] = now; record["stage"] = "referenced"; if (typeof body.reference_notes === "string") record["reference_notes"] = body.reference_notes.trim() || null; }
+    if (body?.action === "viewing_cancelled") { record["viewing_at"] = null; record["assigned_to"] = null; record["viewing_done_at"] = null; if (lead.stage === "viewing") record["stage"] = "received"; }
+    if (body && "assigned_to" in body) record["assigned_to"] = body.assigned_to?.trim() || null;
     if (typeof body?.stage === "string") {
       if (!STAGES.has(body.stage)) return NextResponse.json({ error: "Unknown stage" }, { status: 422 });
       record["stage"] = body.stage;
@@ -51,7 +61,7 @@ export const PATCH = withRouteHandler({ resource: "tenants", action: "update" },
     }
     if (body && "viewing_at" in body) {
       record["viewing_at"] = body.viewing_at || null;
-      if (body.viewing_at && !record["stage"] && (lead.stage === "received" || lead.stage === "referenced")) record["stage"] = "viewing";
+      if (body.viewing_at) { record["viewing_done_at"] = null; if (!record["stage"] && lead.stage === "received") record["stage"] = "viewing"; }
     }
     if (body && "property_id" in body) record["property_id"] = body.property_id || null;
     if (body && "unit_id" in body) record["unit_id"] = body.unit_id || null;
@@ -63,17 +73,21 @@ export const PATCH = withRouteHandler({ resource: "tenants", action: "update" },
 
     const { data } = await writeWithAudit({ table: "leads", record, action: "UPDATE", org_id: auth.actor.org_id, ...auth.actor });
 
-    // A booked viewing is a diary entry — the diary is where tomorrow lives.
-    if (body?.viewing_at && body.viewing_at !== lead.viewing_at) {
+    // A booked viewing is a diary entry, in the calendar of whoever does it — the diary is where tomorrow lives.
+    if (body?.viewing_at && (body.viewing_at !== lead.viewing_at || "assigned_to" in body)) {
       const propId = (record["property_id"] as string | null | undefined) ?? lead.property_id;
+      const unitId = (record["unit_id"] as string | null | undefined) ?? lead.unit_id;
       const propName = propId ? (await db().query<{ name: string }>("SELECT name FROM properties WHERE id = $1", [propId])).rows[0]?.name : null;
+      const unitRef = unitId ? (await db().query<{ reference: string }>("SELECT reference FROM units WHERE id = $1", [unitId])).rows[0]?.reference : null;
       await db().query("DELETE FROM diary_entries WHERE lead_id = $1 AND kind = 'viewing' AND done_at IS NULL", [lead.id]);
       await writeWithAudit({
         table: "diary_entries",
-        record: { org_id: auth.actor.org_id, kind: "viewing", title: `Viewing · ${lead.full_name}${propName ? ` · ${propName}` : ""}`, starts_at: body.viewing_at, lead_id: lead.id, property_id: propId ?? null, created_by: auth.actor.user_name } as Record<string, unknown>,
+        record: { org_id: auth.actor.org_id, kind: "viewing", title: `Viewing · ${lead.full_name}${propName ? ` · ${propName}` : ""}${unitRef ? ` · ${unitRef}` : ""}`, starts_at: body.viewing_at, lead_id: lead.id, property_id: propId ?? null, assigned_to: (record["assigned_to"] as string | null | undefined) ?? null, status: "confirmed", notes: body.notes?.trim() || null, created_by: auth.actor.user_name } as Record<string, unknown>,
         action: "CREATE", org_id: auth.actor.org_id, ...auth.actor,
       });
     }
+    if (body?.action === "viewing_done") await db().query("UPDATE diary_entries SET done_at = COALESCE(done_at, NOW()) WHERE lead_id = $1 AND kind = 'viewing'", [lead.id]);
+    if (body?.action === "viewing_cancelled") await db().query("UPDATE diary_entries SET status = 'cancelled' WHERE lead_id = $1 AND kind = 'viewing' AND done_at IS NULL", [lead.id]);
     return NextResponse.json(data);
   } catch (err) {
     console.error("[leads:PATCH]", err);
