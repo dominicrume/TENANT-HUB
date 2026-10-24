@@ -8,13 +8,16 @@
  * compiling libpq on Intel takes forever (brew Tier 3). This uses the
  * `pg` package already in packages/db — nothing to install.
  *
- * Usage, from the repo root, with Railway's env injected so DATABASE_URL
- * is set:
+ * Usage, from the repo root. The Postgres service exposes BOTH an internal
+ * URL (postgres.railway.internal, only resolves inside Railway) and a public
+ * URL via the TCP proxy — the script picks the public one so this runs from
+ * your laptop:
  *
- *   railway run --service web -- \
+ *   railway run --service Postgres -- \
  *     pnpm --filter=@tenant-hub/db exec node scripts/wipe-managing-agent.mjs "Matty's Place"
  *
- * It PRINTS what it will delete, then prompts Y/n before touching anything.
+ * It PRINTS what it will delete, then prompts you to type DELETE before
+ * touching anything.
  */
 import pg from "pg";
 import { createInterface } from "node:readline/promises";
@@ -26,9 +29,15 @@ if (!name) {
   process.exit(1);
 }
 
-const url = process.env.DATABASE_URL;
+// Prefer the public URL: an internal .railway.internal host won't resolve from your laptop.
+const url = process.env.DATABASE_PUBLIC_URL
+  || (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes(".railway.internal") ? process.env.DATABASE_URL : null);
 if (!url) {
-  console.error("No DATABASE_URL in env. Prefix the command with `railway run --service web --` so the variable is injected.");
+  console.error(
+    "No reachable Postgres URL in env.\n" +
+    "Run with `railway run --service Postgres --` so DATABASE_PUBLIC_URL is injected.\n" +
+    "If you ran with --service web, you got the internal hostname (postgres.railway.internal) which only resolves inside a Railway container."
+  );
   process.exit(1);
 }
 
