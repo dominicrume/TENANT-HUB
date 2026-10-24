@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   if (!orgName) return NextResponse.json({ error: "A managing agent name is required" }, { status: 422 });
   if (!fullName) return NextResponse.json({ error: "Your full name is required so your work carries your signature" }, { status: 422 });
   if (!email || !/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "A real email address is required" }, { status: 422 });
-  if (!password || password.length < 10) return NextResponse.json({ error: "A password of at least 10 characters is required" }, { status: 422 });
+  if (!password || password.length < 6) return NextResponse.json({ error: "A password of at least 6 characters is required" }, { status: 422 });
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "127.0.0.1";
   const client = db();

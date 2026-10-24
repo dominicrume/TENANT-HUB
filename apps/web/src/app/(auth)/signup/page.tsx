@@ -26,7 +26,7 @@ export default function ManagingAgentSignupPage() {
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const pwScore = scorePassword(password);
-  const pwOk = password.length >= 10;
+  const pwOk = password.length >= 6;
   const match = password && confirm && password === confirm;
   const ready = orgName.trim().length > 1 && fullName.trim().length > 1 && emailOk && pwOk && match;
 
@@ -73,14 +73,14 @@ export default function ManagingAgentSignupPage() {
           <div style={{ display: "grid", gap: 4 }}>
             <span style={s.label}>Password</span>
             <div style={{ position: "relative" }}>
-              <input value={password} onChange={(e) => setPassword(e.target.value)} onKeyUp={(e) => setCaps(e.getModifierState?.("CapsLock") ?? false)} type={showPw ? "text" : "password"} required autoComplete="new-password" minLength={10} style={{ ...s.input, paddingRight: 64 }} />
+              <input value={password} onChange={(e) => setPassword(e.target.value)} onKeyUp={(e) => setCaps(e.getModifierState?.("CapsLock") ?? false)} type={showPw ? "text" : "password"} required autoComplete="new-password" minLength={6} style={{ ...s.input, paddingRight: 64 }} />
               <button type="button" onClick={() => setShowPw((v) => !v)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "var(--slate)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showPw ? "Hide" : "Show"}</button>
             </div>
             <div aria-hidden="true" style={{ display: "flex", gap: 4, marginTop: 2 }}>
               {[0, 1, 2, 3].map((i) => <span key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < pwScore ? (pwScore <= 1 ? "var(--brick)" : pwScore === 2 ? "var(--amber)" : "var(--live)") : "var(--line)" }} />)}
             </div>
             <span style={{ fontSize: 12, color: password.length === 0 ? "var(--slate-2)" : pwOk ? "var(--slate)" : "var(--brick)" }}>
-              {password.length === 0 ? "At least 10 characters — a short phrase works well." : pwOk ? (pwScore >= 3 ? "Strong." : pwScore === 2 ? "OK — add a number or symbol to make it strong." : "Weak — mix words, numbers and a symbol.") : `${10 - password.length} more to reach the minimum.`}
+              {password.length === 0 ? "At least 6 characters — a short phrase works well." : pwOk ? (pwScore >= 3 ? "Strong." : pwScore === 2 ? "OK — add a number or symbol to make it strong." : "Weak — mix words, numbers and a symbol.") : `${6 - password.length} more to reach the minimum.`}
             </span>
             {caps && <span style={{ fontSize: 12, color: "var(--amber-deep)" }}>Caps Lock is on.</span>}
           </div>
