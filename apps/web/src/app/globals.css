@@ -377,6 +377,37 @@ label { display: block; }
 .act-timeline li .meat p { margin: 2px 0 0; font-size: 12.5px; color: var(--slate); }
 .act-timeline li .chev { margin-left: auto; color: var(--slate-2); font-size: 18px; font-weight: 700; line-height: 1; padding-top: 2px; }
 
+/* ── Dynamic hierarchy — Managing Agent → Landlords + Staff — at the top of Settings → Users. */
+.dyn-hub { overflow: hidden; }
+.dyn-body { padding: 18px 20px 16px; display: grid; gap: 16px; }
+.dyn-ma { background: linear-gradient(135deg, var(--navy), #1F3451); color: #fff; padding: 16px 18px; border-radius: 14px; box-shadow: 0 6px 20px rgba(15,28,46,.14); display: grid; gap: 4px; }
+.dyn-ma small { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.65); }
+.dyn-ma b { font-size: 22px; font-weight: 600; letter-spacing: -.4px; }
+.dyn-ma span { font-size: 12.5px; color: rgba(255,255,255,.75); }
+.dyn-arms { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; position: relative; }
+@media (max-width: 720px) { .dyn-arms { grid-template-columns: 1fr; } }
+.dyn-arms::before { content: ""; position: absolute; top: -14px; left: 50%; width: 2px; height: 14px; background: var(--line); }
+@media (max-width: 720px) { .dyn-arms::before { display: none; } }
+.dyn-arm { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; position: relative; }
+.dyn-arm::before { content: ""; position: absolute; top: -14px; left: 50%; width: 2px; height: 14px; background: var(--line); }
+@media (max-width: 720px) { .dyn-arm::before { display: none; } }
+.dyn-arm .arm-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.dyn-arm .arm-hd h4 { margin: 0; font-size: 13px; font-weight: 600; color: var(--navy); text-transform: uppercase; letter-spacing: .04em; }
+.dyn-arm .arm-hd .n { background: var(--navy); color: #fff; font-size: 11px; font-weight: 700; min-width: 20px; height: 20px; border-radius: 10px; display: inline-grid; place-items: center; padding: 0 6px; font-variant-numeric: tabular-nums; }
+.dyn-list, .dyn-staff { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.dyn-list li a { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; text-decoration: none; color: inherit; }
+.dyn-list li a:hover { background: var(--cream); }
+.dyn-list li .pip { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(150deg, var(--amber), var(--amber-deep)); color: var(--navy); display: grid; place-items: center; font-weight: 700; font-size: 11px; flex: none; }
+.dyn-list li span:nth-child(2) { flex: 1; font-size: 13px; color: var(--navy); font-weight: 500; }
+.dyn-list li .chev { color: var(--slate-2); font-size: 16px; }
+.dyn-staff li { display: flex; align-items: center; gap: 10px; padding: 6px 2px; font-size: 12.5px; color: var(--navy); }
+.dyn-staff li .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dyn-staff li .lbl { flex: 1; }
+.dyn-staff li .n { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--slate); }
+.dyn-empty { display: inline-block; padding: 8px 12px; background: var(--cream); color: var(--navy); font-weight: 600; font-size: 12.5px; text-decoration: none; border-radius: 8px; border: 1px dashed #D7CFBD; }
+.dyn-empty:hover { background: var(--surface); border-color: var(--amber); }
+.dyn-foot { margin: 2px 2px 0; font-size: 12px; color: var(--slate-2); text-align: center; }
+
 /* kbd pill — used by the diary shortcuts panel and the inline hints. */
 .kb { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; background: var(--cream); border: 1px solid #D7CFBD; border-bottom-width: 2px; border-radius: 6px; font-family: var(--font-jetbrains-mono), monospace; font-size: 11px; font-weight: 600; color: var(--navy); line-height: 1; }
 

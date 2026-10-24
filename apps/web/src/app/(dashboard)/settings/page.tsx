@@ -56,6 +56,7 @@ const STAMP_TONE: Record<string, { color: string; label: string }> = {
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("users");
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [landlords, setLandlords] = useState<Array<{ id: string; name: string }>>([]);
   const [stamps, setStamps] = useState<Stamp[]>([]);
   const [rate, setRate] = useState("150");
   const [settingId, setSettingId] = useState<string | null>(null);
@@ -202,6 +203,8 @@ export default function SettingsPage() {
     // Migration 046: only worth showing a "switch workspace" link at all if
     // this account actually has more than one to switch between.
     fetch("/api/organisations/mine").then((r) => (r.ok ? r.json() : [])).then((d) => setOrgCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
+    // Landlords for the Dynamic hierarchy card at the top of Users.
+    fetch("/api/landlords").then((r) => (r.ok ? r.json() : [])).then((d) => setLandlords(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -274,6 +277,48 @@ export default function SettingsPage() {
       <div style={{ flex: 1, minWidth: 280 }}>
         {tab === "users" && (
           <>
+            {/* Dynamic — the hierarchy Matlub drew: Managing Agent → Landlords and Staff.
+                Whose software this is, who it manages for, who runs it; all one picture at the top. */}
+            <section className="card dyn-hub" style={{ marginBottom: 18 }}>
+              <div className="ch"><h3>Your organisation at a glance</h3><span className="muted" style={{ fontSize: 12 }}>Dynamic — the shape of {profile?.org_name ?? "this account"}</span></div>
+              <div className="dyn-body">
+                <div className="dyn-ma">
+                  <small>Managing agent</small>
+                  <b>{profile?.org_name ?? "—"}</b>
+                  <span>Everything below belongs here. Nothing crosses to another managing agent.</span>
+                </div>
+                <div className="dyn-arms">
+                  <div className="dyn-arm">
+                    <div className="arm-hd"><h4>Landlords</h4><span className="n">{landlords.length}</span></div>
+                    <p className="muted" style={{ margin: "0 0 8px", fontSize: 12 }}>Property owners you manage for.</p>
+                    {landlords.length === 0 ? (
+                      <Link href="/properties?addLandlord=1" className="dyn-empty">Add the first landlord →</Link>
+                    ) : (
+                      <ul className="dyn-list">
+                        {landlords.map((l) => <li key={l.id}><Link href={`/landlords/${l.id}`}><span className="pip">{l.name.slice(0, 1).toUpperCase()}</span><span>{l.name}</span><span className="chev">›</span></Link></li>)}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="dyn-arm">
+                    <div className="arm-hd"><h4>Staff</h4><span className="n">{profiles.filter((p) => p.role !== "tenant").length}</span></div>
+                    <p className="muted" style={{ margin: "0 0 8px", fontSize: 12 }}>People you issued a login to — grouped three ways below.</p>
+                    <ul className="dyn-staff">
+                      {STAFF_GROUPS.map((g) => {
+                        const n = profiles.filter((p) => g.roles.includes(p.role)).length;
+                        return (
+                          <li key={g.key}>
+                            <span className="dot" style={{ background: g.dot, boxShadow: `0 0 0 3px ${g.tint}` }} />
+                            <span className="lbl">{g.label}</span>
+                            <span className="n">{n}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
+                <p className="dyn-foot">Each person signs in with their own name — every change is stamped with their initials, the date and the time.</p>
+              </div>
+            </section>
             {accessRequests.length > 0 && (
               <section className="card" style={{ marginBottom: 18, borderColor: "var(--amber)" }}>
                 <div className="ch"><h3>Access requests · {accessRequests.length}</h3></div>
