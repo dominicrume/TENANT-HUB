@@ -351,6 +351,9 @@ label { display: block; }
 .doc-dot.waiting { background: var(--amber); }
 .doc-dot.received { background: var(--live); }
 
+/* kbd pill — used by the diary shortcuts panel and the inline hints. */
+.kb { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; background: var(--cream); border: 1px solid #D7CFBD; border-bottom-width: 2px; border-radius: 6px; font-family: var(--font-jetbrains-mono), monospace; font-size: 11px; font-weight: 600; color: var(--navy); line-height: 1; }
+
 /* ── Dashboard: Matlub's three numbered sections (Analytics / Tasks / Signup timeline). */
 .dash-sec { margin: 22px 0 0; }
 .dash-sec .sec-hd { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; flex-wrap: wrap; }

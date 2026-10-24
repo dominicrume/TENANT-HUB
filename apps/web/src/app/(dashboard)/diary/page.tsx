@@ -10,14 +10,16 @@
  */
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { DIARY_KINDS, STATUS_MARK, RECURRENCES, FEEDBACK, ACCOMPANIED, kindMeta, type DiaryItem, type DiaryStatus, type Recurrence } from "../../../lib/diary";
 import { useAuth } from "../../../contexts/AuthContext";
 import { DateTimeField } from "../../../components/form/DateTimeField";
 
 type View = "month" | "week" | "day" | "list" | "user";
+const VIEWS: View[] = ["month", "week", "day", "list", "user"];
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const parse = (k: string) => new Date(k + "T00:00:00");
@@ -25,11 +27,16 @@ const startOfWeek = (d: Date) => { const x = new Date(d); x.setDate(x.getDate() 
 const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 const timeOf = (it: DiaryItem) => (it.allDay ? "" : new Date(it.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
 const PERSON_COLOURS = ["#1E7F4F", "#B24A31", "#4C7CE8", "#7C3AED", "#0FB5A6", "#E8A84C", "#D63384", "#0F1C2E"];
+const isTyping = (el: EventTarget | null) => { const t = el as HTMLElement | null; if (!t) return false; const tag = (t.tagName || "").toLowerCase(); return tag === "input" || tag === "textarea" || tag === "select" || t.isContentEditable; };
 
 export default function DiaryPage() {
   const { profile } = useAuth();
-  const [view, setView] = useState<View>("month");
-  const [anchor, setAnchor] = useState<string>(() => ymd(new Date()));
+  const router = useRouter();
+  const params = useSearchParams();
+  const urlView = (params.get("v") as View | null);
+  const urlAnchor = params.get("d");
+  const [view, setView] = useState<View>(urlView && VIEWS.includes(urlView) ? urlView : "month");
+  const [anchor, setAnchor] = useState<string>(() => (urlAnchor && /^\d{4}-\d{2}-\d{2}$/.test(urlAnchor) ? urlAnchor : ymd(new Date())));
   const [items, setItems] = useState<DiaryItem[] | null>(null);
   const [people, setPeople] = useState<string[]>([]);
   const [staff, setStaff] = useState<Array<{ id: string; full_name: string }>>([]);
@@ -40,6 +47,17 @@ export default function DiaryPage() {
   const [editor, setEditor] = useState<{ open: boolean; date?: string; time?: string; item?: DiaryItem | null }>({ open: false });
   const [tenants, setTenants] = useState<Array<{ id: string; full_name: string; room_number?: string | null }>>([]);
   const [properties, setProperties] = useState<Array<{ id: string; name: string; postcode?: string | null; landlordName?: string | null }>>([]);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  // Keep the URL in sync so refresh keeps the view and the day, and a link is shareable.
+  useEffect(() => {
+    const p = new URLSearchParams(params.toString());
+    p.set("v", view); p.set("d", anchor);
+    router.replace(`/diary?${p.toString()}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, anchor]);
 
   // The window the current view needs.
   const range = useMemo(() => {
@@ -78,15 +96,56 @@ export default function DiaryPage() {
     : view === "day" ? parse(anchor).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : `${parse(range.from).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${parse(range.to).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
 
-  async function patch(it: DiaryItem, body: Record<string, unknown>) {
+  async function patch(it: DiaryItem, body: Record<string, unknown>, keepOpen = false) {
     if (it.source !== "diary" && it.source !== "viewing") return;
     await fetch(`/api/diary/${it.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    await load(); setSel(null);
+    await load(); if (!keepOpen) setSel(null);
   }
   async function remove(it: DiaryItem) {
     if (!window.confirm("Remove this event?")) return;
     await fetch(`/api/diary/${it.id}`, { method: "DELETE" }); await load(); setSel(null);
   }
+  // Snap a time-stamped event to a new start day while keeping its time of day and its duration;
+  // an all-day event moves whole-day. The series handling matches the editor: a change goes to the parent.
+  async function rescheduleTo(it: DiaryItem, dateKey: string) {
+    const s = new Date(it.at); const target = parse(dateKey);
+    const next = new Date(target); next.setHours(s.getHours(), s.getMinutes(), 0, 0);
+    const body: Record<string, unknown> = { starts_at: it.allDay ? dateKey : next.toISOString() };
+    if (it.endAt) { const e = new Date(it.endAt); const dur = e.getTime() - s.getTime(); body.ends_at = new Date(next.getTime() + dur).toISOString(); }
+    await patch(it, body);
+    setToast(`Moved to ${target.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`);
+    setAnchor(dateKey);
+  }
+
+  // Keyboard shortcuts — Google-Calendar grade, ignored when a text field is focused or a dialog is open.
+  // t today · n new · / search · ? help · j k ← → previous/next · 1-5 views · esc close.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (isTyping(e.target)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (editor.open || sel) { if (e.key === "Escape") { setSel(null); setEditor({ open: false }); } return; }
+      if (helpOpen) { if (e.key === "Escape" || e.key === "?") setHelpOpen(false); return; }
+      switch (e.key) {
+        case "t": case "T": setAnchor(today); break;
+        case "n": case "N": setEditor({ open: true, date: anchor }); break;
+        case "/": e.preventDefault(); searchRef.current?.focus(); break;
+        case "?": setHelpOpen(true); break;
+        case "j": case "ArrowRight": go(1); break;
+        case "k": case "ArrowLeft": go(-1); break;
+        case "1": setView("month"); break;
+        case "2": setView("week"); break;
+        case "3": setView("day"); break;
+        case "4": setView("list"); break;
+        case "5": setView("user"); break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor.open, sel, helpOpen, anchor, view, today]);
+
+  // Fade the toast on its own.
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2400); return () => clearTimeout(t); }, [toast]);
 
   const Chip = ({ it, dense }: { it: DiaryItem; dense?: boolean }) => {
     const k = kindMeta(it.kind); const st = STATUS_MARK[it.status]; const money = it.source === "rent_due";
@@ -177,8 +236,8 @@ export default function DiaryPage() {
         {/* ── Left rail ─────────────────────────────────────────────── */}
         <aside style={{ display: "grid", gap: 14, alignContent: "start" }}>
           <div>
-            <div className="lbl">Search</div>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type an event name" style={inp} />
+            <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>Search <kbd className="kb">/</kbd></div>
+            <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type an event name" style={inp} />
           </div>
           <div>
             <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>Quick jump
@@ -289,12 +348,14 @@ export default function DiaryPage() {
             {FEEDBACK.filter((f) => f.key !== "none").map((f) => <span key={f.key}>{f.icon} {f.label}</span>)}
             <span>↻ Repeats</span>
             <span><span style={{ display: "inline-block", width: 10, height: 10, background: "#D63384", borderRadius: 3, verticalAlign: "middle" }} /> Rent due (faded = paid)</span>
-            <span className="muted">Month: double-click a day to add. Week / Day: click a time. Click an event for details.</span>
+            <button type="button" onClick={() => setHelpOpen(true)} className="muted" style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12, color: "var(--slate)", textDecoration: "underline dotted" }}>Keyboard shortcuts <kbd className="kb">?</kbd></button>
           </div>
         </div>
       </div>
 
-      {sel && <EventPopover it={sel} onClose={() => setSel(null)} onPatch={(b) => patch(sel, b)} onRemove={() => remove(sel)} onEdit={() => { setEditor({ open: true, item: sel }); setSel(null); }} />}
+      {sel && <EventPopover it={sel} onClose={() => setSel(null)} onPatch={(b) => patch(sel, b)} onRemove={() => remove(sel)} onEdit={() => { setEditor({ open: true, item: sel }); setSel(null); }} onReschedule={(k) => rescheduleTo(sel, k)} />}
+      {helpOpen && <ShortcutsHelp onClose={() => setHelpOpen(false)} />}
+      {toast && <div role="status" style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", background: "var(--navy)", color: "#fff", padding: "10px 16px", borderRadius: 10, fontSize: 13.5, boxShadow: "0 12px 30px rgba(15,28,46,.25)", zIndex: 1300 }}>{toast}</div>}
       {editor.open && <EventEditor date={editor.date} time={editor.time} item={editor.item ?? null} staff={staff} tenants={tenants} properties={properties} onClose={() => setEditor({ open: false })} onSaved={(at, k) => {
         // Land on the day you just saved, with its type visible — you must see what you saved.
         setEditor({ open: false });
@@ -307,8 +368,17 @@ export default function DiaryPage() {
   );
 }
 
-function EventPopover({ it, onClose, onPatch, onRemove, onEdit }: { it: DiaryItem; onClose: () => void; onPatch: (b: Record<string, unknown>) => void; onRemove: () => void; onEdit: () => void }) {
+function EventPopover({ it, onClose, onPatch, onRemove, onEdit, onReschedule }: { it: DiaryItem; onClose: () => void; onPatch: (b: Record<string, unknown>) => void; onRemove: () => void; onEdit: () => void; onReschedule: (dateKey: string) => void }) {
   const k = kindMeta(it.kind); const st = STATUS_MARK[it.status]; const own = it.source === "diary" || it.source === "viewing";
+  const [reOpen, setReOpen] = useState(false);
+  const base = new Date(it.at);
+  const nextMonday = (() => { const d = new Date(base); const diff = (8 - d.getDay()) % 7 || 7; d.setDate(d.getDate() + diff); return d; })();
+  const choices: Array<{ label: string; d: Date; hint: string }> = [
+    { label: "Tomorrow", d: addDays(base, 1), hint: addDays(base, 1).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) },
+    { label: "Next Monday", d: nextMonday, hint: nextMonday.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) },
+    { label: "Next week", d: addDays(base, 7), hint: addDays(base, 7).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) },
+    { label: "Next month", d: addDays(base, 30), hint: addDays(base, 30).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) },
+  ];
   return createPortal(
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(15,28,46,.35)", display: "grid", placeItems: "center", padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} role="dialog" style={{ background: "var(--surface)", borderRadius: 14, width: "100%", maxWidth: 440, boxShadow: "0 20px 50px rgba(15,28,46,.25)", overflow: "hidden" }}>
@@ -333,9 +403,21 @@ function EventPopover({ it, onClose, onPatch, onRemove, onEdit }: { it: DiaryIte
               </div>
             </div>
           )}
+          {own && reOpen && (
+            <div style={{ marginTop: 2, padding: 10, borderRadius: 10, background: "var(--cream)", display: "grid", gap: 6 }}>
+              <span className="lbl" style={{ margin: 0 }}>Reschedule to</span>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {choices.map((c) => <button key={c.label} type="button" className="btn ghost sm" onClick={() => { onReschedule(ymd(c.d)); setReOpen(false); }}>{c.label} <span className="muted" style={{ marginLeft: 4, fontSize: 11 }}>{c.hint}</span></button>)}
+              </div>
+              <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5, color: "var(--slate)" }}>Pick a date
+                <input type="date" defaultValue={ymd(base)} onChange={(e) => { if (e.target.value) { onReschedule(e.target.value); setReOpen(false); } }} style={{ ...popInp, maxWidth: 170 }} />
+              </label>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
             {it.href && <Link href={it.href} className="rel sm">Open</Link>}
             {own && <button type="button" className="btn ghost sm" onClick={() => onPatch({ done: !it.done })}>{it.done ? "Not done" : "Done ✓"}</button>}
+            {own && <button type="button" className="btn ghost sm" onClick={() => setReOpen((v) => !v)} aria-expanded={reOpen}>Reschedule</button>}
             {own && it.status !== "confirmed" && <button type="button" className="btn ghost sm" onClick={() => onPatch({ status: "confirmed" })}>Confirm</button>}
             {own && it.status !== "cancelled" && <button type="button" className="btn ghost sm" onClick={() => onPatch({ status: "cancelled" })}>Cancel event</button>}
             {own && <button type="button" className="btn ghost sm" onClick={onEdit}>Edit</button>}
@@ -406,5 +488,41 @@ function EventEditor({ date, time, item, staff, tenants, properties, onClose, on
     </div>, document.body);
 }
 
+function ShortcutsHelp({ onClose }: { onClose: () => void }) {
+  const rows: Array<[string[], string]> = [
+    [["T"], "Jump to today"],
+    [["N"], "New event on the day you're on"],
+    [["/"], "Focus the search box"],
+    [["J", "→"], "Next week / month / day (whichever view)"],
+    [["K", "←"], "Previous"],
+    [["1"], "Month view"],
+    [["2"], "Week view"],
+    [["3"], "Day view"],
+    [["4"], "List view"],
+    [["5"], "User view"],
+    [["Esc"], "Close an open event, editor or this panel"],
+    [["?"], "Open or close this panel"],
+  ];
+  return createPortal(
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(15,28,46,.35)", display: "grid", placeItems: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Keyboard shortcuts" style={{ background: "var(--surface)", borderRadius: 14, width: "100%", maxWidth: 460, padding: 20, boxShadow: "0 20px 50px rgba(15,28,46,.25)" }}>
+        <h3 style={{ margin: "0 0 4px" }}>Keyboard shortcuts</h3>
+        <p className="muted" style={{ margin: "0 0 14px", fontSize: 12.5 }}>Hands stay on the keyboard. These stop working while you&apos;re typing or an event is open.</p>
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+          {rows.map(([keys, what]) => (
+            <li key={what} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5 }}>
+              <span style={{ display: "inline-flex", gap: 4 }}>{keys.map((k) => <kbd key={k} className="kb">{k}</kbd>)}</span>
+              <span style={{ color: "var(--slate)" }}>{what}</span>
+            </li>
+          ))}
+        </ul>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+          <button type="button" className="btn ghost sm" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>, document.body);
+}
+
 const inp: React.CSSProperties = { width: "100%", minHeight: 42, padding: "8px 10px", borderRadius: 10, border: "1px solid var(--line)", fontSize: 13.5, fontFamily: "inherit", background: "var(--surface)", boxSizing: "border-box" };
+const popInp: React.CSSProperties = { minHeight: 36, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--line)", fontSize: 13, fontFamily: "inherit", background: "var(--surface)" };
 const miniNav: React.CSSProperties = { background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", color: "var(--slate)", fontSize: 13, padding: "0 4px" };
