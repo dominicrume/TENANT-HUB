@@ -178,43 +178,48 @@ export function Shell({
 
       <div className="main">
         <div className="topbar">
-          {/* The Managing Agent — "Matty's Place", "Green Gates", "Reliance
-              Housing" — always at the top, always first (Matlub, 2026-10-24).
-              Whose software this is, visible at a glance; the signed-in staff
-              member sits on the right, secondary. */}
-          {orgName && (
-            <span className="org-chip" title={`Managing agent · ${orgName}`}>
-              <span className="org-mark" aria-hidden="true">{(orgName[0] ?? "?").toUpperCase()}</span>
-              <span><small>Managing agent</small><b>{orgName}</b></span>
-            </span>
-          )}
-          <div className="crumb crumb-page">{crumb}</div>
-          {/* Whose portfolio you're looking at — the landlord, by name, always
-              visible (migration 054). A live list: a landlord added a minute
-              ago is already in it. "All landlords" is the whole-company view.
-              Organisations (the managing agents) are not in this list. */}
-          {landlords.length > 0 && onSwitchLandlord ? (
-            <label className="wschip" title="Switch landlord">
-              <Icon k="people" />
-              <select
-                value={activeLandlordId ?? ""}
-                disabled={switching}
-                aria-label="Landlord"
-                onChange={async (e) => {
-                  const id = e.target.value || null;
-                  if (id === activeLandlordId) return;
-                  setSwitching(true);
-                  try { await onSwitchLandlord(id); } finally { setSwitching(false); }
-                }}
-              >
-                <option value="">All landlords</option>
-                {landlords.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
-              <span aria-hidden="true">{switching ? "…" : "▾"}</span>
-            </label>
-          ) : !orgName ? (
-            <span className="wschip static" title="Your workspace"><Icon k="properties" />{brand}</span>
-          ) : null}
+          {/* The Dynamic structure Matlub drew (2026-10-24): Managing Agent on
+              the left, Landlord in the middle (a dropdown), one connected
+              unit — whose software this is and whose portfolio you're
+              looking at, read as one shape. The signed-in staff member sits
+              on the right. The page name moved to the main area title, so
+              the top is identity and scope, not navigation. */}
+          <div className="dyn-top" role="group" aria-label="Managing agent and landlord">
+            {orgName && (
+              <span className="dyn-top-ma" title={`Managing agent · ${orgName}`}>
+                <span className="dyn-top-mark" aria-hidden="true">{(orgName[0] ?? "?").toUpperCase()}</span>
+                <span><small>Managing agent</small><b>{orgName}</b></span>
+              </span>
+            )}
+            {orgName && (landlords.length > 0 || brand !== orgName) && <span className="dyn-top-arrow" aria-hidden="true">›</span>}
+            {landlords.length > 0 && onSwitchLandlord ? (
+              <label className="dyn-top-ll" title="Switch landlord">
+                <small>Landlord</small>
+                <span className="dyn-top-ll-sel">
+                  <Icon k="people" />
+                  <select
+                    value={activeLandlordId ?? ""}
+                    disabled={switching}
+                    aria-label="Landlord"
+                    onChange={async (e) => {
+                      const id = e.target.value || null;
+                      if (id === activeLandlordId) return;
+                      setSwitching(true);
+                      try { await onSwitchLandlord(id); } finally { setSwitching(false); }
+                    }}
+                  >
+                    <option value="">All landlords</option>
+                    {landlords.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                  <span aria-hidden="true">{switching ? "…" : "▾"}</span>
+                </span>
+              </label>
+            ) : !orgName ? (
+              <span className="wschip static" title="Your workspace"><Icon k="properties" />{brand}</span>
+            ) : null}
+          </div>
+          <span className="dyn-top-page">{crumb}</span>
+          <div className="crumb" aria-hidden="true" />{/* spacer so right-hand group pushes to the end */}
           {practice.length > 0 && (
             <Link href={`${settingsHref ?? "/settings"}#connections`} className="pill practice" title="These connections are simulated until you add their credentials">
               Practice mode · {practice.join(", ")}

@@ -151,9 +151,14 @@ export default function LoginPage() {
             )}
 
             {!mfaChallenge && (
-              <p style={{ marginTop: 22, fontSize: 13, color: "#64748B", textAlign: "center" }}>
-                New here? <Link href="/register" style={{ color: "var(--navy)", fontWeight: 600, textDecoration: "none" }}>Request access</Link> — the admin approves you and sends your link.
-              </p>
+              <>
+                <p style={{ marginTop: 22, fontSize: 13, color: "#64748B", textAlign: "center" }}>
+                  Joining a team on Tenant Hub? <Link href="/register" style={{ color: "var(--navy)", fontWeight: 600, textDecoration: "none" }}>Request access</Link> — your admin approves you and sends your link.
+                </p>
+                <p style={{ marginTop: 8, fontSize: 13, color: "#64748B", textAlign: "center" }}>
+                  Starting a new Managing Agent? <Link href="/signup" style={{ color: "var(--amber-deep)", fontWeight: 600, textDecoration: "none" }}>Create your own account →</Link>
+                </p>
+              </>
             )}
             <p style={{ marginTop: 26, fontSize: 11.5, color: "#94A3B8", textAlign: "center" }}>Signed-in sessions are tied to your account. Every change you make carries your name.</p>
           </div>
