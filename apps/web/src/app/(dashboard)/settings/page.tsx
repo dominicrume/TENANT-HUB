@@ -29,6 +29,20 @@ const INVITE_ROLES = [
 const ROLE_OPTIONS = [
   { value: "admin", label: "Admin" }, { value: "manager", label: "Manager" }, { value: "support_worker", label: "Support worker" }, { value: "contractor", label: "Contractor" }, { value: "tenant", label: "Tenant" },
 ] as const;
+
+// Matlub's three staff groups — the structure every managing agent's team maps
+// onto (walkthrough 2026-10-24): "Management board / Support workers / Maintenance team".
+// Admin + Manager = board; support_worker = support workers; contractor = maintenance.
+// A tenant isn't staff — kept out of these groups.
+type StaffGroupKey = "management" | "support" | "maintenance";
+const STAFF_GROUPS: Array<{ key: StaffGroupKey; label: string; roles: string[]; description: string; tint: string; dot: string }> = [
+  { key: "management", label: "Management board", roles: ["admin", "manager"], description: "Full access · adds people, changes settings, sees every record and the audit log", tint: "rgba(232,168,76,.14)", dot: "var(--amber-deep)" },
+  { key: "support",    label: "Support workers",  roles: ["support_worker"],    description: "Tenants, sessions, support plans and the sign-up pack — nothing in finance or settings", tint: "rgba(46,158,107,.10)", dot: "var(--live)" },
+  { key: "maintenance", label: "Maintenance team", roles: ["contractor"],       description: "Only the repair jobs dispatched to their trade — no tenant personal data", tint: "rgba(107,91,209,.10)", dot: "var(--violet)" },
+];
+const GROUP_FOR_ROLE: Record<string, StaffGroupKey | "other"> = {
+  admin: "management", manager: "management", support_worker: "support", contractor: "maintenance", tenant: "other",
+};
 interface Stamp { id: string; status: string; audit_hash: string; tx_hash: string | null; created_at: string; tenant_id: string | null }
 
 const STAMP_TONE: Record<string, { color: string; label: string }> = {
@@ -295,7 +309,12 @@ export default function SettingsPage() {
                   <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} type="email" required style={inp} /></label>
                 <label><span className="lbl">Role</span>
                   <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as typeof inviteRole)} style={inp}>
-                    {INVITE_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    {STAFF_GROUPS.map((g) => (
+                      <optgroup key={g.key} label={g.label}>
+                        {INVITE_ROLES.filter((r) => GROUP_FOR_ROLE[r.value] === g.key).map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      </optgroup>
+                    ))}
+                    {INVITE_ROLES.filter((r) => GROUP_FOR_ROLE[r.value] === "other").map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </label>
                 {inviteError && <p style={{ color: "var(--brick)", margin: 0, fontSize: 13 }}>{inviteError}</p>}
@@ -322,32 +341,53 @@ export default function SettingsPage() {
             </section>
             )}
 
-            <section className="card">
-              <div className="ch"><h3>People in {profile?.org_name ?? "this organisation"}</h3><span className="muted">{profiles.length} account{profiles.length === 1 ? "" : "s"}</span></div>
-              {userNotice && <div className="li"><p style={{ margin: 0, fontSize: 13, color: userNotice.startsWith("Could") || userNotice.startsWith("That") || userNotice.startsWith("You") ? "var(--brick)" : "var(--live)" }}>{userNotice}</p></div>}
-              {profiles.length === 0 ? <div className="li"><p className="muted">No users to show.</p></div> : profiles.map((p) => {
-                const me = p.id === profile?.id;
+            <div style={{ display: "grid", gap: 14 }}>
+              {userNotice && <div className="card"><div className="li"><p style={{ margin: 0, fontSize: 13, color: userNotice.startsWith("Could") || userNotice.startsWith("That") || userNotice.startsWith("You") ? "var(--brick)" : "var(--live)" }}>{userNotice}</p></div></div>}
+              {STAFF_GROUPS.map((g) => {
+                const members = profiles.filter((p) => g.roles.includes(p.role));
                 return (
-                  <div className="li" key={p.id} style={{ alignItems: "center" }}>
-                    <span className="avatar" aria-hidden="true" style={{ background: p.role === "admin" ? "var(--amber)" : "var(--navy)", color: p.role === "admin" ? "var(--navy)" : "#fff" }}>{p.full_name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</span>
-                    <div className="body"><b>{p.full_name}{me ? <span className="muted" style={{ fontWeight: 500 }}> · you</span> : null}</b><p>{p.email}</p></div>
-                    {canManage && !me ? (
-                      <div className="btns">
-                        <select value={p.role} onChange={(e) => void changeRole(p.id, e.target.value)} disabled={userBusy === p.id} aria-label={`Role for ${p.full_name}`} style={{ ...inp, maxWidth: 170, minHeight: 36, padding: "6px 10px" }}>
-                          {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                        </select>
-                        {p.role !== "admin" && <button type="button" className="btn ghost sm" disabled={userBusy === p.id} onClick={() => void revealPassword(p)} title="Show the password on record for this person">Reveal password</button>}
-                        {p.role !== "admin" && <button type="button" className="btn ghost sm" disabled={userBusy === p.id} onClick={() => void newPassword(p)} title="Issue a new password; the old one stops working">New password</button>}
-                        <button type="button" className="btn ghost sm" disabled={userBusy === p.id} onClick={() => void removeUser(p)} style={{ color: "var(--brick)" }}>Remove</button>
+                  <section className="card" key={g.key}>
+                    <div className="ch" style={{ borderBottom: `1px solid var(--line-soft)`, background: g.tint }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: "50%", background: g.dot, boxShadow: `0 0 0 3px ${g.tint}`, flex: "none" }} />
+                        <h3 style={{ margin: 0 }}>{g.label}</h3>
+                        <span className="muted" style={{ fontSize: 12 }}>· {members.length} {members.length === 1 ? "person" : "people"}</span>
                       </div>
-                    ) : (
-                      <span className="tag" style={{ background: p.role === "admin" ? "rgba(232,168,76,.16)" : "rgba(15,28,46,.06)", color: p.role === "admin" ? "var(--amber-deep)" : "var(--navy)", textTransform: "capitalize" }}>{p.role.replace("_", " ")}</span>
-                    )}
-                  </div>
+                      <span className="muted" style={{ fontSize: 11.5, flex: "1 1 auto", textAlign: "right", minWidth: 160 }}>{g.description}</span>
+                    </div>
+                    {members.length === 0 ? (
+                      <div className="li"><p className="muted" style={{ margin: 0, fontSize: 13 }}>Nobody in this group yet. {canManage ? "Add someone above and pick one of these roles." : "Ask your admin to add someone."}</p></div>
+                    ) : members.map((p) => {
+                      const me = p.id === profile?.id;
+                      return (
+                        <div className="li" key={p.id} style={{ alignItems: "center" }}>
+                          <span className="avatar" aria-hidden="true" style={{ background: p.role === "admin" ? "var(--amber)" : "var(--navy)", color: p.role === "admin" ? "var(--navy)" : "#fff" }}>{p.full_name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</span>
+                          <div className="body"><b>{p.full_name}{me ? <span className="muted" style={{ fontWeight: 500 }}> · you</span> : null}</b><p>{p.email}{p.role !== "admin" && p.role !== "manager" ? "" : ` · ${ROLE_OPTIONS.find((r) => r.value === p.role)?.label ?? p.role}`}</p></div>
+                          {canManage && !me ? (
+                            <div className="btns">
+                              <select value={p.role} onChange={(e) => void changeRole(p.id, e.target.value)} disabled={userBusy === p.id} aria-label={`Role for ${p.full_name}`} style={{ ...inp, maxWidth: 170, minHeight: 36, padding: "6px 10px" }}>
+                                {STAFF_GROUPS.map((grp) => (
+                                  <optgroup key={grp.key} label={grp.label}>
+                                    {ROLE_OPTIONS.filter((r) => GROUP_FOR_ROLE[r.value] === grp.key).map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                  </optgroup>
+                                ))}
+                                {ROLE_OPTIONS.filter((r) => GROUP_FOR_ROLE[r.value] === "other").map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                              </select>
+                              {p.role !== "admin" && <button type="button" className="btn ghost sm" disabled={userBusy === p.id} onClick={() => void revealPassword(p)} title="Show the password on record for this person">Reveal password</button>}
+                              {p.role !== "admin" && <button type="button" className="btn ghost sm" disabled={userBusy === p.id} onClick={() => void newPassword(p)} title="Issue a new password; the old one stops working">New password</button>}
+                              <button type="button" className="btn ghost sm" disabled={userBusy === p.id} onClick={() => void removeUser(p)} style={{ color: "var(--brick)" }}>Remove</button>
+                            </div>
+                          ) : (
+                            <span className="tag" style={{ background: p.role === "admin" ? "rgba(232,168,76,.16)" : "rgba(15,28,46,.06)", color: p.role === "admin" ? "var(--amber-deep)" : "var(--navy)", textTransform: "capitalize" }}>{p.role.replace("_", " ")}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </section>
                 );
               })}
-              <div className="li"><p className="muted" style={{ margin: 0, fontSize: 12.5 }}>Nobody shares an account. Every save, note and decision in What the system did is stamped with the name of the person who was signed in.</p></div>
-            </section>
+              <p className="muted" style={{ margin: "4px 2px 0", fontSize: 12.5 }}>Nobody shares an account. Every save, note and decision in What the system did is stamped with the name of the person who was signed in — their initials, the date and the time, on every row.</p>
+            </div>
           </>
         )}
 
