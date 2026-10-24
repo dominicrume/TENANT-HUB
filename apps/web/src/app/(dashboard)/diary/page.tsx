@@ -50,8 +50,14 @@ export default function DiaryPage() {
     return { from: anchor, to: ymd(addDays(a, 29)) };
   }, [view, anchor]);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
   const load = useCallback(async () => {
-    try { const r = await fetch(`/api/diary?from=${range.from}&to=${range.to}${q ? `&q=${encodeURIComponent(q)}` : ""}`); if (r.ok) { const j = await r.json(); setItems(j.items); setPeople(j.people ?? []); } } catch { /* keep what we have */ }
+    try {
+      const r = await fetch(`/api/diary?from=${range.from}&to=${range.to}${q ? `&q=${encodeURIComponent(q)}` : ""}`);
+      const j = await r.json().catch(() => null);
+      if (!r.ok) { setLoadError(j?.error ?? `The diary could not load (${r.status}).`); setItems((cur) => cur ?? []); return; }
+      setLoadError(null); setItems(j.items); setPeople(j.people ?? []);
+    } catch { setLoadError("Could not reach the server."); setItems((cur) => cur ?? []); }
   }, [range, q]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
@@ -229,6 +235,7 @@ export default function DiaryPage() {
             </div>
           </div>
 
+          {loadError && <div className="card" style={{ marginBottom: 10, borderColor: "var(--brick)" }}><div className="li"><p style={{ margin: 0, color: "var(--brick)", fontSize: 13 }}>The diary could not load: {loadError} <button type="button" className="btn ghost sm" onClick={() => void load()}>Try again</button></p></div></div>}
           {hiddenCount > 0 && (
             <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8, fontSize: 12.5, color: "var(--amber-deep)" }}>
               <span>{hiddenCount} event{hiddenCount === 1 ? "" : "s"} in this range {hiddenCount === 1 ? "is" : "are"} hidden by the ticks on the left.</span>

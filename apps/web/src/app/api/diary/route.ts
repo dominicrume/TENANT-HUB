@@ -29,7 +29,7 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const org = auth.actor.org_id;
   try {
-    const [entries, sessions, commitments, repairs, certs, moveIns, rent] = await Promise.all([
+    const [entries, sessions, commitments, repairs, certs, moveIns, rent, tenancies] = await Promise.all([
       db().query<{ id: string; kind: string; title: string; starts_at: string; ends_at: string | null; done_at: string | null; status: string; notes: string | null; tenant_id: string | null; property_id: string | null; lead_id: string | null; created_by: string; assigned_to: string | null; tenant: string | null; property: string | null; recurrence: Recurrence; recur_until: string | null; accompanied_by: "agent" | "landlord" | "both" | null; feedback: Feedback }>(
         // One-off events in the window, plus every repeating series that started before the window ends and hasn't run out.
         `SELECT d.*, t.full_name AS tenant, p.name AS property FROM diary_entries d LEFT JOIN tenants t ON t.id = d.tenant_id LEFT JOIN properties p ON p.id = d.property_id
@@ -51,15 +51,45 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
          WHERE c.org_id = $1 AND c.expires_on BETWEEN $2::date AND ($3::date + 30)`, [org, from, to]).catch(() => ({ rows: [] })),
       db().query<{ id: string; full_name: string; moved_in: string; room_number: string | null }>(
         `SELECT id, full_name, moved_in, room_number FROM tenants WHERE org_id = $1 AND is_archived = false AND moved_in BETWEEN $2::date AND $3::date`, [org, from, to]).catch(() => ({ rows: [] })),
-      db().query<{ id: string; amount: string; due_date: string; is_paid: boolean; tenant_id: string; full_name: string; room_number: string | null }>(
+      db().query<{ id: string; amount: string; due_date: string | Date; is_paid: boolean; tenant_id: string; full_name: string; room_number: string | null }>(
         `SELECT sc.id, sc.amount, sc.due_date, sc.is_paid, sc.tenant_id, t.full_name, t.room_number FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id
          WHERE t.org_id = $1 AND t.is_archived = false AND sc.due_date BETWEEN $2::date AND $3::date ORDER BY sc.due_date`, [org, from, to]).catch(() => ({ rows: [] })),
+      // Every active tenancy with a rent: its due days are projected into the diary even before a charge row exists
+      // (Apex27 shows "£X rent due from Y" for every tenant every week — so do we).
+      db().query<{ id: string; tenant_id: string; full_name: string; room_number: string | null; rent_amount: string; rent_frequency: string; start_date: string | Date | null }>(
+        `SELECT ty.id, ty.tenant_id, t.full_name, t.room_number, ty.rent_amount, ty.rent_frequency::text, ty.start_date FROM tenancies ty JOIN tenants t ON t.id = ty.tenant_id
+         WHERE ty.org_id = $1 AND ty.status = 'active' AND ty.rent_amount > 0 AND t.is_archived = false`, [org]).catch(() => ({ rows: [] })),
     ]);
 
     const today0 = new Date(new Date().toDateString());
+    // Projected rent: step from the tenancy's start (or the Monday before the window) by its frequency; a real charge row on the same day wins.
+    const charged = new Set(rent.rows.map((r) => `${r.tenant_id}:${String(r.due_date instanceof Date ? r.due_date.toISOString() : r.due_date).slice(0, 10)}`));
+    const projectedRent: Array<Omit<DiaryItem, "day">> = [];
+    for (const ty of tenancies.rows) {
+      const stepDays = ty.rent_frequency === "fortnightly" ? 14 : ty.rent_frequency === "four_weekly" ? 28 : ty.rent_frequency === "weekly" ? 7 : 0;
+      const fromD = new Date(`${from}T00:00:00`); const toD = new Date(`${to}T00:00:00`);
+      let d = ty.start_date ? new Date(ty.start_date instanceof Date ? ty.start_date : `${String(ty.start_date).slice(0, 10)}T00:00:00`) : new Date(fromD);
+      if (Number.isNaN(d.getTime())) d = new Date(fromD);
+      if (!ty.start_date) d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // the Monday
+      let guard = 0;
+      while (d <= toD && guard++ < 400) {
+        if (d >= fromD) {
+          const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          if (!charged.has(`${ty.tenant_id}:${day}`)) projectedRent.push({ id: `rent:${ty.id}:${day}`, source: "rent_due", kind: "rent_due", title: `£${Number(ty.rent_amount).toFixed(2)} rent due from ${ty.full_name}`, at: day, endAt: null, allDay: true, done: false, status: "unconfirmed", href: `/tenants/${ty.tenant_id}?tab=ledger`, who: ty.full_name, where: ty.room_number, notes: `${ty.rent_frequency.replace("_", " ")} rent from the tenancy — record the payment on the ledger`, assignedTo: null, amount: Number(ty.rent_amount), recurrence: "none", accompaniedBy: null, feedback: "none", occurrence: false });
+        }
+        if (stepDays) d.setDate(d.getDate() + stepDays); else if (ty.rent_frequency === "quarterly") d.setMonth(d.getMonth() + 3); else d.setMonth(d.getMonth() + 1);
+      }
+    }
     // The day an event belongs to is its UK calendar day, not the UTC date of its timestamp —
     // a 00:30 viewing in British Summer Time was landing on the day before.
-    const dayKey = (at: string, allDay: boolean) => (allDay ? at.slice(0, 10) : new Date(at).toLocaleDateString("en-CA", { timeZone: "Europe/London" }));
+    // pg hands DATE columns back as strings but TIMESTAMPTZ (and some DATEs) as Date objects — never
+    // assume a string (2026-10-15: `.slice` on a Date took the whole diary down the day October move-ins appeared).
+    const iso = (v: unknown): string => (v instanceof Date ? v.toISOString() : v === null || v === undefined ? "" : String(v));
+    const dayKey = (at: unknown, allDay: boolean) => {
+      if (typeof at === "string" && allDay && /^\d{4}-\d{2}-\d{2}/.test(at)) return at.slice(0, 10);
+      const d = at instanceof Date ? at : new Date(String(at));
+      return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+    };
     const raw: Array<Omit<DiaryItem, "day">> = [
       ...entries.rows.flatMap((d) => {
         const base = { source: (d.kind === "viewing" && (d.lead_id || d.tenant_id) ? "viewing" : "diary") as DiaryItem["source"], kind: d.kind, title: d.title, allDay: false, status: (d.status || "confirmed") as DiaryItem["status"], href: d.lead_id ? "/leads" : d.tenant_id ? `/tenants/${d.tenant_id}` : d.property_id ? `/properties/${d.property_id}` : null, who: d.tenant, where: d.property, notes: d.notes, assignedTo: d.assigned_to, amount: null, recurrence: d.recurrence ?? "none", accompaniedBy: d.accompanied_by ?? null, feedback: d.feedback ?? "none" };
@@ -77,9 +107,10 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
       ...repairs.rows.map((r) => ({ id: r.id, source: "repair" as const, kind: "maintenance", title: `Repair · ${r.issue_type}${r.room_number ? ` · ${r.room_number}` : ""}`, at: r.created_at, endAt: null, allDay: false, done: false, status: (r.assignee ? "confirmed" : "unconfirmed") as DiaryItem["status"], href: "/maintenance", who: null, where: r.room_number, notes: `Status: ${r.status}`, assignedTo: r.assignee, amount: null, recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
       ...certs.rows.map((c) => ({ id: c.id, source: "certificate" as const, kind: "task", title: `Task: renew ${c.name} · ${c.property}`, at: c.expires_on, endAt: null, allDay: true, done: false, status: "unconfirmed" as const, href: `/properties/${c.property_id}`, who: null, where: c.property, notes: `Runs out ${c.expires_on}`, assignedTo: null, amount: null, recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
       ...moveIns.rows.map((t) => ({ id: t.id, source: "move_in" as const, kind: "move_in", title: `Move in · ${t.full_name}${t.room_number ? ` · ${t.room_number}` : ""}`, at: t.moved_in, endAt: null, allDay: true, done: new Date(t.moved_in) < today0, status: "confirmed" as const, href: `/tenants/${t.id}`, who: t.full_name, where: t.room_number, notes: null, assignedTo: null, amount: null, recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
-      ...rent.rows.map((r) => ({ id: r.id, source: "rent_due" as const, kind: "rent_due", title: `£${Number(r.amount).toFixed(2)} rent due from ${r.full_name}`, at: r.due_date, endAt: null, allDay: true, done: r.is_paid, status: "confirmed" as const, href: `/tenants/${r.tenant_id}?tab=ledger`, who: r.full_name, where: r.room_number, notes: r.is_paid ? "Paid" : "Not yet paid", assignedTo: null, amount: Number(r.amount), recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
+      ...rent.rows.map((r) => ({ id: r.id, source: "rent_due" as const, kind: "rent_due", title: `£${Number(r.amount).toFixed(2)} rent due from ${r.full_name}`, at: iso(r.due_date), endAt: null, allDay: true, done: r.is_paid, status: "confirmed" as const, href: `/tenants/${r.tenant_id}?tab=ledger`, who: r.full_name, where: r.room_number, notes: r.is_paid ? "Paid" : "Not yet paid", assignedTo: null, amount: Number(r.amount), recurrence: "none" as const, accompaniedBy: null, feedback: "none" as const, occurrence: false })),
     ];
-    const all: DiaryItem[] = raw.map((i) => ({ ...i, day: dayKey(i.at, i.allDay) })).filter((i) => i.day >= from && i.day <= to).sort((a, b) => a.at.localeCompare(b.at));
+    raw.push(...projectedRent);
+    const all: DiaryItem[] = raw.map((i) => ({ ...i, at: iso(i.at), endAt: i.endAt ? iso(i.endAt) : null, day: dayKey(i.at, i.allDay) })).filter((i) => i.day && i.day >= from && i.day <= to).sort((a, b) => a.at.localeCompare(b.at));
 
     const people = [...new Set(all.map((i) => i.assignedTo).filter((x): x is string => Boolean(x)))].sort();
     let items = who ? all.filter((i) => i.assignedTo === who) : all;
