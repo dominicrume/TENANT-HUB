@@ -125,114 +125,135 @@ export default function MaintenancePage() {
     void load();
   }
 
-  if (loading) return <div style={{ padding: "1.75rem" }}>Loading maintenance board...</div>;
+  if (loading) return <div style={{ padding: "1.75rem" }}><p className="muted">Reading the repair board…</p></div>;
+
+  const now = Date.now();
+  const dayMs = 86400000;
+  const emergencies = tickets.filter((t) => t.severity === "emergency" && t.status !== "Resolved").length;
+  const sevenDaysAgo = now - 7 * dayMs;
+  const resolvedThisWeek = tickets.filter((t) => t.status === "Resolved" && (t.resolved_at ? new Date(t.resolved_at).getTime() : new Date(t.updated_at ?? t.created_at).getTime()) >= sevenDaysAgo).length;
+  const openAges = tickets.filter((t) => t.status === "Open").map((t) => Math.round((now - new Date(t.created_at).getTime()) / dayMs));
+  const avgOpenDays = openAges.length ? Math.round(openAges.reduce((s, n) => s + n, 0) / openAges.length) : 0;
+  const COLS: Array<{ key: "Open" | "Assigned" | "Resolved"; label: string; sub: string; tone: string }> = [
+    { key: "Open",     label: "Open",     sub: "nobody's picked them up yet", tone: "var(--brick)" },
+    { key: "Assigned", label: "Assigned", sub: "someone's on it",             tone: "var(--amber-deep)" },
+    { key: "Resolved", label: "Resolved", sub: "done · kept for the record",  tone: "var(--live)" },
+  ];
+  const elapsed = (iso: string) => {
+    const h = (now - new Date(iso).getTime()) / 3600000;
+    if (h < 1) return `${Math.max(1, Math.round(h * 60))}m ago`;
+    if (h < 24) return `${Math.round(h)}h ago`;
+    const d = Math.round(h / 24); return d === 1 ? "yesterday" : `${d}d ago`;
+  };
 
   return (
-    <div style={{ padding: "1.75rem", fontFamily: "'Sora', sans-serif" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-        <h1 style={{ color: "var(--navy)", fontSize: "22px", fontWeight: 700, margin: 0 }}>
-          Maintenance & Repairs
-        </h1>
+    <div style={{ padding: "1.75rem", maxWidth: 1400 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <h1 style={{ color: "var(--navy)", fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: "-.3px" }}>Repairs</h1>
+          <p className="sub" style={{ margin: "4px 0 0" }}>Three columns, left to right · reported → assigned → done. Click a column number to filter.</p>
+        </div>
         <div className="btns">
           <button type="button" className="btn ghost" onClick={() => setShowTrades(true)}>Trades</button>
-          <button type="button" className="btn" onClick={() => setShowModal(true)}>+ New Ticket</button>
+          <button type="button" className="rel" onClick={() => setShowModal(true)}>+ New ticket</button>
+        </div>
+      </div>
+
+      <div className="rep-kpis">
+        <div className={emergencies ? "k attn" : "k"}>
+          <small>Emergency, not yet resolved</small>
+          <b>{emergencies}</b>
+          <span>{emergencies === 0 ? "nothing on fire" : emergencies === 1 ? "needs someone now" : "need someone now"}</span>
+        </div>
+        <div className="k">
+          <small>Open right now</small>
+          <b>{tickets.filter((t) => t.status === "Open").length}</b>
+          <span>{avgOpenDays > 0 ? `avg ${avgOpenDays}d old` : "none waiting"}</span>
+        </div>
+        <div className="k">
+          <small>In flight</small>
+          <b>{tickets.filter((t) => t.status === "Assigned").length}</b>
+          <span>{tickets.filter((t) => t.status === "Assigned").length === 0 ? "nothing in progress" : "with a trade or a person"}</span>
+        </div>
+        <div className="k">
+          <small>Resolved · last 7 days</small>
+          <b>{resolvedThisWeek}</b>
+          <span>{resolvedThisWeek === 0 ? "nothing closed this week" : "closed since last Monday"}</span>
         </div>
       </div>
 
       {boardError && (
-        <p style={{ color: "var(--brick)", background: "rgba(178,74,49,.08)", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
-          {boardError}
-        </p>
+        <p className="form-error" style={{ margin: "0 0 14px" }}>{boardError}</p>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", alignItems: "start" }}>
-        {["Open", "Assigned", "Resolved"].map(status => (
-          <div key={status} style={{ background: "#F8F4EF", borderRadius: "12px", padding: "16px", minHeight: "60vh" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy)", marginBottom: "16px", borderBottom: "2px solid #EDE8E1", paddingBottom: "8px" }}>
-              {status} Tickets
-            </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {tickets.filter(t => t.status === status).map(ticket => (
-                <div key={ticket.id} style={{ background: "#fff", padding: "14px", borderRadius: "8px", border: "1px solid #EDE8E1", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                    <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--amber)", textTransform: "uppercase" }}>{ticket.category || ticket.issue_type}</span>
-                    <span style={{ fontSize: "11px", color: "#7A8499" }}>{formatShortDate(ticket.created_at)}</span>
+      <div className="rep-cols">
+        {COLS.map((col) => {
+          const rows = tickets.filter((t) => t.status === col.key);
+          return (
+            <div key={col.key} className="rep-col">
+              <div className="rep-col-hd">
+                <span className="rep-col-dot" style={{ background: col.tone }} />
+                <h3>{col.label}</h3>
+                <span className="rep-col-n">{rows.length}</span>
+                <small>{col.sub}</small>
+              </div>
+              <div className="rep-col-body">
+                {rows.length === 0 ? (
+                  <div className="rep-empty">
+                    <b>{col.key === "Open" ? "Nothing waiting ✓" : col.key === "Assigned" ? "Nothing in flight" : "Nothing closed yet"}</b>
+                    <p>{col.key === "Open" ? "Reports land here first — from staff, or straight from a wall QR." : col.key === "Assigned" ? "Pick an Open ticket and give it to someone; it moves here." : "Mark anything Assigned as resolved and it lands here with the date."}</p>
                   </div>
-                  {ticket.severity && (
-                    <span style={{
-                      display: "inline-block", fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: 999, marginBottom: "8px",
-                      background: SEVERITY_STYLE[ticket.severity]?.bg, color: SEVERITY_STYLE[ticket.severity]?.color,
-                    }}>
-                      {SEVERITY_STYLE[ticket.severity]?.label ?? ticket.severity}
-                    </span>
-                  )}
-                  <p style={{ fontSize: "13px", color: "var(--navy)", fontWeight: 600, margin: "0 0 6px 0" }}>{ticket.description}</p>
-                  {ticket.triage_reasoning && (
-                    <p style={{ fontSize: "11.5px", color: "#7A8499", fontStyle: "italic", margin: "0 0 8px 0" }}>{ticket.triage_reasoning}</p>
-                  )}
-                  <p style={{ fontSize: "12px", color: "#7A8499", margin: "0 0 10px 0" }}>
-                    Room: <strong>{ticket.room_number}</strong>
-                    {ticket.tenant?.full_name ? ` · ${ticket.tenant.full_name}` : ""}
-                    {ticket.reported_via === "qr" ? " · via wall QR" : ""}
-                  </p>
-
-                  {ticket.photo_url && (
-                    <div style={{ marginBottom: "10px", position: "relative", height: "120px", width: "100%" }}>
-                      {/* unoptimized: /api/maintenance/[id]/photo is session-gated;
-                          next/image's optimizer fetches src server-side without
-                          the browser's cookie and would always render this broken. */}
-                      <Image
-                        src={ticket.photo_url}
-                        alt="Issue"
-                        fill
-                        style={{ objectFit: "cover", borderRadius: "6px" }}
-                        unoptimized
-                      />
-                    </div>
-                  )}
-
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "12px", borderTop: "1px solid #EDE8E1", paddingTop: "10px" }}>
-                    <select 
-                      value={ticket.assigned_to || ""} 
-                      onChange={e => updateTicket(ticket.id, { assigned_to: e.target.value || null, status: e.target.value ? "Assigned" : "Open" })}
-                      disabled={busy || ticket.status === "Resolved"}
-                      style={{ padding: "6px", fontSize: "12px", borderRadius: "4px", border: "1px solid #EDE8E1" }}
-                    >
-                      <option value="">Unassigned</option>
-                      {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                    </select>
-
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button
-                        type="button"
-                        className="btn-dyn"
-                        onClick={() => updateTicket(ticket.id, { status: "Resolved" })}
-                        disabled={busy || ticket.status === "Resolved"}
-                        style={{ flex: 1, padding: "6px", fontSize: "12px", background: ticket.status === "Resolved" ? "#1E7F4F" : "#fff", color: ticket.status === "Resolved" ? "#fff" : "#1E7F4F", border: "1px solid #1E7F4F", borderRadius: "4px", cursor: "pointer", fontWeight: 600 }}
-                      >
-                        {ticket.status === "Resolved" ? "Resolved" : "Mark Resolved"}
-                      </button>
-                      {ticket.status === "Resolved" && (
-                        <button
-                          type="button"
-                          className="btn-dyn"
-                          onClick={() => updateTicket(ticket.id, { status: ticket.assigned_to ? "Assigned" : "Open" })}
-                          disabled={busy}
-                          style={{ padding: "6px", fontSize: "12px", background: "#fff", color: "#7A8499", border: "1px solid #EDE8E1", borderRadius: "4px", cursor: "pointer" }}
-                        >
-                          Reopen
-                        </button>
+                ) : rows.map((ticket) => {
+                  const sev = SEVERITY_STYLE[ticket.severity];
+                  const assignee = profiles.find((p) => p.id === ticket.assigned_to);
+                  return (
+                    <article key={ticket.id} className={`rep-card${ticket.severity === "emergency" ? " emg" : ""}`}>
+                      <header>
+                        <span className="cat">{ticket.category || ticket.issue_type}</span>
+                        <span className="ago" title={formatShortDate(ticket.created_at)}>{elapsed(ticket.created_at)}</span>
+                      </header>
+                      {sev && <span className="sev" style={{ background: sev.bg, color: sev.color }}>{sev.label}</span>}
+                      <p className="desc">{ticket.description}</p>
+                      {ticket.triage_reasoning && <p className="reason">{ticket.triage_reasoning}</p>}
+                      <p className="where">
+                        <span>Room <b>{ticket.room_number}</b></span>
+                        {ticket.tenant?.full_name && <span> · {ticket.tenant.full_name}</span>}
+                        {ticket.reported_via === "qr" && <span className="via">via wall QR</span>}
+                      </p>
+                      {ticket.photo_url && (
+                        <div className="shot">
+                          <Image src={ticket.photo_url} alt="Issue photo" fill style={{ objectFit: "cover" }} unoptimized />
+                        </div>
                       )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {tickets.filter(t => t.status === status).length === 0 && (
-                <p style={{ fontSize: "12px", color: "#7A8499", fontStyle: "italic", textAlign: "center", padding: "20px 0" }}>No tickets</p>
-              )}
+                      <footer>
+                        <label className="asg">
+                          <span className="lbl">Give to</span>
+                          <select
+                            value={ticket.assigned_to || ""}
+                            onChange={(e) => updateTicket(ticket.id, { assigned_to: e.target.value || null, status: e.target.value ? "Assigned" : "Open" })}
+                            disabled={busy || ticket.status === "Resolved"}
+                          >
+                            <option value="">Unassigned</option>
+                            {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                          </select>
+                        </label>
+                        {assignee && <p className="who">{assignee.full_name} is on it</p>}
+                        <div className="acts">
+                          {ticket.status !== "Resolved" && (
+                            <button type="button" className="rel sm" onClick={() => updateTicket(ticket.id, { status: "Resolved" })} disabled={busy}>Mark resolved ✓</button>
+                          )}
+                          {ticket.status === "Resolved" && (
+                            <button type="button" className="btn ghost sm" onClick={() => updateTicket(ticket.id, { status: ticket.assigned_to ? "Assigned" : "Open" })} disabled={busy}>Reopen</button>
+                          )}
+                        </div>
+                      </footer>
+                    </article>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {showModal && (
