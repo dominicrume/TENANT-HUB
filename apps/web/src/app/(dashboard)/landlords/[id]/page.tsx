@@ -66,55 +66,91 @@ export default function LandlordPage() {
     await load();
   }
 
-  if (error) return <div style={{ padding: "1.75rem" }}><p style={{ color: "var(--brick)" }}>{error}</p><Link href="/properties" className="btn ghost sm">Back to properties</Link></div>;
+  if (error) return <div style={{ padding: "1.75rem" }}><p style={{ color: "var(--brick)" }}>{error}</p><Link href="/landlords" className="btn ghost sm">Back to landlords</Link></div>;
   if (!data) return <div style={{ padding: "1.75rem" }}><p className="muted">Loading…</p></div>;
   const { landlord, properties, documents, tenantsCount } = data;
   const rooms = properties.reduce((s, p) => s + p.unitsCount, 0);
   const filled = properties.reduce((s, p) => s + p.occupiedCount, 0);
   const outstanding = documents.filter((d) => d.status === "requested").length;
+  const occPct = rooms ? Math.round((filled / rooms) * 100) : 0;
+  const firstName = landlord.name.split(/\s+/)[0];
+  const hasPortalOn = landlord.has_portal !== false;
 
   return (
-    <div style={{ padding: "1.75rem", maxWidth: 860 }}>
-      <p style={{ margin: "0 0 10px", fontSize: 12.5 }}><Link href="/landlords" style={{ color: "var(--slate)" }}>Landlords</Link> <span className="muted">/</span> {landlord.name}</p>
+    <div style={{ padding: "1.75rem", maxWidth: 920 }}>
+      <p style={{ margin: "0 0 12px", fontSize: 12.5 }}><Link href="/landlords" style={{ color: "var(--slate)" }}>Landlords</Link> <span className="muted">/</span> {landlord.name}</p>
 
-      <div style={{ display: "flex", gap: 18, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
-        <AvatarPhoto
-          src={`/api/landlords/${id}/photo`}
-          name={landlord.name}
-          size={72}
-          editable
-          onUpload={async (file) => {
-            const fd = new FormData(); fd.append("file", file);
-            const r = await fetch(`/api/landlords/${id}/photo`, { method: "POST", body: fd });
-            if (!r.ok) { const b = await r.json().catch(() => null); throw new Error(b?.error ?? "Photo did not save"); }
-          }}
-          onRemove={async () => {
-            const r = await fetch(`/api/landlords/${id}/photo`, { method: "DELETE" });
-            if (!r.ok) { const b = await r.json().catch(() => null); throw new Error(b?.error ?? "Could not remove the photo"); }
-          }}
-        />
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <h1 style={{ margin: 0 }}>{landlord.name}</h1>
-            <span className="tag" style={{ background: "rgba(232,168,76,.16)", color: "var(--amber-deep)" }}>Landlord</span>
+      <section className="card lord-hero" style={{ marginBottom: 14 }}>
+        <div className="band" />
+        <div className="body">
+          <div className="avatar-ring">
+            <AvatarPhoto
+              src={`/api/landlords/${id}/photo`}
+              name={landlord.name}
+              size={76}
+              editable
+              onUpload={async (file) => {
+                const fd = new FormData(); fd.append("file", file);
+                const r = await fetch(`/api/landlords/${id}/photo`, { method: "POST", body: fd });
+                if (!r.ok) { const b = await r.json().catch(() => null); throw new Error(b?.error ?? "Photo did not save"); }
+              }}
+              onRemove={async () => {
+                const r = await fetch(`/api/landlords/${id}/photo`, { method: "DELETE" });
+                if (!r.ok) { const b = await r.json().catch(() => null); throw new Error(b?.error ?? "Could not remove the photo"); }
+              }}
+            />
           </div>
-          <p className="muted" style={{ margin: "4px 0 0", fontSize: 13.5 }}>
-            {landlord.contact_phone ? <a href={`tel:${landlord.contact_phone}`} style={{ color: "inherit" }}>{landlord.contact_phone}</a> : "No phone"} · {landlord.contact_email ? <a href={`mailto:${landlord.contact_email}`} style={{ color: "inherit" }}>{landlord.contact_email}</a> : "No email"} · with us since {formatShortDate(landlord.created_at)}
-          </p>
+          <div className="who">
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <h1>{landlord.name}</h1>
+              <span className="tag" style={{ background: "rgba(232,168,76,.16)", color: "var(--amber-deep)" }}>Landlord</span>
+              {hasPortalOn && <span className="tag" style={{ background: "rgba(46,158,107,.1)", color: "var(--live)" }}>Own portal</span>}
+            </div>
+            <p className="meta">
+              {landlord.contact_phone ? <a href={`tel:${landlord.contact_phone}`}>{landlord.contact_phone}</a> : <span className="muted">No phone on file</span>}
+              <span className="muted">·</span>
+              {landlord.contact_email ? <a href={`mailto:${landlord.contact_email}`}>{landlord.contact_email}</a> : <span className="muted">No email on file</span>}
+              <span className="muted">·</span>
+              <span>with us since {formatShortDate(landlord.created_at)}</span>
+            </p>
+          </div>
+          <div className="acts">
+            {landlord.contact_phone && <a href={`tel:${landlord.contact_phone}`} className="btn ghost sm" aria-label={`Call ${firstName}`}>Call</a>}
+            {landlord.contact_email && <a href={`mailto:${landlord.contact_email}`} className="btn ghost sm" aria-label={`Email ${firstName}`}>Email</a>}
+            <Link href={`/properties?addProperty=1&landlord=${id}`} className="rel sm">+ Add property</Link>
+          </div>
         </div>
-        <div className="btns">
-          <Link href={`/properties?addProperty=1&landlord=${id}`} className="rel sm">+ Add a property for {landlord.name.split(/\s+/)[0]}</Link>
+      </section>
+
+      <section className="card" style={{ marginBottom: 14, padding: 0 }}>
+        <div className="glance">
+          <div className="ring-cell">
+            <OccupancyRing filled={filled} total={rooms} />
+            <div>
+              <div className="k">Occupancy</div>
+              <div className="v">{filled}<span className="over"> / {rooms || 0}</span></div>
+              <div className="m">{rooms === 0 ? "no rooms yet" : filled === rooms ? "every room taken" : `${rooms - filled} room${rooms - filled === 1 ? "" : "s"} to fill`}</div>
+            </div>
+          </div>
+          <div>
+            <div className="k">Properties</div>
+            <div className="v">{properties.length}</div>
+            <div className="m">{properties.length === 0 ? "none yet" : "under their name"}</div>
+          </div>
+          <div>
+            <div className="k">Tenants</div>
+            <div className="v">{tenantsCount}</div>
+            <div className="m">{tenantsCount === 0 ? "no one yet" : tenantsCount === 1 ? "living with us" : "living with us"}</div>
+          </div>
+          <div>
+            <div className="k">Documents</div>
+            <div className={`v ${outstanding ? "attn" : ""}`}>{outstanding}</div>
+            <div className="m">{outstanding === 0 ? (documents.length ? "all in" : "none asked for") : `waiting · ${documents.length} asked in total`}</div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div className="stats" style={{ marginTop: 0, marginBottom: 18 }}>
-        <div className="stat"><div className="k">Properties</div><div className="v">{properties.length}</div></div>
-        <div className="stat"><div className="k">Rooms</div><div className="v">{rooms}</div><div className="m">{filled} filled · {rooms - filled} empty</div></div>
-        <div className="stat"><div className="k">Tenants</div><div className="v">{tenantsCount}</div></div>
-        <div className="stat"><div className="k">Documents owed</div><div className="v" style={{ color: outstanding ? "var(--amber-deep)" : undefined }}>{outstanding}</div><div className="m">{documents.length} asked for in total</div></div>
-      </div>
-
-      <section className="card" style={{ marginBottom: 18 }}>
+      <section className="card" style={{ marginBottom: 14 }}>
         <div className="ch"><h3>Main details</h3>
           {!editing && <button type="button" className="btn ghost sm" onClick={() => setEditing(true)}>Edit</button>}
         </div>
@@ -145,28 +181,30 @@ export default function LandlordPage() {
         )}
       </section>
 
-      <section className="card" style={{ marginBottom: 18 }}>
-        <div className="ch"><h3>Properties we manage for {landlord.name.split(/\s+/)[0]}</h3>
+      <section className="card" style={{ marginBottom: 14 }}>
+        <div className="ch">
+          <h3>Properties we manage for {firstName} <span className="muted" style={{ fontWeight: 400, marginLeft: 6 }}>· {properties.length} · {occPct}% full</span></h3>
           <Link href={`/properties?addProperty=1&landlord=${id}`} className="btn ghost sm">+ Add property</Link>
         </div>
-        {properties.length === 0 ? <div className="li"><div className="body"><b>No properties yet</b><p>Add the first one and it will show here, with its rooms and tenants.</p></div></div> : properties.map((p) => (
-          <Link key={p.id} href={`/properties/${p.id}`} className="li row">
-            <span className="tag" style={{ background: "rgba(15,28,46,.06)", color: "var(--navy)", marginTop: 3 }}>{TYPE_LABEL[p.asset_class] ?? p.asset_class}</span>
-            <div className="body">
-              <b>{p.name}</b>
-              <p>{[p.address_line1, p.city, p.postcode].filter(Boolean).join(", ") || "No address on file"} · {p.occupiedCount} of {p.unitsCount} rooms filled</p>
-            </div>
-            <span className="chev">›</span>
-          </Link>
-        ))}
+        {properties.length === 0 ? (
+          <div className="li"><div className="body"><b>No properties yet</b><p>Add the first one and it will show here, with its rooms and tenants.</p></div></div>
+        ) : (
+          <div className="pcard-grid">
+            {properties.map((p) => <PropertyCard key={p.id} p={p} />)}
+          </div>
+        )}
       </section>
 
-      <FilesPanel entity="landlord" id={id} mode="documents" title={`${landlord.name.split(/\s+/)[0]}'s documents`} />
+      <FilesPanel entity="landlord" id={id} mode="documents" title={`${firstName}'s documents`} />
 
       <section className="card">
-        <div className="ch"><h3>Documents asked of {landlord.name.split(/\s+/)[0]}</h3></div>
+        <div className="ch">
+          <h3>Documents asked of {firstName}</h3>
+          {outstanding > 0 && <span className="tag" style={{ background: "rgba(232,168,76,.16)", color: "var(--amber-deep)" }}>{outstanding} waiting</span>}
+        </div>
         {documents.length === 0 ? <div className="li"><p className="muted">Nothing requested yet. Ask from a property&apos;s Documents section.</p></div> : documents.map((d) => (
           <div className="li" key={d.id}>
+            <span className={`doc-dot ${d.status === "received" ? "received" : "waiting"}`} aria-hidden />
             <div className="body">
               <b>{d.document_type} · <Link href={`/properties/${d.property_id}`} style={{ color: "var(--navy)" }}>{d.property_name}</Link></b>
               <p>{d.status === "received" ? `Received ${d.received_at ? formatShortDate(d.received_at) : ""}` : d.notified_at ? `Emailed ${formatShortDate(d.notified_at)} · waiting` : `Requested${d.requested_at ? ` ${formatShortDate(d.requested_at)}` : ""} · no email went (no address on file)`}</p>
@@ -176,6 +214,47 @@ export default function LandlordPage() {
         ))}
       </section>
     </div>
+  );
+}
+
+function OccupancyRing({ filled, total }: { filled: number; total: number }) {
+  const pct = total ? filled / total : 0;
+  const r = 28; const c = 2 * Math.PI * r;
+  const dash = pct * c;
+  const label = total ? `${filled} of ${total} rooms with people in` : "no rooms yet";
+  const stroke = pct === 1 ? "var(--live)" : "var(--amber)";
+  return (
+    <svg width={72} height={72} viewBox="0 0 72 72" role="img" aria-label={label}>
+      <circle cx={36} cy={36} r={r} fill="none" stroke="var(--line)" strokeWidth={7} />
+      <circle cx={36} cy={36} r={r} fill="none" stroke={stroke} strokeWidth={7} strokeLinecap="round"
+              strokeDasharray={`${dash} ${c}`} transform="rotate(-90 36 36)"
+              style={{ transition: "stroke-dasharray 700ms cubic-bezier(.4,0,.2,1), stroke 300ms ease" }} />
+      <text x="36" y="41" textAnchor="middle" fontSize="14" fontWeight={700} fill="var(--navy)">
+        {total ? `${Math.round(pct * 100)}%` : "—"}
+      </text>
+    </svg>
+  );
+}
+
+function PropertyCard({ p }: { p: Prop }) {
+  const pct = p.unitsCount ? (p.occupiedCount / p.unitsCount) * 100 : 0;
+  const empty = p.unitsCount - p.occupiedCount;
+  const full = p.unitsCount > 0 && empty === 0;
+  const addr = [p.address_line1, p.city, p.postcode].filter(Boolean).join(", ") || "No address on file";
+  return (
+    <Link href={`/properties/${p.id}`} className="pcard" aria-label={`${p.name} — ${p.occupiedCount} of ${p.unitsCount} rooms filled`}>
+      <div className="head">
+        <span className="tag" style={{ background: "rgba(15,28,46,.06)", color: "var(--navy)" }}>{TYPE_LABEL[p.asset_class] ?? p.asset_class}</span>
+        <span className="ttl">{p.name}</span>
+        <span className="chev">›</span>
+      </div>
+      <p className="addr">{addr}</p>
+      <div className="row2">
+        <div className={`bar ${full ? "full" : ""}`}><i style={{ width: `${pct}%` }} /></div>
+        <span className="nums">{p.occupiedCount}/{p.unitsCount || 0}</span>
+        <span className={full ? "free live" : empty > 0 ? "free amber" : "free amber"}>{p.unitsCount === 0 ? "no rooms" : full ? "full" : `${empty} free`}</span>
+      </div>
+    </Link>
   );
 }
 
