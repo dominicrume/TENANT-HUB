@@ -147,10 +147,25 @@ export default function DiaryPage() {
   // Fade the toast on its own.
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2400); return () => clearTimeout(t); }, [toast]);
 
+  // Right-click a chip to act on it without opening the modal first — Done, Reschedule to tomorrow, Cancel, Remove.
+  const [ctx, setCtx] = useState<{ x: number; y: number; it: DiaryItem } | null>(null);
+  useEffect(() => { const close = () => setCtx(null); if (ctx) { window.addEventListener("click", close); window.addEventListener("scroll", close, true); return () => { window.removeEventListener("click", close); window.removeEventListener("scroll", close, true); }; } }, [ctx]);
+
+  // Period stats — real counts the eye can scan ("4 viewings · 2 move-ins · £520 rent due this month").
+  const periodStats = useMemo(() => {
+    const by: Record<string, number> = {};
+    let rent = 0;
+    for (const it of visible) {
+      by[it.kind] = (by[it.kind] ?? 0) + 1;
+      if (it.source === "rent_due" && typeof it.amount === "number" && !it.done) rent += it.amount;
+    }
+    return { by, rent };
+  }, [visible]);
+
   const Chip = ({ it, dense }: { it: DiaryItem; dense?: boolean }) => {
     const k = kindMeta(it.kind); const st = STATUS_MARK[it.status]; const money = it.source === "rent_due";
     return (
-      <button type="button" onClick={() => setSel(it)} title={`${it.title}${it.assignedTo ? ` · ${it.assignedTo}` : ""}`}
+      <button type="button" onClick={() => setSel(it)} onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, it }); }} title={`${it.title}${it.assignedTo ? ` · ${it.assignedTo}` : ""} — right-click for quick actions`}
         style={{ display: "flex", alignItems: "center", gap: 5, width: "100%", textAlign: "left", border: "none", cursor: "pointer", fontFamily: "inherit", borderRadius: 6, padding: dense ? "2px 6px" : "5px 8px", fontSize: dense ? 11.5 : 12.5, lineHeight: 1.25,
           background: money ? (it.done ? "rgba(214,51,132,.18)" : "#D63384") : "var(--surface)", color: money ? (it.done ? "#8a1f55" : "#fff") : "var(--navy)", borderLeft: money ? "none" : `4px solid ${it.assignedTo ? colourFor(it.assignedTo) : k.colour}`, boxShadow: money ? "none" : "0 1px 2px rgba(15,28,46,.08)", opacity: it.done && !money ? 0.55 : 1, textDecoration: it.status === "cancelled" ? "line-through" : undefined }}>
         {!money && <span style={{ color: st.colour, fontWeight: 700, flex: "none" }}>{st.mark}</span>}
@@ -295,6 +310,15 @@ export default function DiaryPage() {
           </div>
 
           {loadError && <div className="card" style={{ marginBottom: 10, borderColor: "var(--brick)" }}><div className="li"><p style={{ margin: 0, color: "var(--brick)", fontSize: 13 }}>The diary could not load: {loadError} <button type="button" className="btn ghost sm" onClick={() => void load()}>Try again</button></p></div></div>}
+          {items && visible.length > 0 && (
+            <div className="d-stats" role="status" aria-label={`${visible.length} events in this period`}>
+              <span className="s-total"><b>{visible.length}</b> event{visible.length === 1 ? "" : "s"} on this {view === "day" ? "day" : view === "month" ? "month" : view === "list" ? "list" : "week"}</span>
+              {DIARY_KINDS.filter((k) => (periodStats.by[k.key] ?? 0) > 0 && !hiddenKinds.has(k.key)).slice(0, 6).map((k) => (
+                <span key={k.key} className="s-chip" style={{ borderLeft: `3px solid ${k.colour}` }}>{k.icon} <b>{periodStats.by[k.key]}</b> {k.label.toLowerCase()}</span>
+              ))}
+              {periodStats.rent > 0 && <span className="s-chip s-money"><b>£{periodStats.rent.toFixed(0)}</b> rent due, unpaid</span>}
+            </div>
+          )}
           {hiddenCount > 0 && (
             <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8, fontSize: 12.5, color: "var(--amber-deep)" }}>
               <span>{hiddenCount} event{hiddenCount === 1 ? "" : "s"} in this range {hiddenCount === 1 ? "is" : "are"} hidden by the ticks on the left.</span>
@@ -355,6 +379,17 @@ export default function DiaryPage() {
 
       {sel && <EventPopover it={sel} onClose={() => setSel(null)} onPatch={(b) => patch(sel, b)} onRemove={() => remove(sel)} onEdit={() => { setEditor({ open: true, item: sel }); setSel(null); }} onReschedule={(k) => rescheduleTo(sel, k)} />}
       {helpOpen && <ShortcutsHelp onClose={() => setHelpOpen(false)} />}
+      {ctx && (
+        <ContextMenu
+          x={ctx.x} y={ctx.y} it={ctx.it}
+          onOpen={() => { setSel(ctx.it); setCtx(null); }}
+          onDone={() => { void patch(ctx.it, { done: !ctx.it.done }); setCtx(null); setToast(ctx.it.done ? "Marked not done" : "Done ✓"); }}
+          onTomorrow={() => { void rescheduleTo(ctx.it, ymd(addDays(new Date(ctx.it.at), 1))); setCtx(null); }}
+          onNextWeek={() => { void rescheduleTo(ctx.it, ymd(addDays(new Date(ctx.it.at), 7))); setCtx(null); }}
+          onCancel={() => { void patch(ctx.it, { status: "cancelled" }); setCtx(null); setToast("Event cancelled"); }}
+          onRemove={() => { void remove(ctx.it); setCtx(null); }}
+        />
+      )}
       {toast && <div role="status" style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", background: "var(--navy)", color: "#fff", padding: "10px 16px", borderRadius: 10, fontSize: 13.5, boxShadow: "0 12px 30px rgba(15,28,46,.25)", zIndex: 1300 }}>{toast}</div>}
       {editor.open && <EventEditor date={editor.date} time={editor.time} item={editor.item ?? null} staff={staff} tenants={tenants} properties={properties} onClose={() => setEditor({ open: false })} onSaved={(at, k) => {
         // Land on the day you just saved, with its type visible — you must see what you saved.
@@ -486,6 +521,33 @@ function EventEditor({ date, time, item, staff, tenants, properties, onClose, on
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}><button type="button" className="btn ghost sm" onClick={onClose}>Cancel</button><button type="submit" className="rel sm" disabled={busy || !title.trim() || !start}>{busy ? "Saving…" : "Save"}</button></div>
       </form>
     </div>, document.body);
+}
+
+function ContextMenu({ x, y, it, onOpen, onDone, onTomorrow, onNextWeek, onCancel, onRemove }: { x: number; y: number; it: DiaryItem; onOpen: () => void; onDone: () => void; onTomorrow: () => void; onNextWeek: () => void; onCancel: () => void; onRemove: () => void }) {
+  const own = it.source === "diary" || it.source === "viewing";
+  // Keep the menu on-screen whichever corner you right-click near.
+  const W = 220, H = own ? 240 : 90;
+  const left = typeof window !== "undefined" ? Math.min(x, window.innerWidth - W - 8) : x;
+  const top = typeof window !== "undefined" ? Math.min(y, window.innerHeight - H - 8) : y;
+  return createPortal(
+    <div onClick={(e) => e.stopPropagation()} role="menu" aria-label={`Quick actions for ${it.title}`}
+      style={{ position: "fixed", left, top, width: W, background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 16px 44px rgba(15,28,46,.22)", padding: 4, zIndex: 1300, display: "grid", gap: 2, fontFamily: "inherit" }}>
+      <div style={{ padding: "8px 10px 6px", borderBottom: "1px solid var(--line-soft)", marginBottom: 2 }}><b style={{ fontSize: 12.5, color: "var(--navy)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.title}</b></div>
+      <CtxItem onClick={onOpen}>Open full details</CtxItem>
+      {own && <CtxItem onClick={onDone}>{it.done ? "Mark not done" : "Mark done ✓"}</CtxItem>}
+      {own && <CtxItem onClick={onTomorrow}>Reschedule to tomorrow</CtxItem>}
+      {own && <CtxItem onClick={onNextWeek}>Reschedule to next week</CtxItem>}
+      {own && it.status !== "cancelled" && <CtxItem onClick={onCancel}>Cancel event</CtxItem>}
+      {own && <CtxItem onClick={onRemove} danger>Remove…</CtxItem>}
+      {!own && <p className="muted" style={{ margin: 0, padding: "6px 10px 10px", fontSize: 11.5 }}>This comes from another record — open it to change.</p>}
+    </div>, document.body);
+}
+
+function CtxItem({ children, onClick, danger }: { children: React.ReactNode; onClick: () => void; danger?: boolean }) {
+  return <button type="button" role="menuitem" onClick={onClick}
+    style={{ display: "flex", width: "100%", padding: "9px 10px", background: "transparent", border: "none", textAlign: "left", borderRadius: 8, cursor: "pointer", font: "inherit", fontSize: 13, color: danger ? "var(--brick)" : "var(--navy)" }}
+    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--cream)"; }}
+    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>{children}</button>;
 }
 
 function ShortcutsHelp({ onClose }: { onClose: () => void }) {

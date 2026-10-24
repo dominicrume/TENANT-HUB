@@ -323,7 +323,8 @@ label { display: block; }
 .lord-hero .acts { margin-top: 46px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 @media (max-width: 640px) { .lord-hero .acts, .lord-hero .who { margin-top: 10px; } }
 
-.glance { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; align-items: stretch; }
+.glance { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr 1fr; align-items: stretch; }
+@media (max-width: 1000px) { .glance { grid-template-columns: 1.3fr 1fr 1fr 1fr; } .glance > div:nth-child(5) { grid-column: 1 / -1; border-top: 1px solid var(--line-soft); border-right: none; } }
 .glance > div { padding: 18px 20px; border-right: 1px solid var(--line-soft); min-width: 0; }
 .glance > div:last-child { border-right: none; }
 .glance .k { font-size: 12px; color: var(--slate); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
@@ -361,8 +362,32 @@ label { display: block; }
 .doc-dot.waiting { background: var(--amber); }
 .doc-dot.received { background: var(--live); }
 
+/* "Lately for Reliance" — a vertical timeline the eye runs down. */
+.act-timeline { list-style: none; margin: 0; padding: 10px 6px 10px 0; display: grid; gap: 2px; }
+.act-timeline li a { display: grid; grid-template-columns: 44px 12px 1fr auto; align-items: start; gap: 10px; padding: 10px 14px; text-decoration: none; color: inherit; border-radius: 10px; position: relative; }
+.act-timeline li a:hover { background: var(--cream); }
+.act-timeline li .ago { font-size: 11.5px; color: var(--slate-2); font-weight: 500; padding-top: 4px; text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-jetbrains-mono), monospace; }
+.act-timeline li .dot { position: relative; width: 12px; display: flex; align-items: start; justify-content: center; padding-top: 6px; }
+.act-timeline li .dot::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 3px rgba(232,168,76,.14); flex: none; }
+.act-timeline li.k-move_in .dot::before { background: var(--live); box-shadow: 0 0 0 3px rgba(46,158,107,.14); }
+.act-timeline li.k-doc_received .dot::before { background: var(--live); box-shadow: 0 0 0 3px rgba(46,158,107,.14); }
+.act-timeline li.k-cert_added .dot::before { background: var(--violet); box-shadow: 0 0 0 3px rgba(107,91,209,.14); }
+.act-timeline li:not(:last-child) .dot::after { content: ""; position: absolute; top: 20px; bottom: -14px; width: 2px; background: var(--line); border-radius: 1px; }
+.act-timeline li .meat b { font-size: 13.5px; color: var(--navy); display: block; }
+.act-timeline li .meat p { margin: 2px 0 0; font-size: 12.5px; color: var(--slate); }
+.act-timeline li .chev { margin-left: auto; color: var(--slate-2); font-size: 18px; font-weight: 700; line-height: 1; padding-top: 2px; }
+
 /* kbd pill — used by the diary shortcuts panel and the inline hints. */
 .kb { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; background: var(--cream); border: 1px solid #D7CFBD; border-bottom-width: 2px; border-radius: 6px; font-family: var(--font-jetbrains-mono), monospace; font-size: 11px; font-weight: 600; color: var(--navy); line-height: 1; }
+
+/* Diary period stats bar — numbers the eye reads before the grid. */
+.d-stats { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 10px; font-size: 12.5px; }
+.d-stats .s-total { color: var(--slate); margin-right: 6px; }
+.d-stats .s-total b { color: var(--navy); font-weight: 600; font-size: 13px; }
+.d-stats .s-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px 4px 8px; color: var(--slate); font-size: 12px; }
+.d-stats .s-chip b { color: var(--navy); font-weight: 600; font-variant-numeric: tabular-nums; }
+.d-stats .s-money { background: rgba(214,51,132,.08); border-color: rgba(214,51,132,.25); color: #8a1f55; border-left: 3px solid #D63384; }
+.d-stats .s-money b { color: #8a1f55; font-family: var(--font-jetbrains-mono), monospace; }
 
 /* ── Dashboard: Matlub's three numbered sections (Analytics / Tasks / Signup timeline). */
 .dash-sec { margin: 22px 0 0; }

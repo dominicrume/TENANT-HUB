@@ -17,7 +17,8 @@ import { formatShortDate } from "../../../../lib/format";
 interface Landlord { id: string; name: string; contact_email: string | null; contact_phone: string | null; notes: string | null; created_at: string; has_portal?: boolean | null; portal_name?: string | null }
 interface Prop { id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null; asset_class: string; unitsCount: number; occupiedCount: number }
 interface Doc { id: string; document_type: string; status: string; requested_at: string | null; notified_at: string | null; received_at: string | null; property_id: string; property_name: string }
-interface Data { landlord: Landlord; properties: Prop[]; documents: Doc[]; tenantsCount: number }
+interface Activity { kind: "move_in" | "doc_received" | "doc_sent" | "cert_added"; at: string; title: string; detail: string; href: string }
+interface Data { landlord: Landlord; properties: Prop[]; documents: Doc[]; tenantsCount: number; rentRollMonthly?: number; activity?: Activity[] }
 
 const TYPE_LABEL: Record<string, string> = { supported: "Supported accommodation", residential: "Residential", commercial: "Commercial", mixed: "Other" };
 
@@ -68,13 +69,14 @@ export default function LandlordPage() {
 
   if (error) return <div style={{ padding: "1.75rem" }}><p style={{ color: "var(--brick)" }}>{error}</p><Link href="/landlords" className="btn ghost sm">Back to landlords</Link></div>;
   if (!data) return <div style={{ padding: "1.75rem" }}><p className="muted">Loading…</p></div>;
-  const { landlord, properties, documents, tenantsCount } = data;
+  const { landlord, properties, documents, tenantsCount, rentRollMonthly = 0, activity = [] } = data;
   const rooms = properties.reduce((s, p) => s + p.unitsCount, 0);
   const filled = properties.reduce((s, p) => s + p.occupiedCount, 0);
   const outstanding = documents.filter((d) => d.status === "requested").length;
   const occPct = rooms ? Math.round((filled / rooms) * 100) : 0;
   const firstName = landlord.name.split(/\s+/)[0];
   const hasPortalOn = landlord.has_portal !== false;
+  const money = (n: number) => `£${Math.round(n).toLocaleString("en-GB")}`;
 
   return (
     <div style={{ padding: "1.75rem", maxWidth: 920 }}>
@@ -143,12 +145,26 @@ export default function LandlordPage() {
             <div className="m">{tenantsCount === 0 ? "no one yet" : tenantsCount === 1 ? "living with us" : "living with us"}</div>
           </div>
           <div>
+            <div className="k">Rent roll</div>
+            <div className="v" style={{ fontFamily: "var(--font-jetbrains-mono), monospace" }}>{rentRollMonthly > 0 ? money(rentRollMonthly) : "—"}</div>
+            <div className="m">{rentRollMonthly > 0 ? "a month, across active tenancies" : "no active tenancies yet"}</div>
+          </div>
+          <div>
             <div className="k">Documents</div>
             <div className={`v ${outstanding ? "attn" : ""}`}>{outstanding}</div>
             <div className="m">{outstanding === 0 ? (documents.length ? "all in" : "none asked for") : `waiting · ${documents.length} asked in total`}</div>
           </div>
         </div>
       </section>
+
+      {activity.length > 0 && (
+        <section className="card" style={{ marginBottom: 14 }}>
+          <div className="ch"><h3>Lately for {firstName}</h3><span className="muted" style={{ fontSize: 12 }}>last 60 days</span></div>
+          <ol className="act-timeline">
+            {activity.map((a, i) => <ActivityRow key={i} a={a} />)}
+          </ol>
+        </section>
+      )}
 
       <section className="card" style={{ marginBottom: 14 }}>
         <div className="ch"><h3>Main details</h3>
@@ -233,6 +249,23 @@ function OccupancyRing({ filled, total }: { filled: number; total: number }) {
         {total ? `${Math.round(pct * 100)}%` : "—"}
       </text>
     </svg>
+  );
+}
+
+function ActivityRow({ a }: { a: Activity }) {
+  const d = new Date(a.at);
+  const now = new Date();
+  const diffD = Math.round((now.getTime() - d.getTime()) / 86400000);
+  const ago = diffD === 0 ? "today" : diffD === 1 ? "yesterday" : diffD < 7 ? `${diffD}d` : diffD < 60 ? `${Math.round(diffD / 7)}w` : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return (
+    <li className={`k-${a.kind}`}>
+      <Link href={a.href}>
+        <span className="ago" title={d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}>{ago}</span>
+        <span className="dot" aria-hidden />
+        <span className="meat"><b>{a.title}</b><p>{a.detail}</p></span>
+        <span className="chev">›</span>
+      </Link>
+    </li>
   );
 }
 
