@@ -76,6 +76,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       // all landlords.
       brand={profile?.landlord_name ?? profile?.org_name ?? "Tenant Hub"}
       brandSub={profile?.landlord_name ? "Landlord · Tenant Hub" : "Tenant Hub"}
+      orgName={profile?.org_name ?? undefined}
       user={profile?.full_name ?? "—"}
       role={profile?.role ?? ""}
       workspaces={workspaces}

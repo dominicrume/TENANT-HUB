@@ -98,6 +98,12 @@ export interface ShellProps {
   brand: string;
   brandSub?: string;
   logoUrl?: string | null;
+  /** The Managing Agent (the signed-in person's organisation): "Matty's Place",
+   * "Green Gates", "Reliance Housing". Rendered as the leading chip at the top-
+   * left of the topbar so a staff member always sees whose software they are
+   * signed into — the name they bought the subscription under (Matlub,
+   * 2026-10-24: "when I log in it should say Matty's Place at the top"). */
+  orgName?: string;
   user: string;
   role: string;
   /** Every organisation this person can work in (kept for the menu's "Switch workspace"). */
@@ -128,7 +134,7 @@ export interface ShellProps {
 }
 
 export function Shell({
-  children, nav, brand, brandSub = "Tenant Hub", logoUrl, user, role,
+  children, nav, brand, brandSub = "Tenant Hub", logoUrl, orgName, user, role,
   workspaces = [], activeWorkspaceId = null, onSwitchWorkspace,
   landlords = [], activeLandlordId = null, onSwitchLandlord, avatar,
   needsYou = 0, live = null, practice = [], primaryAction, secondaryAction, settingsHref = "/settings", onSignOut,
@@ -172,7 +178,17 @@ export function Shell({
 
       <div className="main">
         <div className="topbar">
-          <div className="crumb">{crumb}</div>
+          {/* The Managing Agent — "Matty's Place", "Green Gates", "Reliance
+              Housing" — always at the top, always first (Matlub, 2026-10-24).
+              Whose software this is, visible at a glance; the signed-in staff
+              member sits on the right, secondary. */}
+          {orgName && (
+            <span className="org-chip" title={`Managing agent · ${orgName}`}>
+              <span className="org-mark" aria-hidden="true">{(orgName[0] ?? "?").toUpperCase()}</span>
+              <span><small>Managing agent</small><b>{orgName}</b></span>
+            </span>
+          )}
+          <div className="crumb crumb-page">{crumb}</div>
           {/* Whose portfolio you're looking at — the landlord, by name, always
               visible (migration 054). A live list: a landlord added a minute
               ago is already in it. "All landlords" is the whole-company view.
@@ -196,9 +212,9 @@ export function Shell({
               </select>
               <span aria-hidden="true">{switching ? "…" : "▾"}</span>
             </label>
-          ) : (
+          ) : !orgName ? (
             <span className="wschip static" title="Your workspace"><Icon k="properties" />{brand}</span>
-          )}
+          ) : null}
           {practice.length > 0 && (
             <Link href={`${settingsHref ?? "/settings"}#connections`} className="pill practice" title="These connections are simulated until you add their credentials">
               Practice mode · {practice.join(", ")}
