@@ -78,6 +78,22 @@ export default function SettingsPage() {
   // shows/copies/WhatsApps them, and can reveal or re-issue a password from the people list.
   const [inviteLink, setInviteLink] = useState<{ email: string; url: string; delivered: boolean; password: string | null; title?: string } | null>(null);
   const [copied, setCopied] = useState<"link" | "password" | "both" | null>(null);
+  // "Add a managing agent" — the super-admin flow Rume uses to onboard a new
+  // Managing Agent (e.g. Osama at Reliable Living) with its own admin, in one go.
+  const [maName, setMaName] = useState(""); const [maAdminEmail, setMaAdminEmail] = useState(""); const [maAdminName, setMaAdminName] = useState("");
+  const [maBusy, setMaBusy] = useState(false); const [maError, setMaError] = useState<string | null>(null);
+  const [maCreated, setMaCreated] = useState<{ organisation: { id: string; name: string }; admin: { email: string; fullName: string; inviteUrl: string; password: string | null; delivered: boolean } } | null>(null);
+  async function createManagingAgent(e: React.FormEvent) {
+    e.preventDefault(); setMaBusy(true); setMaError(null); setMaCreated(null);
+    try {
+      const r = await fetch("/api/organisations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: maName, adminEmail: maAdminEmail, adminFullName: maAdminName }) });
+      const b = await r.json().catch(() => null);
+      if (!r.ok) { setMaError(b?.error ?? "Could not create the managing agent."); return; }
+      setMaCreated({ organisation: b.organisation, admin: b.admin });
+      setMaName(""); setMaAdminEmail(""); setMaAdminName("");
+      fetch("/api/organisations/mine").then((r) => (r.ok ? r.json() : [])).then((d) => setOrgCount(Array.isArray(d) ? d.length : 0)).catch(() => {});
+    } catch { setMaError("Could not reach the server."); } finally { setMaBusy(false); }
+  }
   function loadInvites() { /* invites no longer wait on anyone — accounts exist the moment they're issued */ }
   async function copyText(what: "link" | "password" | "both") {
     if (!inviteLink) return;
@@ -319,6 +335,41 @@ export default function SettingsPage() {
                 <p className="dyn-foot">Each person signs in with their own name — every change is stamped with their initials, the date and the time.</p>
               </div>
             </section>
+
+            {canManage && (
+              <section className="card" style={{ marginBottom: 18 }}>
+                <div className="ch"><h3>Add a managing agent</h3><span className="muted" style={{ fontSize: 12 }}>a brand-new organisation with its own admin — data stays isolated</span></div>
+                <form onSubmit={createManagingAgent} className="li" style={{ display: "grid", gap: 10 }}>
+                  <p className="muted" style={{ margin: "0 0 2px", fontSize: 12.5 }}>Use this to onboard another managing agent (not a landlord under this one). The admin you name below will sign in with their own password and only ever see their own organisation&apos;s data — same as how your own account works.</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
+                    <label><span className="lbl">Managing agent name</span><input value={maName} onChange={(e) => setMaName(e.target.value)} placeholder="e.g. Reliable Living" required style={inp} /></label>
+                    <label><span className="lbl">Admin&apos;s full name</span><input value={maAdminName} onChange={(e) => setMaAdminName(e.target.value)} placeholder="e.g. Osama Loumilli" required style={inp} /></label>
+                    <label style={{ gridColumn: "1 / -1" }}><span className="lbl">Admin&apos;s email</span><input type="email" value={maAdminEmail} onChange={(e) => setMaAdminEmail(e.target.value)} placeholder="e.g. loumilli@reliableliving.co.uk" required style={inp} /></label>
+                  </div>
+                  {maError && <p className="form-error" style={{ margin: 0 }}>{maError}</p>}
+                  <div><button type="submit" className="rel sm" disabled={maBusy || !maName.trim() || !maAdminEmail.trim() || !maAdminName.trim()}>{maBusy ? "Creating…" : "Create the managing agent"}</button></div>
+                </form>
+                {maCreated && (
+                  <div className="li" style={{ display: "grid", gap: 10, background: "rgba(30,127,79,.07)" }}>
+                    <b style={{ fontSize: 13.5 }}>{maCreated.organisation.name} is live · {maCreated.admin.fullName} is its admin</b>
+                    <div style={{ display: "grid", gridTemplateColumns: "90px 1fr auto", gap: 8, alignItems: "center" }}>
+                      <span className="lbl" style={{ margin: 0 }}>Sign in</span>
+                      <input readOnly value={maCreated.admin.inviteUrl} onFocus={(e) => e.currentTarget.select()} style={{ ...inp, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }} />
+                      <button type="button" className="btn ghost sm" onClick={() => { void navigator.clipboard.writeText(maCreated.admin.inviteUrl).catch(() => {}); }}>Copy</button>
+                      <span className="lbl" style={{ margin: 0 }}>Password</span>
+                      <input readOnly value={maCreated.admin.password ?? "— not available —"} onFocus={(e) => e.currentTarget.select()} style={{ ...inp, fontFamily: "'JetBrains Mono', monospace", fontSize: 14, letterSpacing: ".04em", fontWeight: 600 }} />
+                      <button type="button" className="btn ghost sm" onClick={() => { if (maCreated.admin.password) void navigator.clipboard.writeText(maCreated.admin.password).catch(() => {}); }} disabled={!maCreated.admin.password}>Copy</button>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button type="button" className="rel sm" onClick={() => { if (!maCreated.admin.password) return; void navigator.clipboard.writeText(`Your Tenant Hub account for ${maCreated.organisation.name} is ready.\nSign in: ${maCreated.admin.inviteUrl}\nPassword: ${maCreated.admin.password}\nYou're the admin — add your team from Settings → Users.`).catch(() => {}); }} disabled={!maCreated.admin.password}>Copy both</button>
+                      <a className="btn ghost sm" href={`https://wa.me/?text=${encodeURIComponent(`Your Tenant Hub account for ${maCreated.organisation.name} is ready.\nSign in: ${maCreated.admin.inviteUrl}\nPassword: ${maCreated.admin.password ?? ""}\nYou're the admin — add your team from Settings → Users.`)}`} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 12.5, color: maCreated.admin.delivered ? "var(--live)" : "var(--brick)" }}>{maCreated.admin.delivered ? "Emailed to them as well." : "The email did not go out (the sending domain isn't verified yet) — hand these over yourself."} {maCreated.admin.fullName} will not see any of your data; you will not see theirs.</p>
+                  </div>
+                )}
+              </section>
+            )}
+
             {accessRequests.length > 0 && (
               <section className="card" style={{ marginBottom: 18, borderColor: "var(--amber)" }}>
                 <div className="ch"><h3>Access requests · {accessRequests.length}</h3></div>
