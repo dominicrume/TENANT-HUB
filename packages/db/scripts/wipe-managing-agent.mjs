@@ -29,14 +29,30 @@ if (!name) {
   process.exit(1);
 }
 
-// Prefer the public URL: an internal .railway.internal host won't resolve from your laptop.
-const url = process.env.DATABASE_PUBLIC_URL
+// Pick a Postgres URL that resolves from this machine. In order of preference:
+//   1. DATABASE_PUBLIC_URL — some Postgres plugins set this directly.
+//   2. DATABASE_URL — only when it ISN'T the internal .railway.internal host.
+//   3. Reconstructed from the TCP-proxy pieces Railway exposes when the proxy is enabled:
+//      RAILWAY_TCP_PROXY_DOMAIN + RAILWAY_TCP_PROXY_PORT + PGUSER + PGPASSWORD + PGDATABASE.
+const envUrl = process.env.DATABASE_PUBLIC_URL
   || (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes(".railway.internal") ? process.env.DATABASE_URL : null);
+const { RAILWAY_TCP_PROXY_DOMAIN: proxyHost, RAILWAY_TCP_PROXY_PORT: proxyPort, PGUSER, PGPASSWORD, PGDATABASE } = process.env;
+const reconstructed = proxyHost && proxyPort && PGUSER && PGPASSWORD && PGDATABASE
+  ? `postgresql://${encodeURIComponent(PGUSER)}:${encodeURIComponent(PGPASSWORD)}@${proxyHost}:${proxyPort}/${PGDATABASE}`
+  : null;
+const url = envUrl || reconstructed;
+
 if (!url) {
   console.error(
     "No reachable Postgres URL in env.\n" +
-    "Run with `railway run --service Postgres --` so DATABASE_PUBLIC_URL is injected.\n" +
-    "If you ran with --service web, you got the internal hostname (postgres.railway.internal) which only resolves inside a Railway container."
+    "Run with `railway run --service Postgres --` so the Postgres env is injected.\n" +
+    "Vars this script looked for (none were usable):\n" +
+    `  DATABASE_PUBLIC_URL        = ${process.env.DATABASE_PUBLIC_URL ? "set" : "unset"}\n` +
+    `  DATABASE_URL               = ${process.env.DATABASE_URL ? (process.env.DATABASE_URL.includes(".railway.internal") ? "internal (unreachable from your Mac)" : "set") : "unset"}\n` +
+    `  RAILWAY_TCP_PROXY_DOMAIN   = ${proxyHost ?? "unset"}\n` +
+    `  RAILWAY_TCP_PROXY_PORT     = ${proxyPort ?? "unset"}\n` +
+    `  PGUSER / PGPASSWORD / PGDATABASE = ${PGUSER ? "set" : "unset"} / ${PGPASSWORD ? "set" : "unset"} / ${PGDATABASE ?? "unset"}\n` +
+    "If the TCP proxy isn't enabled, run `railway tcp-proxy list --service Postgres` to see it, or set DATABASE_URL manually before calling this script."
   );
   process.exit(1);
 }
