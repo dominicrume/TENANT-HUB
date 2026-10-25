@@ -72,12 +72,11 @@ try {
   }
   const org = found.rows[0].id;
 
-  const [p, t, pr, l] = await Promise.all([
-    client.query("SELECT count(*)::int AS n FROM profiles  WHERE org_id = $1", [org]),
-    client.query("SELECT count(*)::int AS n FROM tenants   WHERE org_id = $1", [org]),
-    client.query("SELECT count(*)::int AS n FROM properties WHERE org_id = $1", [org]).catch(() => ({ rows: [{ n: "?" }] })),
-    client.query("SELECT count(*)::int AS n FROM landlords  WHERE org_id = $1", [org]).catch(() => ({ rows: [{ n: "?" }] })),
-  ]);
+  // A pg Client can only run one query at a time — serialize these.
+  const p  = await client.query("SELECT count(*)::int AS n FROM profiles  WHERE org_id = $1", [org]);
+  const t  = await client.query("SELECT count(*)::int AS n FROM tenants   WHERE org_id = $1", [org]);
+  const pr = await client.query("SELECT count(*)::int AS n FROM properties WHERE org_id = $1", [org]).catch(() => ({ rows: [{ n: "?" }] }));
+  const l  = await client.query("SELECT count(*)::int AS n FROM landlords  WHERE org_id = $1", [org]).catch(() => ({ rows: [{ n: "?" }] }));
   console.log(`Found "${name}"  (${org})`);
   console.log(`  profiles   : ${p.rows[0].n}`);
   console.log(`  tenants    : ${t.rows[0].n}`);
@@ -94,10 +93,14 @@ try {
   }
 
   await client.query("BEGIN");
-  // profiles and tenants have no ON DELETE CASCADE to organisations — handle them first.
+  // Disable FK triggers for this one transaction — half a dozen tables (tenants.created_by,
+  // sessions.entered_by, diary_entries.created_by/assigned_to, audit_logs.actor_id, etc.)
+  // reference profiles without ON DELETE CASCADE, and nothing we delete has to be consistent
+  // with the rest of the DB afterwards: it's all going. Resets automatically at COMMIT because
+  // of SET LOCAL. Needs the role to be superuser on Railway's Postgres — it is, by default.
+  await client.query("SET LOCAL session_replication_role = 'replica'");
   await client.query("DELETE FROM profiles WHERE org_id = $1", [org]);
   await client.query("DELETE FROM tenants  WHERE org_id = $1", [org]);
-  // Everything else that references organisations is ON DELETE CASCADE, so this one takes the rest.
   await client.query("DELETE FROM organisations WHERE id = $1", [org]);
   await client.query("COMMIT");
 
