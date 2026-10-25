@@ -158,9 +158,18 @@ export function Shell({
       <a className="skip" href="#main">Skip to content</a>
 
       <aside className="rail">
-        <Link href={home} className="brand">
-          {logoUrl ? <Image className="mark" src={logoUrl} alt="" width={34} height={34} /> : <div className="mark" aria-hidden="true">{brand[0]}</div>}
-          <div><b>{brand}</b><span>{brandSub}</span></div>
+        {/* The rail header IS the Managing Agent chip now (Rume, 2026-10-25). It used
+            to repeat as a navy pill in the topbar; one place only, read as the leading
+            identity, with "Managing agent · Rume Dev" so you know whose software you
+            are in without doubling up. The landlord name sits as the subtitle so the
+            portfolio-you-are-viewing is still named here. */}
+        <Link href={home} className="brand brand-ma" title={orgName ? `Managing agent · ${orgName}` : brand}>
+          {logoUrl ? <Image className="mark" src={logoUrl} alt="" width={34} height={34} /> : <div className="mark" aria-hidden="true">{((orgName ?? brand)[0] ?? "?").toUpperCase()}</div>}
+          <div>
+            {orgName ? <small className="eyebrow-ma">Managing agent</small> : null}
+            <b>{orgName ?? brand}</b>
+            <span>{orgName ? (brand && brand !== orgName ? `Landlord · ${brand}` : brandSub) : brandSub}</span>
+          </div>
         </Link>
 
         <nav className="nav" aria-label="Main">
@@ -178,48 +187,31 @@ export function Shell({
 
       <div className="main">
         <div className="topbar">
-          {/* The Dynamic structure Matlub drew (2026-10-24): Managing Agent on
-              the left, Landlord in the middle (a dropdown), one connected
-              unit — whose software this is and whose portfolio you're
-              looking at, read as one shape. The signed-in staff member sits
-              on the right. The page name moved to the main area title, so
-              the top is identity and scope, not navigation. */}
-          <div className="dyn-top" role="group" aria-label="Managing agent and landlord">
-            {orgName && (
-              <span className="dyn-top-ma" title={`Managing agent · ${orgName}`}>
-                <span className="dyn-top-mark" aria-hidden="true">{(orgName[0] ?? "?").toUpperCase()}</span>
-                <span><small>Managing agent</small><b>{orgName}</b></span>
-              </span>
-            )}
-            {orgName && (landlords.length > 0 || brand !== orgName) && <span className="dyn-top-arrow" aria-hidden="true">›</span>}
-            {landlords.length > 0 && onSwitchLandlord ? (
-              <label className="dyn-top-ll" title="Switch landlord">
-                <small>Landlord</small>
-                <span className="dyn-top-ll-sel">
-                  <Icon k="people" />
-                  <select
-                    value={activeLandlordId ?? ""}
-                    disabled={switching}
-                    aria-label="Landlord"
-                    onChange={async (e) => {
-                      const id = e.target.value || null;
-                      if (id === activeLandlordId) return;
-                      setSwitching(true);
-                      try { await onSwitchLandlord(id); } finally { setSwitching(false); }
-                    }}
-                  >
-                    <option value="">All landlords</option>
-                    {landlords.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                  </select>
-                  <span aria-hidden="true">{switching ? "…" : "▾"}</span>
-                </span>
-              </label>
-            ) : !orgName ? (
-              <span className="wschip static" title="Your workspace"><Icon k="properties" />{brand}</span>
-            ) : null}
-          </div>
-          <span className="dyn-top-page">{crumb}</span>
-          <div className="crumb" aria-hidden="true" />{/* spacer so right-hand group pushes to the end */}
+          {/* The topbar is scope + navigation + identity now (Rume, 2026-10-25). The
+              Managing Agent moved into the rail header. Here: the current page name,
+              the landlord picker, pills and actions, and the signed-in person on the
+              right. */}
+          <div className="crumb crumb-page">{crumb}</div>
+          {landlords.length > 0 && onSwitchLandlord ? (
+            <label className="wschip" title="Switch landlord">
+              <Icon k="people" />
+              <select
+                value={activeLandlordId ?? ""}
+                disabled={switching}
+                aria-label="Landlord"
+                onChange={async (e) => {
+                  const id = e.target.value || null;
+                  if (id === activeLandlordId) return;
+                  setSwitching(true);
+                  try { await onSwitchLandlord(id); } finally { setSwitching(false); }
+                }}
+              >
+                <option value="">All landlords</option>
+                {landlords.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+              <span aria-hidden="true">{switching ? "…" : "▾"}</span>
+            </label>
+          ) : null}
           {practice.length > 0 && (
             <Link href={`${settingsHref ?? "/settings"}#connections`} className="pill practice" title="These connections are simulated until you add their credentials">
               Practice mode · {practice.join(", ")}

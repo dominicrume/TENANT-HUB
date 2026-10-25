@@ -22,6 +22,9 @@ interface Analytics {
   compliance: { required: number; held: number; missing: number; expiringIn30: number; issues: Array<{ propertyId: string; propertyName: string; certName: string; status: "missing" | "expired" | "expiring"; expiresOn: string | null }> };
 }
 
+interface Landlord { id: string; name: string }
+interface StaffCounts { management: number; support: number; maintenance: number }
+
 export default function TodayPage() {
   const { profile } = useAuth();
   const { data, error, loading } = useNeedsYou();
@@ -30,11 +33,24 @@ export default function TodayPage() {
   const [journeys, setJourneys] = useState<TenantJourney[] | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [analyticsOpen, setAnalyticsOpen] = useState<"occ" | "comp" | null>(null);
+  const [landlords, setLandlords] = useState<Landlord[]>([]);
+  const [staff, setStaff] = useState<StaffCounts>({ management: 0, support: 0, maintenance: 0 });
 
   useEffect(() => {
     fetch("/api/leads").then((r) => (r.ok ? r.json() : null)).then((j) => j && setLeadCounts(j.counts)).catch(() => {});
     fetch("/api/journey").then((r) => (r.ok ? r.json() : null)).then((j) => j && setJourneys(j.tenants)).catch(() => setJourneys([]));
     fetch("/api/dashboard-analytics").then((r) => (r.ok ? r.json() : null)).then((j) => j && setAnalytics(j)).catch(() => {});
+    fetch("/api/landlords").then((r) => (r.ok ? r.json() : [])).then((d) => setLandlords(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/profiles").then((r) => (r.ok ? r.json() : [])).then((d) => {
+      if (!Array.isArray(d)) return;
+      const s: StaffCounts = { management: 0, support: 0, maintenance: 0 };
+      for (const p of d) {
+        if (p.role === "admin" || p.role === "manager") s.management++;
+        else if (p.role === "support_worker") s.support++;
+        else if (p.role === "contractor") s.maintenance++;
+      }
+      setStaff(s);
+    }).catch(() => {});
   }, []);
   const first = profile?.full_name?.split(" ")[0];
   const items = data?.items ?? [];
@@ -50,6 +66,37 @@ export default function TodayPage() {
           : totalTasks === 0 ? "Nothing needs a decision from you. Everything is being handled."
           : `${totalTasks === 1 ? "One thing needs" : `${totalTasks} things need`} a decision from you.`}
       </p>
+
+      {/* ── ORG STRUCTURE at a glance (Rume, 2026-10-25, sketch RBAC):
+             Managing Agent at the hub, Landlords and Staff branching down.
+             Reads from APIs the Settings → Users card uses — no new endpoint. */}
+      <section className="org-strip" aria-label="Your organisation">
+        <div className="org-ma">
+          <span className="pip" aria-hidden="true">{((profile?.org_name ?? profile?.full_name ?? "?")[0] ?? "?").toUpperCase()}</span>
+          <div>
+            <small>Managing agent</small>
+            <b>{profile?.org_name ?? "—"}</b>
+            <span>{profile?.full_name ? `signed in · ${profile.full_name}` : ""}</span>
+          </div>
+        </div>
+        <div className="org-connector" aria-hidden="true" />
+        <div className="org-arms">
+          <Link href="/landlords" className="org-arm">
+            <div className="arm-hd"><h4>Landlords</h4><span className="n">{landlords.length}</span></div>
+            <p>{landlords.length === 0 ? "add the first — + Add landlord above" : landlords.slice(0, 3).map((l) => l.name).join(" · ") + (landlords.length > 3 ? ` · +${landlords.length - 3}` : "")}</p>
+          </Link>
+          <Link href="/settings#users" className="org-arm">
+            <div className="arm-hd"><h4>Staff</h4><span className="n">{staff.management + staff.support + staff.maintenance}</span></div>
+            <p>
+              <span className="dot" style={{ background: "var(--amber-deep)" }} />Management board <b>{staff.management}</b>
+              <span className="sep">·</span>
+              <span className="dot" style={{ background: "var(--live)" }} />Support <b>{staff.support}</b>
+              <span className="sep">·</span>
+              <span className="dot" style={{ background: "var(--violet)" }} />Maintenance <b>{staff.maintenance}</b>
+            </p>
+          </Link>
+        </div>
+      </section>
 
       {/* ── 1. ANALYTICS ─────────────────────────────────────────── */}
       <section className="dash-sec" aria-label="Analytics">

@@ -137,10 +137,18 @@ img.mark { object-fit: cover; }
 .topbar { display: flex; align-items: center; gap: 12px; padding: 14px 30px; background: rgba(248,244,239,.92); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line-soft); }
 .crumb { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--slate); }
 .crumb-page { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Dynamic structure (Matlub, 2026-10-24): Managing Agent → Landlord as one
-   unit at the top of the app. Reads as a single identity + scope, not two
-   separate chips. The › between them is the "flows into" line from the
-   sketch. The signed-in staff member chip remains on the right. */
+/* Managing Agent now owns the rail header (Rume, 2026-10-25). Was a navy pill
+   duplicated in the topbar — one place only, read as the leading identity. */
+.brand.brand-ma { padding: 2px 4px; border-radius: 10px; }
+.brand.brand-ma .mark { background: linear-gradient(150deg, var(--amber), var(--amber-deep)); color: var(--navy); font-weight: 700; }
+.brand.brand-ma .eyebrow-ma { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--amber); line-height: 1; margin-bottom: 2px; }
+.brand.brand-ma b { font-size: 15px; letter-spacing: -.2px; line-height: 1.15; display: block; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brand.brand-ma span { color: rgba(255,255,255,.6); font-size: 11px; display: block; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Topbar scope chip (landlord picker) now stands alone — unchanged, no more
+   navy wrapper from the old Dynamic group. */
+
+/* Dynamic structure sketch (kept — the Settings → Users hub card below still uses it). */
 .dyn-top { display: inline-flex; align-items: stretch; gap: 0; background: var(--navy); border-radius: 24px; padding: 4px; box-shadow: 0 2px 10px rgba(15,28,46,.14); min-height: 44px; }
 .dyn-top-ma { display: inline-flex; align-items: center; gap: 10px; padding: 2px 14px 2px 4px; color: #fff; font-family: inherit; }
 .dyn-top-mark { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: linear-gradient(150deg, var(--amber), var(--amber-deep)); color: var(--navy); flex: none; }
@@ -504,6 +512,27 @@ label { display: block; }
 .d-stats .s-chip b { color: var(--navy); font-weight: 600; font-variant-numeric: tabular-nums; }
 .d-stats .s-money { background: rgba(214,51,132,.08); border-color: rgba(214,51,132,.25); color: #8a1f55; border-left: 3px solid #D63384; }
 .d-stats .s-money b { color: #8a1f55; font-family: var(--font-jetbrains-mono), monospace; }
+
+/* ── Dashboard org-structure strip at the top (Rume, 2026-10-25, sketch RBAC):
+       Managing Agent at the hub, Landlords and Staff branching down with real counts. */
+.org-strip { margin: 10px 0 18px; display: grid; gap: 10px; }
+.org-strip .org-ma { background: linear-gradient(135deg, var(--navy), #1F3451); color: #fff; border-radius: 14px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; box-shadow: 0 6px 18px rgba(15,28,46,.12); }
+.org-strip .org-ma .pip { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(150deg, var(--amber), var(--amber-deep)); color: var(--navy); display: grid; place-items: center; font-weight: 700; font-size: 17px; flex: none; }
+.org-strip .org-ma small { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.6); display: block; line-height: 1; margin-bottom: 2px; }
+.org-strip .org-ma b { font-size: 20px; font-weight: 600; letter-spacing: -.3px; line-height: 1.15; display: block; }
+.org-strip .org-ma span { font-size: 12px; color: rgba(255,255,255,.65); display: block; margin-top: 2px; }
+.org-strip .org-connector { width: 2px; height: 14px; background: var(--line); margin: 0 auto; border-radius: 1px; }
+.org-strip .org-arms { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 720px) { .org-strip .org-arms { grid-template-columns: 1fr; } }
+.org-strip .org-arm { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; text-decoration: none; color: inherit; transition: border-color .14s, transform .12s, box-shadow .14s; display: block; }
+.org-strip .org-arm:hover { border-color: var(--amber); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15,28,46,.06); }
+.org-strip .org-arm .arm-hd { display: flex; align-items: center; gap: 8px; }
+.org-strip .org-arm .arm-hd h4 { margin: 0; font-size: 13px; font-weight: 600; color: var(--navy); text-transform: uppercase; letter-spacing: .04em; }
+.org-strip .org-arm .arm-hd .n { background: var(--navy); color: #fff; font-size: 11px; font-weight: 700; min-width: 20px; height: 20px; border-radius: 10px; display: inline-grid; place-items: center; padding: 0 6px; font-variant-numeric: tabular-nums; }
+.org-strip .org-arm p { margin: 6px 0 0; font-size: 12.5px; color: var(--slate); line-height: 1.55; }
+.org-strip .org-arm p .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 5px 0 0; vertical-align: middle; }
+.org-strip .org-arm p b { color: var(--navy); font-weight: 600; margin: 0 2px; font-variant-numeric: tabular-nums; }
+.org-strip .org-arm p .sep { color: var(--slate-2); margin: 0 7px; }
 
 /* ── Dashboard: Matlub's three numbered sections (Analytics / Tasks / Signup timeline). */
 .dash-sec { margin: 22px 0 0; }
