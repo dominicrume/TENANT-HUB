@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as s from "../_authStyles";
@@ -23,6 +23,8 @@ export default function ManagingAgentSignupPage() {
   const [caps, setCaps] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState<boolean | null>(null);
+  useEffect(() => { fetch("/api/auth/signup/status").then((r) => r.json()).then((j) => setOpen(Boolean(j?.open))).catch(() => setOpen(true)); }, []);
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const pwScore = scorePassword(password);
@@ -46,6 +48,21 @@ export default function ManagingAgentSignupPage() {
       router.push("/dashboard");
       router.refresh();
     } catch { setError("Could not reach the server. Try again in a moment."); setBusy(false); }
+  }
+
+  if (open === false) {
+    return (
+      <div style={s.page}>
+        <span style={s.officialBadge}>TENANT HUB · OFFICIAL</span>
+        <div style={{ ...s.card, maxWidth: 480 }}>
+          <h1 style={{ ...s.heading, margin: "0 0 6px" }}>Self-signup is closed</h1>
+          <p style={{ margin: "0 0 16px", color: "var(--slate)", fontSize: 14 }}>New Managing Agents on this platform are onboarded by the platform owner, not through a public form. If you are expected on here, ask them to add you — you&apos;ll receive your sign-in link and password.</p>
+          <p style={{ margin: 0, textAlign: "center", fontSize: 13 }}>
+            Already have an account? <Link href="/login" style={s.link}>Sign in</Link>
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

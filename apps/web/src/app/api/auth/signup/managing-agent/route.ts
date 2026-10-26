@@ -4,6 +4,7 @@ import { hashPassword, generateToken, hashToken } from "@tenant-hub/auth";
 import { isSameOriginPost } from "../../../../../lib/csrf";
 import { setSessionCookie } from "../../../../../lib/session-cookie";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
+import { isPublicSignupAllowed } from "../../../../../lib/user-admin";
 
 /**
  * POST /api/auth/signup/managing-agent — the public, standing-on-their-own-feet
@@ -21,6 +22,14 @@ import { toSafeErrorMessage } from "../../../../../lib/safe-error";
 export async function POST(req: Request) {
   if (!isSameOriginPost(req)) return NextResponse.json({ error: "Refused" }, { status: 403 });
   if (!hasDatabaseUrl()) return NextResponse.json({ error: "Signup is not configured on this environment yet" }, { status: 503 });
+  // Public self-signup is closed once the platform has an owner — every new
+  // Managing Agent is onboarded by them through the Platform Console. Bypass
+  // the owner gate here, and the whole RBAC fences fall over.
+  if (!isPublicSignupAllowed()) {
+    return NextResponse.json({
+      error: "Self-signup is closed on this platform. Ask your platform owner to onboard you from their Platform Console; they'll email the sign-in link and password.",
+    }, { status: 403 });
+  }
 
   const body = await req.json().catch(() => null);
   const orgName = typeof body?.orgName === "string" ? body.orgName.trim() : "";

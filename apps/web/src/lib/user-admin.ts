@@ -29,10 +29,28 @@ export const USER_ROLES = ["admin", "manager", "support_worker", "contractor", "
  *
  * `PLATFORM_OWNER_EMAILS` is a comma-separated list, lower-cased on compare.
  */
-const PLATFORM_OWNERS = (process.env.PLATFORM_OWNER_EMAILS ?? "")
-  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+export function platformOwnerEmails(): string[] {
+  return (process.env.PLATFORM_OWNER_EMAILS ?? "")
+    .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+}
 
 export function isPlatformOwner(actor: { email?: string | null }): boolean {
-  if (!actor.email || PLATFORM_OWNERS.length === 0) return false;
-  return PLATFORM_OWNERS.includes(actor.email.toLowerCase());
+  if (!actor.email) return false;
+  const owners = platformOwnerEmails();
+  if (owners.length === 0) return false;
+  return owners.includes(actor.email.toLowerCase());
+}
+
+/**
+ * Public /signup is open ONLY while the platform has no owner yet — the
+ * bootstrap case for a brand-new deploy. Once PLATFORM_OWNER_EMAILS has any
+ * value, every new Managing Agent is onboarded by the owner through the
+ * Platform Console; the public form refuses to create accounts and tells the
+ * visitor to contact them for an invite. `PLATFORM_SIGNUP_MODE=open` is the
+ * override, if you ever want to re-open self-serve (not recommended with a
+ * real customer live).
+ */
+export function isPublicSignupAllowed(): boolean {
+  if ((process.env.PLATFORM_SIGNUP_MODE ?? "").toLowerCase() === "open") return true;
+  return platformOwnerEmails().length === 0;
 }

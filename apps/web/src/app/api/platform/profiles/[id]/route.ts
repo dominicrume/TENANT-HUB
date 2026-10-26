@@ -3,7 +3,7 @@ import { db, hasDatabaseUrl, setPasswordHash, writeWithAudit } from "@tenant-hub
 import { hashPassword } from "@tenant-hub/auth";
 import { isSameOriginPost } from "../../../../../lib/csrf";
 import { withRouteHandler } from "../../../../../lib/api-handler";
-import { isPlatformOwner } from "../../../../../lib/user-admin";
+import { isPlatformOwner, platformOwnerEmails } from "../../../../../lib/user-admin";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
 import { generatePassword } from "../../../../../lib/vault";
 
@@ -60,8 +60,21 @@ export const DELETE = withRouteHandler({ resource: "sessions", action: "delete",
   if (params.id === auth.actor.user_id) return NextResponse.json({ error: "You can't delete your own account from here — ask another platform owner, or use scripts/delete-account-by-email.mjs." }, { status: 400 });
 
   try {
-    const prof = await db().query<{ id: string; full_name: string; org_id: string | null }>("SELECT id, full_name, org_id FROM profiles WHERE id = $1", [params.id]);
+    const prof = await db().query<{ id: string; full_name: string; email: string; org_id: string | null }>("SELECT id, full_name, email, org_id FROM profiles WHERE id = $1", [params.id]);
     if (!prof.rows[0]) return NextResponse.json({ error: "No profile with that id." }, { status: 404 });
+
+    // Anti-footgun: refuse to delete the last account whose email is on PLATFORM_OWNER_EMAILS.
+    // Without one, nobody can onboard new Managing Agents through the UI any more.
+    const owners = platformOwnerEmails();
+    if (owners.includes(prof.rows[0].email.toLowerCase())) {
+      const r = await db().query<{ n: string }>(
+        `SELECT count(*)::int AS n FROM profiles WHERE lower(email) = ANY($1::text[]) AND id <> $2`,
+        [owners, params.id]
+      );
+      if (Number(r.rows[0]?.n ?? 0) === 0) {
+        return NextResponse.json({ error: "Refusing: this is the last platform owner account on the platform. Add another owner to PLATFORM_OWNER_EMAILS first; otherwise nobody will be able to onboard new Managing Agents." }, { status: 409 });
+      }
+    }
 
     const orgId = prof.rows[0].org_id;
     let wipedOrg: { id: string; name: string } | null = null;

@@ -16,8 +16,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [signupOpen, setSignupOpen] = useState(false);
   useEffect(() => {
     fetch("/api/auth/google?status=1").then((r) => (r.ok ? r.json() : null)).then((j) => setGoogleEnabled(Boolean(j?.enabled))).catch(() => {});
+    fetch("/api/auth/signup/status").then((r) => r.json()).then((j) => setSignupOpen(Boolean(j?.open))).catch(() => {});
     // The sign-in link the admin hands out carries the email, so the person only types the password they were given.
     try { const e = new URLSearchParams(window.location.search).get("email"); if (e) setEmail(e); } catch { /* fine */ }
   }, []);
@@ -155,9 +157,11 @@ export default function LoginPage() {
                 <p style={{ marginTop: 22, fontSize: 13, color: "#64748B", textAlign: "center" }}>
                   Joining a team on Tenant Hub? <Link href="/register" style={{ color: "var(--navy)", fontWeight: 600, textDecoration: "none" }}>Request access</Link> — your admin approves you and sends your link.
                 </p>
-                <p style={{ marginTop: 8, fontSize: 13, color: "#64748B", textAlign: "center" }}>
-                  Starting a new Managing Agent? <Link href="/signup" style={{ color: "var(--amber-deep)", fontWeight: 600, textDecoration: "none" }}>Create your own account →</Link>
-                </p>
+                {signupOpen && (
+                  <p style={{ marginTop: 8, fontSize: 13, color: "#64748B", textAlign: "center" }}>
+                    Starting a new Managing Agent? <Link href="/signup" style={{ color: "var(--amber-deep)", fontWeight: 600, textDecoration: "none" }}>Create your own account →</Link>
+                  </p>
+                )}
               </>
             )}
             <p style={{ marginTop: 26, fontSize: 11.5, color: "#94A3B8", textAlign: "center" }}>Signed-in sessions are tied to your account. Every change you make carries your name.</p>

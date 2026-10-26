@@ -132,6 +132,17 @@ export async function middleware(req: NextRequest) {
     return redirectWithCookies(new URL("/dashboard", req.url));
   }
 
+  // Platform Console is PLATFORM_OWNER_EMAILS-only. Gate HERE (not just at
+  // client), so a support worker or stray admin typing /platform doesn't see
+  // the page shell render for a flash before the client redirect fires.
+  if (user && pathname.startsWith("/platform")) {
+    const owners = (process.env.PLATFORM_OWNER_EMAILS ?? "")
+      .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+    if (owners.length === 0 || !owners.includes(user.email.toLowerCase())) {
+      return redirectWithCookies(new URL("/dashboard", req.url));
+    }
+  }
+
   // Attach the role so downstream RBAC checks don't re-query (parity with RLS).
   if (user) {
     res.headers.set("x-user-role", user.role);
