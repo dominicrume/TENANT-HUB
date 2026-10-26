@@ -51,3 +51,32 @@ jobs:
         env:
           SKIP_ENV_VALIDATION: 1
         run: pnpm build
+
+  deploy:
+    # Only auto-deploy from main, only after lint/typecheck/test/build pass.
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      # If two commits land back-to-back, only ship the latest — stops a
+      # queue of redundant Railway deploys that each try to grab the same
+      # service. Older in-flight runs cancel.
+      group: deploy-main
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@latest
+
+      - name: Deploy web service to Railway
+        env:
+          # Project-scoped token stored as a GitHub Actions secret
+          # (gh secret set RAILWAY_TOKEN -R dominicrume/TENANT-HUB).
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service web --detach --ci
