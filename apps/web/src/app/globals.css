@@ -435,6 +435,24 @@ label { display: block; }
 .dyn-empty:hover { background: var(--surface); border-color: var(--amber); }
 .dyn-foot { margin: 2px 2px 0; font-size: 12px; color: var(--slate-2); text-align: center; }
 
+/* Financials — aged receivables bucket strip + table styling (Rume, 2026-10-26). */
+.aged-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line-soft); padding: 1px; }
+@media (max-width: 720px) { .aged-grid { grid-template-columns: 1fr 1fr; } }
+.aged-cell { background: var(--surface); padding: 14px 18px; display: grid; gap: 2px; }
+.aged-cell small { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--slate); }
+.aged-cell b { font-size: 22px; font-weight: 600; letter-spacing: -.4px; color: var(--navy); line-height: 1.1; margin-top: 4px; font-variant-numeric: tabular-nums; font-family: var(--font-jetbrains-mono), monospace; }
+.aged-cell span { font-size: 12px; color: var(--slate-2); margin-top: 2px; }
+.aged-cell.ok    b { color: var(--live); }
+.aged-cell.warn  b { color: var(--amber-deep); }
+.aged-cell.attn  b { color: var(--brick); }
+.aged-cell.ok    { border-top: 3px solid var(--live); }
+.aged-cell.warn  { border-top: 3px solid var(--amber); }
+.aged-cell.attn  { border-top: 3px solid var(--brick); }
+
+.fin-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.fin-tbl tbody tr { border-top: 1px solid var(--line-soft); transition: background .12s; }
+.fin-tbl tbody tr:hover { background: var(--cream); }
+
 /* kbd pill — used by the diary shortcuts panel and the inline hints. */
 .kb { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; background: var(--cream); border: 1px solid #D7CFBD; border-bottom-width: 2px; border-radius: 6px; font-family: var(--font-jetbrains-mono), monospace; font-size: 11px; font-weight: 600; color: var(--navy); line-height: 1; }
 

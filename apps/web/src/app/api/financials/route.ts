@@ -20,7 +20,13 @@ export const GET = withRouteHandler({ resource: "rent", action: "read" }, async 
     const monthStart = new Date(); monthStart.setDate(1);
     const ms = monthStart.toISOString().slice(0, 10);
 
-    const [roll, month, balances, byProperty, recent] = await Promise.all([
+    // Six months of history, for the trend sparkline.
+    const trendStart = new Date(); trendStart.setMonth(trendStart.getMonth() - 5); trendStart.setDate(1);
+    const ts = trendStart.toISOString().slice(0, 10);
+    // Today's date, for aged receivables.
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const [roll, month, balances, byProperty, recent, aged, trend, prevMonth] = await Promise.all([
       // Rent roll: active tenancies → monthly equivalent.
       db().query<{ tenancy_id: string; tenant_id: string; full_name: string; rent_amount: string; rent_frequency: string; property_id: string; property: string; unit: string; landlord_id: string | null; landlord: string | null }>(
         `SELECT t.id AS tenancy_id, t.tenant_id, tn.full_name, t.rent_amount, t.rent_frequency, p.id AS property_id, p.name AS property, u.reference AS unit, p.landlord_id, l.name AS landlord
@@ -41,6 +47,37 @@ export const GET = withRouteHandler({ resource: "rent", action: "read" }, async 
          WHERE p.org_id = $1 GROUP BY p.id, p.name, p.landlord_id, l.name ORDER BY l.name NULLS LAST, p.name`, [org]),
       db().query<{ id: string; amount: string; payment_type: string; payment_date: string; full_name: string; tenant_id: string }>(
         `SELECT rp.id, rp.amount, rp.payment_type, rp.payment_date, t.full_name, t.id AS tenant_id FROM rent_payments rp JOIN tenants t ON t.id = rp.tenant_id WHERE t.org_id = $1 AND t.is_archived = false ORDER BY rp.payment_date DESC, rp.created_at DESC LIMIT 15`, [org]),
+      // Aged receivables: unpaid service charges bucketed by how long they've been overdue — the view an accountant expects.
+      db().query<{ bucket: string; amount: string; count: string }>(
+        `SELECT
+           CASE
+             WHEN sc.due_date >= ($2::date - INTERVAL '30 days') THEN '0-30'
+             WHEN sc.due_date >= ($2::date - INTERVAL '60 days') THEN '31-60'
+             WHEN sc.due_date >= ($2::date - INTERVAL '90 days') THEN '61-90'
+             ELSE '90+'
+           END AS bucket,
+           SUM(sc.amount) AS amount,
+           COUNT(*) AS count
+         FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id
+         WHERE t.org_id = $1 AND t.is_archived = false AND sc.is_paid = false AND sc.due_date <= $2::date
+         GROUP BY bucket`, [org, todayStr]),
+      // 6-month trend: charged and paid per month, so the sparkline reads real history.
+      db().query<{ month: string; charged: string; paid: string }>(
+        `WITH months AS (
+           SELECT generate_series($2::date, (CURRENT_DATE)::date, INTERVAL '1 month')::date AS m
+         )
+         SELECT TO_CHAR(months.m, 'YYYY-MM') AS month,
+                COALESCE((SELECT SUM(sc.amount) FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id WHERE t.org_id = $1 AND t.is_archived = false AND date_trunc('month', sc.due_date) = date_trunc('month', months.m)), 0) AS charged,
+                COALESCE((SELECT SUM(rp.amount) FROM rent_payments rp JOIN tenants t ON t.id = rp.tenant_id WHERE t.org_id = $1 AND t.is_archived = false AND date_trunc('month', rp.payment_date) = date_trunc('month', months.m)), 0) AS paid
+         FROM months ORDER BY months.m`, [org, ts]),
+      // Last calendar month's totals so the four KPIs can show a trend chip (↑ 12% / ↓ 8%).
+      db().query<{ charged: string; paid: string }>(
+        `WITH prev AS (
+           SELECT date_trunc('month', CURRENT_DATE - INTERVAL '1 month')::date AS first,
+                  (date_trunc('month', CURRENT_DATE))::date AS next
+         )
+         SELECT (SELECT COALESCE(SUM(sc.amount),0) FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id, prev WHERE t.org_id = $1 AND t.is_archived = false AND sc.due_date >= prev.first AND sc.due_date < prev.next) AS charged,
+                (SELECT COALESCE(SUM(rp.amount),0) FROM rent_payments  rp JOIN tenants t ON t.id = rp.tenant_id,  prev WHERE t.org_id = $1 AND t.is_archived = false AND rp.payment_date >= prev.first AND rp.payment_date < prev.next) AS paid`, [org]),
     ]);
 
     const monthly = (amount: number, freq: string) => freq === "weekly" ? amount * 52 / 12 : freq === "fortnightly" ? amount * 26 / 12 : freq === "four_weekly" || freq === "4-weekly" ? amount * 13 / 12 : freq === "annual" || freq === "yearly" ? amount / 12 : amount;
@@ -57,14 +94,25 @@ export const GET = withRouteHandler({ resource: "rent", action: "read" }, async 
     }
     const arrears = balances.rows.filter((b) => Number(b.balance) < 0).map((b) => ({ tenantId: b.tenant_id, name: b.full_name, room: b.room_number, owed: -Number(b.balance) }));
 
+    // Aged receivables as the four buckets a managing agent reads (0-30 / 31-60 / 61-90 / 90+).
+    const buckets = { "0-30": { amount: 0, count: 0 }, "31-60": { amount: 0, count: 0 }, "61-90": { amount: 0, count: 0 }, "90+": { amount: 0, count: 0 } };
+    for (const row of aged.rows) if (row.bucket in buckets) { buckets[row.bucket as keyof typeof buckets] = { amount: Number(row.amount), count: Number(row.count) }; }
+
+    const prev = { charged: Number(prevMonth.rows[0]?.charged ?? 0), paid: Number(prevMonth.rows[0]?.paid ?? 0) };
+    const monthCharged = Number(month.rows[0]?.charged ?? 0); const monthPaid = Number(month.rows[0]?.paid ?? 0);
+
     return NextResponse.json({
       monthStart: ms,
       totals: {
         rentRollMonthly, activeTenancies: rentRoll.length,
-        monthCharged: Number(month.rows[0]?.charged ?? 0), monthPaid: Number(month.rows[0]?.paid ?? 0),
+        monthCharged, monthPaid,
         owed: arrears.reduce((s, a) => s + a.owed, 0), inArrears: arrears.length,
         allTimeCharged: balances.rows.reduce((s, b) => s + Number(b.total_charged), 0), allTimePaid: balances.rows.reduce((s, b) => s + Number(b.total_paid), 0),
+        prevMonthCharged: prev.charged, prevMonthPaid: prev.paid,
+        collectionRatePct: monthCharged > 0 ? Math.round((monthPaid / monthCharged) * 100) : null,
       },
+      agedReceivables: buckets,
+      trend: trend.rows.map((r) => ({ month: r.month, charged: Number(r.charged), paid: Number(r.paid) })),
       byLandlord: [...byLandlordMap.values()],
       byProperty: byProperty.rows.map((p) => ({ propertyId: p.property_id, property: p.property, landlord: p.landlord ?? "Landlord not set", tenants: Number(p.tenants), monthlyRoll: rentRoll.filter((r) => r.property_id === p.property_id).reduce((s, r) => s + r.monthly, 0), charged: Number(p.charged), paid: Number(p.paid), balance: Number(p.paid) - Number(p.charged) })),
       arrears,
