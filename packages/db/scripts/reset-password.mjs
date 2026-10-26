@@ -22,9 +22,16 @@
 import pg from "pg";
 import { randomBytes, scrypt as scryptCb } from "node:crypto";
 
-const email = process.argv[2]?.trim().toLowerCase();
-if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+const arg = process.argv[2]?.trim();
+if (!arg) {
   console.error('Usage: node scripts/reset-password.mjs "<email>"');
+  console.error('       node scripts/reset-password.mjs --list              # list every profile on the platform');
+  process.exit(1);
+}
+const email = arg.toLowerCase();
+const listMode = arg === "--list";
+if (!listMode && !/^\S+@\S+\.\S+$/.test(email)) {
+  console.error(`"${arg}" isn't a valid email. Use the form name@domain.tld.`);
   process.exit(1);
 }
 
@@ -61,9 +68,43 @@ function generatePassword() {
 const client = new pg.Client({ connectionString: url });
 await client.connect();
 try {
+  if (listMode) {
+    const all = await client.query(
+      `SELECT p.email, p.full_name, p.role, o.name AS org_name
+         FROM profiles p LEFT JOIN organisations o ON o.id = p.org_id
+        ORDER BY o.name NULLS LAST, p.full_name`
+    );
+    if (all.rows.length === 0) { console.log("No profiles on the platform yet."); process.exit(0); }
+    console.log(`Every profile on the platform (${all.rows.length}):`);
+    let curOrg = "";
+    for (const row of all.rows) {
+      if (row.org_name !== curOrg) { curOrg = row.org_name ?? "(no org)"; console.log(`\n== ${curOrg} ==`); }
+      console.log(`  ${row.email.padEnd(40)}  ${row.full_name.padEnd(28)}  ${row.role}`);
+    }
+    process.exit(0);
+  }
+
   const r = await client.query("SELECT id, full_name, org_id FROM profiles WHERE lower(email) = $1", [email]);
   if (r.rows.length === 0) {
-    console.error(`No profile with email "${email}" exists on the platform.`);
+    console.error(`No profile with the exact email "${email}" exists on the platform.`);
+    // Try to help: fuzzy-search by any token in the email / name against every profile.
+    const needle = email.split("@")[0].toLowerCase();
+    const near = await client.query(
+      `SELECT p.email, p.full_name, o.name AS org_name
+         FROM profiles p LEFT JOIN organisations o ON o.id = p.org_id
+        WHERE lower(p.email) LIKE $1 OR lower(p.full_name) LIKE $1
+        ORDER BY p.full_name LIMIT 15`,
+      [`%${needle}%`]
+    );
+    if (near.rows.length > 0) {
+      console.error("\nDid you mean one of these?");
+      for (const row of near.rows) console.error(`  ${row.email}  —  ${row.full_name}${row.org_name ? ` · ${row.org_name}` : ""}`);
+      console.error("\nRe-run with the correct email in quotes.");
+    } else {
+      console.error("\nNothing matched the characters before the @. Either the account was never created, or it's under a different email entirely.");
+      console.error("To see every profile on the platform, run:");
+      console.error('  railway run --service Postgres -- pnpm --filter=@tenant-hub/db exec node scripts/reset-password.mjs --list');
+    }
     process.exit(1);
   }
   const { id, full_name } = r.rows[0];
