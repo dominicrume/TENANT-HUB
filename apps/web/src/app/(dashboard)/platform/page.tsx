@@ -11,15 +11,33 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-interface Profile { id: string; email: string; fullName: string; role: string; createdAt: string }
-interface Org { id: string | null; name: string | null; createdAt: string | null; profiles: Profile[] }
+interface Profile { id: string; email: string; fullName: string; role: string; createdAt: string; lastSignInAt: string | null }
+interface Org { id: string | null; name: string | null; createdAt: string | null; profiles: Profile[]; tenantCount: number; propertyCount: number; landlordCount: number; status: "fresh" | "active" | "empty" | "stale" }
+interface Stats { totalOrgs: number; totalProfiles: number; activeLast30Days: number; newOrgsThisWeek: number }
 
 type ActionNote = { kind: "ok" | "err"; text: string; copy?: { label: string; value: string }[] };
+
+const STATUS: Record<Org["status"], { label: string; dot: string; tint: string; hint: string }> = {
+  active: { label: "Active", dot: "var(--live)", tint: "rgba(46,158,107,.1)", hint: "has data and recent sign-ins" },
+  fresh:  { label: "Fresh",  dot: "var(--amber-deep)", tint: "rgba(232,168,76,.14)", hint: "signed up in the last 7 days" },
+  empty:  { label: "Empty",  dot: "var(--slate)", tint: "rgba(92,102,115,.1)", hint: "no tenants, no properties — may be a test" },
+  stale:  { label: "Stale",  dot: "var(--brick)", tint: "rgba(178,74,49,.08)", hint: "no activity in 30+ days" },
+};
+
+function ago(iso: string | null): string {
+  if (!iso) return "never";
+  const d = Date.now() - new Date(iso).getTime();
+  const m = Math.round(d / 60000); if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);    if (h < 24) return `${h}h ago`;
+  const dd = Math.round(h / 24);   if (dd < 30) return `${dd}d ago`;
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
 
 export default function PlatformConsolePage() {
   const router = useRouter();
   const [owner, setOwner] = useState<boolean | null>(null);
   const [orgs, setOrgs] = useState<Org[] | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<ActionNote | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -40,7 +58,7 @@ export default function PlatformConsolePage() {
       const r = await fetch("/api/platform/orgs");
       const b = await r.json().catch(() => null);
       if (!r.ok) { setError(b?.error ?? "Could not load."); return; }
-      setOrgs(b.orgs); setError(null);
+      setOrgs(b.orgs); setStats(b.stats ?? null); setError(null);
     } catch { setError("Could not reach the server."); }
   }
 
@@ -95,9 +113,18 @@ export default function PlatformConsolePage() {
   if (!owner) return null;
 
   return (
-    <div style={{ padding: "1.75rem", maxWidth: 1040 }}>
+    <div style={{ padding: "1.75rem", maxWidth: 1100 }}>
       <h1 style={{ margin: 0 }}>Platform owner console</h1>
       <p className="sub">Every organisation and every profile on this instance of Tenant Hub. Only accounts in PLATFORM_OWNER_EMAILS see this page. Every change here is audited.</p>
+
+      {stats && (
+        <div className="rep-kpis" style={{ marginTop: 10, marginBottom: 14 }}>
+          <div className="k"><small>Managing agents</small><b>{stats.totalOrgs}</b><span>on this instance</span></div>
+          <div className="k"><small>Profiles</small><b>{stats.totalProfiles}</b><span>across every org</span></div>
+          <div className="k"><small>Active · last 30 days</small><b>{stats.activeLast30Days}</b><span>signed in at least once</span></div>
+          <div className={stats.newOrgsThisWeek ? "k" : "k"}><small>New orgs · last 7 days</small><b>{stats.newOrgsThisWeek}</b><span>fresh signups</span></div>
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "6px 0 14px" }}>
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by email, name, or organisation…" style={{ flex: 1, minWidth: 260, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", fontSize: 14 }} />
@@ -129,23 +156,48 @@ export default function PlatformConsolePage() {
       {filtered?.map((o) => {
         const key = o.id ?? "null";
         const open = expanded[key] !== false;
+        const st = STATUS[o.status];
         return (
           <section className="card" key={key} style={{ marginBottom: 14 }}>
-            <div className="ch" style={{ cursor: "pointer" }} onClick={() => setExpanded((s) => ({ ...s, [key]: !open }))}>
-              <h3 style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span aria-hidden="true">{open ? "▾" : "▸"}</span>
-                {o.name ?? "(no organisation)"}
-                <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>· {o.profiles.length} {o.profiles.length === 1 ? "profile" : "profiles"}</span>
-              </h3>
+            <div className="ch" style={{ cursor: "pointer", display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "start" }} onClick={() => setExpanded((s) => ({ ...s, [key]: !open }))}>
+              <div>
+                <h3 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span aria-hidden="true">{open ? "▾" : "▸"}</span>
+                  {o.name ?? "(no organisation)"}
+                  <span className="tag" title={st.hint} style={{ background: st.tint, color: st.dot }}>
+                    <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: st.dot, marginRight: 5, verticalAlign: "middle" }} />{st.label}
+                  </span>
+                </h3>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--slate)" }}>
+                  <b style={{ color: "var(--navy)", fontWeight: 600 }}>{o.profiles.length}</b> profile{o.profiles.length === 1 ? "" : "s"}
+                  <span className="muted" style={{ margin: "0 6px" }}>·</span>
+                  <b style={{ color: "var(--navy)", fontWeight: 600 }}>{o.tenantCount}</b> tenant{o.tenantCount === 1 ? "" : "s"}
+                  <span className="muted" style={{ margin: "0 6px" }}>·</span>
+                  <b style={{ color: "var(--navy)", fontWeight: 600 }}>{o.propertyCount}</b> propert{o.propertyCount === 1 ? "y" : "ies"}
+                  <span className="muted" style={{ margin: "0 6px" }}>·</span>
+                  <b style={{ color: "var(--navy)", fontWeight: 600 }}>{o.landlordCount}</b> landlord{o.landlordCount === 1 ? "" : "s"}
+                  {o.createdAt && <>
+                    <span className="muted" style={{ margin: "0 6px" }}>·</span>
+                    <span>created {ago(o.createdAt)}</span>
+                  </>}
+                </p>
+              </div>
               {o.id && (
-                <span className="muted" style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>{o.id.slice(0, 8)}…</span>
+                <span className="muted" style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap", paddingTop: 2 }}>{o.id.slice(0, 8)}…</span>
               )}
             </div>
             {open && o.profiles.map((p) => (
               <div key={p.id} className="li" style={{ alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <div className="body">
+                <div className="body" style={{ minWidth: 220 }}>
                   <b>{p.fullName}</b>
-                  <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{p.email}  ·  {p.role}</p>
+                  <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{p.email}</p>
+                  <p style={{ fontSize: 11.5, color: "var(--slate-2)", margin: "2px 0 0" }}>
+                    <span style={{ background: p.role === "admin" ? "rgba(232,168,76,.16)" : "rgba(15,28,46,.06)", color: p.role === "admin" ? "var(--amber-deep)" : "var(--navy)", padding: "1px 6px", borderRadius: 4, fontWeight: 600 }}>{p.role}</span>
+                    <span style={{ margin: "0 6px" }}>·</span>
+                    last signed in <b style={{ color: p.lastSignInAt ? "var(--navy)" : "var(--brick)", fontWeight: 600 }}>{ago(p.lastSignInAt)}</b>
+                    <span style={{ margin: "0 6px" }}>·</span>
+                    joined <b style={{ color: "var(--navy)", fontWeight: 600 }}>{ago(p.createdAt)}</b>
+                  </p>
                 </div>
                 <div className="btns">
                   <button type="button" className="btn ghost sm" disabled={busy === p.id} onClick={() => void reset(p)}>Reset password</button>
