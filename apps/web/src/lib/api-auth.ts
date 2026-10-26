@@ -25,6 +25,7 @@ export interface Actor {
   user_role: UserRole;
   brand: string;
   org_id?: string;
+  email?: string;
 }
 
 export interface ApiAuth {
@@ -62,6 +63,7 @@ export async function getApiAuth(): Promise<ApiAuth | null> {
       user_role: session.role as UserRole,
       brand: session.brand,
       org_id: session.orgId ?? undefined,
+      email: session.email ?? undefined,
     },
   };
 }

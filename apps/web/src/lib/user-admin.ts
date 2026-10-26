@@ -19,3 +19,20 @@ export async function canManageUsers(actor: Actor): Promise<boolean> {
 }
 
 export const USER_ROLES = ["admin", "manager", "support_worker", "contractor", "tenant"] as const;
+
+/**
+ * Who may onboard a BRAND-NEW Managing Agent (a new `organisations` row), as
+ * distinct from adding people inside an existing one (Rume, 2026-10-26 — "if
+ * Matlub can add managing agents from his seat, he can seed a competitor,
+ * that's not RBAC"). Platform-level action; gated on an env allowlist of
+ * emails. If unset, nobody can; the "Add a managing agent" card hides.
+ *
+ * `PLATFORM_OWNER_EMAILS` is a comma-separated list, lower-cased on compare.
+ */
+const PLATFORM_OWNERS = (process.env.PLATFORM_OWNER_EMAILS ?? "")
+  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+export function isPlatformOwner(actor: { email?: string | null }): boolean {
+  if (!actor.email || PLATFORM_OWNERS.length === 0) return false;
+  return PLATFORM_OWNERS.includes(actor.email.toLowerCase());
+}

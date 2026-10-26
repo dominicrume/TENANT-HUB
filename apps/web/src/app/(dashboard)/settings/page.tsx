@@ -121,6 +121,8 @@ export default function SettingsPage() {
     } catch { setUserNotice("Could not reach the server."); } finally { setUserBusy(null); }
   }
   const [orgCount, setOrgCount] = useState(0);
+  const [isPlatformOwner, setIsPlatformOwner] = useState(false);
+  useEffect(() => { fetch("/api/platform/me").then((r) => (r.ok ? r.json() : null)).then((j) => setIsPlatformOwner(Boolean(j?.isPlatformOwner))).catch(() => {}); }, []);
   // People who asked to join via /register (migration 055). Approving issues
   // the invite email on the spot — the same path as "Invite someone" below.
   interface AccessRequest { id: string; fullName: string; email: string; phone: string | null; roleWanted: string; message: string | null; createdAt: string }
@@ -293,6 +295,29 @@ export default function SettingsPage() {
       <div style={{ flex: 1, minWidth: 280 }}>
         {tab === "users" && (
           <>
+            {isPlatformOwner && (
+              <section className="card" style={{ marginBottom: 14, borderColor: "var(--amber)", background: "rgba(232,168,76,.05)" }}>
+                <div className="ch" style={{ background: "rgba(232,168,76,.12)", borderBottom: "1px solid rgba(232,168,76,.3)" }}>
+                  <h3>Email delivery · action needed</h3>
+                  <span className="muted" style={{ fontSize: 12 }}>until these DNS records are added, nothing automated is reaching anyone</span>
+                </div>
+                <div className="li" style={{ display: "grid", gap: 10, alignItems: "flex-start" }}>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--navy)" }}>Every invite, password-reset and landlord document request goes through <b>Resend</b>, which refuses to send on your behalf until the sending domain is verified. Add these three DNS records at your registrar (one-time), wait 15–60 min for propagation, and every automated email starts going through.</p>
+                  <ol style={{ margin: "4px 0 0 20px", padding: 0, fontSize: 13, color: "var(--slate)", display: "grid", gap: 8 }}>
+                    <li>Open <a href="https://resend.com/domains" target="_blank" rel="noreferrer" style={{ color: "var(--amber-deep)", fontWeight: 600 }}>resend.com/domains</a> → <b>Add Domain</b> → <code style={codeStyle}>mattysplace.org.uk</code></li>
+                    <li>Resend will show three records to add at your DNS registrar — typically:
+                      <div style={{ marginTop: 6, display: "grid", gap: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, color: "var(--navy)" }}>
+                        <div><b>TXT</b> <code style={codeStyle}>send</code> → <code style={codeStyle}>v=spf1 include:amazonses.com ~all</code></div>
+                        <div><b>MX</b> <code style={codeStyle}>send</code> → <code style={codeStyle}>feedback-smtp.eu-west-1.amazonses.com</code> (priority 10)</div>
+                        <div><b>TXT</b> <code style={codeStyle}>resend._domainkey</code> → long DKIM public key Resend shows you</div>
+                      </div>
+                    </li>
+                    <li>Resend&apos;s page shows <b>Verified</b> once DNS lands. Then every account creation, password reset and landlord document request emails for real.</li>
+                  </ol>
+                  <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--slate-2)" }}>Until then, every invite still comes back here with its sign-in link + password so you can hand it over on WhatsApp — nobody is blocked, it&apos;s just more work than it should be.</p>
+                </div>
+              </section>
+            )}
             {/* Dynamic — the hierarchy Matlub drew: Managing Agent → Landlords and Staff.
                 Whose software this is, who it manages for, who runs it; all one picture at the top. */}
             <section className="card dyn-hub" style={{ marginBottom: 18 }}>
@@ -336,9 +361,9 @@ export default function SettingsPage() {
               </div>
             </section>
 
-            {canManage && (
+            {isPlatformOwner && (
               <section className="card" style={{ marginBottom: 18 }}>
-                <div className="ch"><h3>Add a managing agent</h3><span className="muted" style={{ fontSize: 12 }}>a brand-new organisation with its own admin — data stays isolated</span></div>
+                <div className="ch"><h3>Add a managing agent</h3><span className="muted" style={{ fontSize: 12 }}>platform-owner only · onboards a brand-new organisation with its own admin — data stays isolated</span></div>
                 <form onSubmit={createManagingAgent} className="li" style={{ display: "grid", gap: 10 }}>
                   <p className="muted" style={{ margin: "0 0 2px", fontSize: 12.5 }}>Use this to onboard another managing agent (not a landlord under this one). The admin you name below will sign in with their own password and only ever see their own organisation&apos;s data — same as how your own account works.</p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
@@ -568,3 +593,4 @@ export default function SettingsPage() {
 }
 
 const inp: React.CSSProperties = { width: "100%", maxWidth: 220, minHeight: 44, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", fontSize: 14, fontFamily: "inherit", background: "var(--surface)", boxSizing: "border-box" };
+const codeStyle: React.CSSProperties = { background: "var(--cream)", padding: "1px 6px", borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, border: "1px solid var(--line)", color: "var(--navy)" };

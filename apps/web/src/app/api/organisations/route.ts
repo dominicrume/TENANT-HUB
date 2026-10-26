@@ -4,7 +4,7 @@ import { withRouteHandler } from "../../../lib/api-handler";
 import { isSameOriginPost } from "../../../lib/csrf";
 import { issueInvite } from "../../../lib/issue-invite";
 import { publicOrigin } from "../../../lib/google-oauth";
-import { canManageUsers } from "../../../lib/user-admin";
+import { isPlatformOwner } from "../../../lib/user-admin";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 
 /**
@@ -23,7 +23,10 @@ import { toSafeErrorMessage } from "../../../lib/safe-error";
  */
 export const POST = withRouteHandler({ resource: "sessions", action: "create", rateLimit: true }, async (req, _ctx, auth) => {
   if (!isSameOriginPost(req)) return NextResponse.json({ error: "Refused" }, { status: 403 });
-  if (!(await canManageUsers(auth.actor))) return NextResponse.json({ error: "Only an admin can add a managing agent" }, { status: 403 });
+  // Platform-level action: only the owner (PLATFORM_OWNER_EMAILS env list) can
+  // onboard new Managing Agents. A tenant admin at an existing MA cannot — or
+  // they'd be seeding competitors from their own seat.
+  if (!isPlatformOwner(auth.actor)) return NextResponse.json({ error: "Only the platform owner can onboard a new Managing Agent. If you want to add staff inside your own organisation, use Add someone below." }, { status: 403 });
   if (!hasDatabaseUrl()) return NextResponse.json({ error: "Creating a managing agent is not configured on this environment yet" }, { status: 503 });
 
   const body = await req.json().catch(() => null);
