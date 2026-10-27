@@ -38,20 +38,47 @@ import { FormsPanel } from "../../../../components/layout/FormsPanel";
 import { BeforeYourNextContact } from "../../../../components/tenant/BeforeYourNextContact";
 import { AvatarPhoto } from "../../../../components/AvatarPhoto";
 
-const CORE_TABS = [
-  { key: "personal", label: "Personal Details" },
-  { key: "signup", label: "Sign-up pack" },
-  { key: "housing-benefit", label: "Housing Benefit" },
-  { key: "reliance-intake", label: "Reliance Intake" },
-  { key: "support-plan", label: "Support Plan (Reliance)" },
-  { key: "sessions", label: "Sessions" },
-  { key: "ledger", label: "Service Charge" },
-  { key: "maintenance", label: "Maintenance" },
-  { key: "documents", label: "Documents" },
-  { key: "id-check", label: "Right to Rent" },
-  { key: "notes", label: "Staff Notes" },
-  { key: "messages", label: "Messages" },
-  { key: "ask", label: "Ask the AI" },
+/**
+ * Tab layout per Rume 2026-10-27 walkthrough (the "scattered, decluttered"
+ * tenant page). Hybrid chosen: Journey strip stays as the primary spine (it's
+ * already clickable with inline station panels and evidence upload — see
+ * JourneyStrip.tsx), tabs below are the deep-dive safety net, grouped under
+ * four named sections. The audit found 13 tabs backed by only ~4 real
+ * concepts; the sections make that explicit without renaming any endpoint.
+ *
+ * Section names chosen to answer the questions a manager actually asks:
+ *   "Who they are" (identity + risk) · "The paper trail" (every document
+ *   surface) · "Their life with us" (ongoing care) · "The money" (ledger).
+ */
+const TAB_GROUPS = [
+  { key: "person", label: "Who they are" },
+  { key: "papers", label: "The paper trail" },
+  { key: "life",   label: "Their life with us" },
+  { key: "money",  label: "The money" },
+] as const;
+
+type TabGroup = (typeof TAB_GROUPS)[number]["key"];
+
+const CORE_TABS: Array<{ key: string; label: string; group: TabGroup }> = [
+  // WHO THEY ARE — identity, right-to-rent and the internal safeguarding note.
+  { key: "personal",         label: "Personal Details",         group: "person" },
+  { key: "id-check",         label: "Right to Rent",            group: "person" },
+  { key: "notes",            label: "Staff Notes",              group: "person" },
+  // THE PAPER TRAIL — every form and document surface. All four write to the
+  // same tenant_documents table today (audit 2026-10-27); follow-up: fold
+  // Reliance Intake into Sign-up pack §2 and Housing Benefit into §7.
+  { key: "signup",           label: "Sign-up pack",             group: "papers" },
+  { key: "reliance-intake",  label: "Reliance Intake",          group: "papers" },
+  { key: "housing-benefit",  label: "Housing Benefit",          group: "papers" },
+  { key: "documents",        label: "Documents",                group: "papers" },
+  // THEIR LIFE WITH US — the ongoing relationship.
+  { key: "support-plan",     label: "Support Plan (Reliance)",  group: "life" },
+  { key: "sessions",         label: "Sessions",                 group: "life" },
+  { key: "maintenance",      label: "Maintenance",              group: "life" },
+  { key: "messages",         label: "Messages",                 group: "life" },
+  { key: "ask",              label: "Ask the AI",               group: "life" },
+  // THE MONEY — the ledger (already fuses service_charges + rent_payments).
+  { key: "ledger",           label: "Service Charge",           group: "money" },
 ];
 
 type FormState = Record<string, string>;
@@ -107,7 +134,9 @@ export default function TenantDetailPage() {
   const TABS = useMemo(() => {
     return [
       ...CORE_TABS,
-      ...templates.map((t) => ({ key: t.key, label: t.name, template: t }))
+      // Custom form templates come in from the org's own form library; they're
+      // documents by nature, so they live under "The paper trail".
+      ...templates.map((t) => ({ key: t.key, label: t.name, group: "papers" as TabGroup, template: t })),
     ];
   }, [templates]);
 
@@ -299,28 +328,43 @@ export default function TenantDetailPage() {
 
       {id && <BeforeYourNextContact tenantId={id} />}
 
-      {/* TABS */}
-      <div className="tab-row" style={{ display: "flex", flexWrap: "wrap", gap: "4px", margin: "18px 0 14px", borderBottom: "1px solid #EDE8E1" }}>
-        {TABS.map((t) => {
-          const active = tab === t.key;
+      {/* TABS — grouped under four named sections so the manager reads WHAT the tabs are, not just a list.
+          Journey strip above is the primary spine; this is the deep-dive safety net. */}
+      <div className="tab-groups" style={{ display: "grid", gap: "6px", margin: "18px 0 14px", padding: "4px 0 8px", borderBottom: "1px solid #EDE8E1" }}>
+        {TAB_GROUPS.map((g) => {
+          const groupTabs = TABS.filter((t) => t.group === g.key);
+          if (groupTabs.length === 0) return null;
           return (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              style={{
-                padding: "9px 14px",
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                fontFamily: "'Sora', sans-serif",
-                fontSize: "13px",
-                fontWeight: active ? 700 : 500,
-                color: active ? "var(--navy)" : "#7A8499",
-                borderBottom: active ? "2px solid var(--amber)" : "2px solid transparent",
-              }}
-            >
-              {t.label}
-            </button>
+            <div key={g.key} style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: "16px", padding: "2px 0" }}>
+              <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#7A8499", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "right", lineHeight: 1.2 }}>
+                {g.label}
+              </span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "2px" }}>
+                {groupTabs.map((t) => {
+                  const active = tab === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      onClick={() => setTab(t.key)}
+                      style={{
+                        padding: "7px 12px",
+                        border: "none",
+                        borderRadius: "6px",
+                        background: active ? "rgba(232,168,76,0.12)" : "transparent",
+                        cursor: "pointer",
+                        fontFamily: "'Sora', sans-serif",
+                        fontSize: "13px",
+                        fontWeight: active ? 700 : 500,
+                        color: active ? "var(--navy)" : "#7A8499",
+                        borderBottom: active ? "2px solid var(--amber)" : "2px solid transparent",
+                      }}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </div>
