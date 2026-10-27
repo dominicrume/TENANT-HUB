@@ -8,6 +8,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "../../../contexts/AuthContext";
 
 interface Charge {
@@ -38,10 +39,22 @@ type Tab = "charges" | "payments";
 
 export default function MyLedgerPage() {
   const { profile } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [data, setData] = useState<LedgerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("charges");
+  // Stripe Checkout state (Rume 2026-10-27: enable tenant rent payments via Stripe)
+  const [payOpen, setPayOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState("");
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  // Shown briefly after Stripe redirects back with ?paid=1. The payment itself is
+  // written by /api/webhooks/stripe — this banner is just confirmation to the eye;
+  // the ledger reflects it on the next refetch (usually within a second of landing).
+  const [showPaidBanner, setShowPaidBanner] = useState(false);
+  const [showCancelledBanner, setShowCancelledBanner] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -58,6 +71,46 @@ export default function MyLedgerPage() {
     }
     load();
   }, []);
+
+  // Handle Stripe's return redirect. ?paid=1 → success banner + clear the query
+  // so a page refresh doesn't re-show it; ?paid=0 → cancelled banner (same clear).
+  useEffect(() => {
+    const paid = searchParams.get("paid");
+    if (paid === "1") {
+      setShowPaidBanner(true);
+      router.replace("/my-ledger");
+    } else if (paid === "0") {
+      setShowCancelledBanner(true);
+      router.replace("/my-ledger");
+    }
+  }, [searchParams, router]);
+
+  async function startPayment() {
+    const amount = Number(payAmount);
+    if (!Number.isFinite(amount) || amount < 1) {
+      setPayError("Enter an amount of £1 or more.");
+      return;
+    }
+    setPaying(true);
+    setPayError(null);
+    try {
+      const res = await fetch("/api/tenant-portal/rent/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.url) {
+        setPayError(body?.error ?? "Could not start payment. Please try again.");
+        setPaying(false);
+        return;
+      }
+      window.location.assign(body.url);
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : "Something went wrong");
+      setPaying(false);
+    }
+  }
 
   /* ── Derived values ──────────────────────────────────────── */
   const totalCharges = data?.charges?.reduce((s, c) => s + c.amount, 0) ?? 0;
@@ -107,6 +160,19 @@ export default function MyLedgerPage() {
         What you&apos;ve been charged and what you&apos;ve paid.
       </p>
 
+      {/* Return-from-Stripe banners */}
+      {showPaidBanner && (
+        <div style={{ marginBottom: 16, padding: "12px 14px", borderRadius: 10, background: "#ECFDF5", border: "1px solid #86EFAC", color: "#166534", fontSize: 14, display: "flex", gap: 10, alignItems: "center" }}>
+          <span style={{ fontSize: 18 }}>✅</span>
+          <div><strong>Payment received.</strong> It&apos;ll show on your ledger below in a moment.</div>
+        </div>
+      )}
+      {showCancelledBanner && (
+        <div style={{ marginBottom: 16, padding: "12px 14px", borderRadius: 10, background: "#FEF3C7", border: "1px solid #FDE68A", color: "#92400E", fontSize: 14 }}>
+          Payment cancelled. Nothing was charged — try again when you&apos;re ready.
+        </div>
+      )}
+
       {/* ── Balance Summary ─────────────────────────────────── */}
       <div style={styles.balanceHeader}>
         <div style={styles.balanceItem}>
@@ -138,6 +204,66 @@ export default function MyLedgerPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Pay rent — Stripe hosted checkout. Default amount = whatever you owe. */}
+      <div style={{ marginBottom: 20, padding: "14px 16px", background: "#FFFFFF", border: "1px solid #EDE8E1", borderRadius: 12 }}>
+        {!payOpen ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#0F1C2E", marginBottom: 2 }}>Pay rent by card</div>
+              <div style={{ fontSize: 12, color: "#5A657A" }}>Secure, hosted by Stripe. You can pay what you owe or a different amount.</div>
+            </div>
+            <button
+              onClick={() => { setPayOpen(true); setPayAmount(balance > 0 ? balance.toFixed(2) : ""); }}
+              style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "#0F1C2E", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+            >
+              Pay rent
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#0F1C2E" }}>How much are you paying?</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 18, color: "#5A657A" }}>£</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="1"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                placeholder="0.00"
+                style={{ flex: "1 1 160px", minWidth: 140, padding: "10px 12px", borderRadius: 8, border: "1px solid #EDE8E1", fontSize: 16, fontFamily: "'JetBrains Mono', monospace" }}
+                autoFocus
+              />
+              <button
+                onClick={() => void startPayment()}
+                disabled={paying}
+                style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: paying ? "#8FA0B4" : "#E8A84C", color: "#0F1C2E", fontWeight: 700, fontSize: 14, cursor: paying ? "not-allowed" : "pointer" }}
+              >
+                {paying ? "Opening Stripe…" : "Continue to card"}
+              </button>
+              <button
+                onClick={() => { setPayOpen(false); setPayError(null); }}
+                disabled={paying}
+                style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #EDE8E1", background: "transparent", color: "#5A657A", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+            {balance > 0 && (
+              <div style={{ fontSize: 12, color: "#5A657A" }}>
+                You owe <strong>£{balance.toFixed(2)}</strong>. You can pay all of it, or a smaller amount.
+              </div>
+            )}
+            {payError && (
+              <div style={{ padding: "8px 10px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#991B1B", borderRadius: 8, fontSize: 13 }}>
+                {payError}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Tabs ────────────────────────────────────────────── */}
