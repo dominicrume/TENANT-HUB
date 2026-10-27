@@ -8,6 +8,7 @@ import { sendLandlordDocumentRequest } from "../../../lib/resend";
 import { emit } from "../../../lib/webhooks";
 import { publicOrigin } from "../../../lib/google-oauth";
 import { generateToken, hashToken } from "@tenant-hub/auth";
+import { isPropertyInScope, assertLandlordWriteAllowed } from "../../../lib/landlord-scope";
 
 interface PropertyDocumentRow {
   id: string;
@@ -36,6 +37,10 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
   const propertyId = new URL(req.url).searchParams.get("propertyId");
   if (!propertyId) return NextResponse.json({ error: "propertyId is required" }, { status: 400 });
   if (!auth.actor.org_id) return NextResponse.json([], { headers: { "Cache-Control": "no-store" } });
+
+  // Landlord-scope: the property itself must be in the active landlord's portfolio.
+  const inScope = await isPropertyInScope((sql, p) => db().query(sql, p), auth, propertyId);
+  if (!inScope) return NextResponse.json([], { headers: { "Cache-Control": "no-store" } });
 
   try {
     const r = await db().query<PropertyDocumentRow & { landlord_name: string | null }>(
@@ -85,6 +90,9 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
     try {
       const owned = await db().query<{ id: string }>("SELECT id FROM properties WHERE id = $1 AND org_id = $2", [propertyId, auth.actor.org_id]);
       if (!owned.rows[0]) return NextResponse.json({ error: "Property not found" }, { status: 404 });
+      // Landlord-scope write guard.
+      const inScope = await isPropertyInScope((sql, p) => db().query(sql, p), auth, propertyId);
+      if (!inScope) return NextResponse.json({ error: "Property not found" }, { status: 404 });
 
       const buffer = Buffer.from(await file.arrayBuffer());
       const blobId = await insertDocumentBlob(db(), {
@@ -117,6 +125,12 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
   if (looksLikeTenantDocument(parsed.data.document_type)) {
     return NextResponse.json({ error: `"${parsed.data.document_type}" is a tenant document — it belongs on the tenant's record, not a landlord request.` }, { status: 422 });
   }
+  // Landlord-scope: the target property must be in the active landlord's portfolio AND the
+  // requested-from landlord must match the active one (if any).
+  const inScope = await isPropertyInScope((sql, p) => db().query(sql, p), auth, parsed.data.property_id);
+  if (!inScope) return NextResponse.json({ error: "Property not found" }, { status: 404 });
+  const refusal = assertLandlordWriteAllowed(auth, parsed.data.requested_from_landlord_id);
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
   try {
     const { data } = await writeWithAudit({
       table: "property_documents",

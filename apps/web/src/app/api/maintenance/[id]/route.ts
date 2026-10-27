@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { sendMaintenanceResolved } from "../../../../lib/resend";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { landlordScope } from "../../../../lib/landlord-scope";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const auth = await getApiAuth();
@@ -24,9 +25,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   try {
+    // Landlord-scope: 404 when the ticket is in another landlord's portfolio.
+    const scope = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: 3 });
     const existing = await db().query<{ org_id: string }>(
-      "SELECT org_id FROM maintenance_tickets WHERE id = $1", [params.id]);
-    if (!existing.rows[0] || existing.rows[0].org_id !== auth.actor.org_id) {
+      `SELECT org_id FROM maintenance_tickets WHERE id = $1 AND org_id = $2${scope.sql}`,
+      [params.id, auth.actor.org_id, ...scope.params]);
+    if (!existing.rows[0]) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 

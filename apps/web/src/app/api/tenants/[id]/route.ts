@@ -4,6 +4,7 @@ import { TenantPatchSchema } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth, latestAuditHash } from "../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { landlordScope } from "../../../../lib/landlord-scope";
 
 interface Params {
   params: { id: string };
@@ -23,7 +24,11 @@ export async function GET(_req: Request, { params }: Params) {
   if (!auth.actor.org_id) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
 
   try {
-    const r = await db().query("SELECT * FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
+    // Landlord-scope: when the session is scoped to a landlord, only a tenant whose
+    // active tenancy sits in that landlord's portfolio is reachable by URL. 404
+    // (not 403) so a wrong-landlord URL poke tells the viewer nothing.
+    const scope = landlordScope(auth, "tenantsTable", { col: "id", paramIndex: 3 });
+    const r = await db().query(`SELECT * FROM tenants WHERE id = $1 AND org_id = $2${scope.sql}`, [params.id, auth.actor.org_id, ...scope.params]);
     const data = r.rows[0];
     if (!data) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
     return NextResponse.json(data);
@@ -56,9 +61,10 @@ export async function PATCH(req: Request, { params }: Params) {
     // Confirm the tenant belongs to this organisation before anything else,
     // and fetch current NOK fields to detect changes below — replacing what
     // Supabase RLS (org_tenants_read) used to scope implicitly.
+    const scope = landlordScope(auth, "tenantsTable", { col: "id", paramIndex: 3 });
     const currentR = await db().query<{ nok_name: string | null; nok_phone: string | null }>(
-      "SELECT nok_name, nok_phone FROM tenants WHERE id = $1 AND org_id = $2",
-      [params.id, auth.actor.org_id],
+      `SELECT nok_name, nok_phone FROM tenants WHERE id = $1 AND org_id = $2${scope.sql}`,
+      [params.id, auth.actor.org_id, ...scope.params],
     );
     const currentTenant = currentR.rows[0];
     if (!currentTenant) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
@@ -155,7 +161,8 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (!auth.actor.org_id) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
 
   try {
-    const existing = await db().query("SELECT id FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
+    const scope = landlordScope(auth, "tenantsTable", { col: "id", paramIndex: 3 });
+    const existing = await db().query(`SELECT id FROM tenants WHERE id = $1 AND org_id = $2${scope.sql}`, [params.id, auth.actor.org_id, ...scope.params]);
     if (!existing.rows[0]) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
 
     const prev = await latestAuditHash(auth.supabase, params.id);

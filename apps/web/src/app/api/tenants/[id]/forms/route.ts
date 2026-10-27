@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { can } from "@tenant-hub/auth";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
+import { isTenantInScope } from "../../../../../lib/landlord-scope";
 
 interface Params {
   params: { id: string };
@@ -43,6 +44,9 @@ export async function GET(_req: Request, { params }: Params) {
   try {
     const tenantCheck = await db().query("SELECT id FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
     if (!tenantCheck.rows[0]) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
+    // Landlord-scope: if a landlord is active, this tenant must be in its portfolio.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
 
     const r = await db().query<TenantFormRow>(
       `SELECT tf.id, tf.tenant_id, tf.template_id, tf.data, tf.status, tf.created_at, tf.updated_at,
@@ -89,6 +93,9 @@ export async function POST(req: Request, { params }: Params) {
   try {
     const tenantCheck = await db().query("SELECT id FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
     if (!tenantCheck.rows[0]) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
+    // Landlord-scope write guard: 404 (not 403) so a wrong-landlord URL poke reveals nothing.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
 
     // template_id arrives as a key ("reliance-support-plan") or a UUID. A key resolves to this
     // organisation's template row, created on first use — the save must never fail because a

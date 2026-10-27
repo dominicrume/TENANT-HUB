@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, getDocumentBlob, getMediaBlobId, deleteMedia } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
+import { blobInLandlordScope } from "../../../../lib/files-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,9 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
 
   const blobId = await getMediaBlobId(db(), { id: params.mediaId, orgId: auth.actor.org_id });
   if (!blobId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Landlord-scope: media attached to another landlord's property/unit isn't reachable here.
+  if (!(await blobInLandlordScope(blobId, auth))) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const blob = await getDocumentBlob(db(), { id: blobId, orgId: auth.actor.org_id });
   if (!blob) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -27,6 +31,9 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
 /** DELETE — removes one photo from whichever gallery it belongs to. */
 export const DELETE = withRouteHandler({ resource: "properties", action: "update" }, async (_req, { params }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
+  const blobId = await getMediaBlobId(db(), { id: params.mediaId, orgId: auth.actor.org_id });
+  if (!blobId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!(await blobInLandlordScope(blobId, auth))) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await deleteMedia(db(), { id: params.mediaId, orgId: auth.actor.org_id });
   return NextResponse.json({ success: true });
 });

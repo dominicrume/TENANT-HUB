@@ -26,6 +26,16 @@ export interface Actor {
   brand: string;
   org_id?: string;
   email?: string;
+  /**
+   * The landlord this session has scoped itself to (user_sessions.active_landlord_id, migration 054).
+   * null/undefined = "All landlords" mode: the user sees everything in their org, unfiltered.
+   * When set, EVERY data route must restrict rows to this landlord's portfolio — via
+   * apps/web/src/lib/landlord-scope.ts (the single source for the WHERE fragments). Found live
+   * 2026-10-27 by Rume: the picker was writing this to the session but no route read it, so
+   * switching between OKE_DOM and other landlords left every list unchanged — the switcher was cosmetic.
+   */
+  landlord_id?: string | null;
+  landlord_name?: string | null;
 }
 
 export interface ApiAuth {
@@ -64,6 +74,8 @@ export async function getApiAuth(): Promise<ApiAuth | null> {
       brand: session.brand,
       org_id: session.orgId ?? undefined,
       email: session.email ?? undefined,
+      landlord_id: session.landlordId ?? null,
+      landlord_name: session.landlordName ?? null,
     },
   };
 }

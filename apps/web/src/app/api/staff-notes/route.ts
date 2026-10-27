@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope, isTenantInScope } from "../../../lib/landlord-scope";
 
 /**
  * GET /api/staff-notes?tenantId=[id] — staff notes for the org, optionally
@@ -27,6 +28,10 @@ export async function GET(req: Request) {
       params.push(tenantId);
       sql += ` AND sn.tenant_id = $${params.length}`;
     }
+    // Landlord-scope: notes without a tenant stay in all-landlords view only.
+    const scope = landlordScope(auth, "viaTenant", { col: "sn.tenant_id", paramIndex: params.length + 1 });
+    sql += scope.sql;
+    params.push(...scope.params);
     sql += ` ORDER BY sn.created_at DESC`;
 
     const r = await db().query<Record<string, unknown>>(sql, params);
@@ -49,6 +54,12 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body || !body.note_content) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
+  }
+
+  // Landlord-scope write guard: a staff note tied to a tenant must stay in-portfolio.
+  if (body.tenant_id) {
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, body.tenant_id);
+    if (!inScope) return NextResponse.json({ error: "That tenant is not in your active landlord's portfolio." }, { status: 403 });
   }
 
   try {

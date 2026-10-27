@@ -5,6 +5,7 @@ import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { emit } from "../../../lib/webhooks";
+import { landlordScope, isTenantInScope } from "../../../lib/landlord-scope";
 
 /**
  * GET /api/rent-payments?tenantId=[id]
@@ -27,6 +28,10 @@ export async function GET(req: Request) {
     params.push(tenantId);
     sql += ` AND tenant_id = $${params.length}`;
   }
+  // Landlord-scope: restrict to tenants whose active tenancy sits in the active landlord's portfolio.
+  const scope = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: params.length + 1 });
+  sql += scope.sql;
+  params.push(...scope.params);
   sql += " ORDER BY payment_date DESC";
 
   try {
@@ -52,6 +57,10 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Validation failed", issues: parsed.error.issues }, { status: 422 });
   }
+
+  // Landlord-scope write guard: refuse to record a payment against a tenant outside the active landlord's portfolio.
+  const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, parsed.data.tenant_id);
+  if (!inScope) return NextResponse.json({ error: "That tenant is not in your active landlord's portfolio." }, { status: 403 });
 
   try {
     const { data } = await writeWithAudit({

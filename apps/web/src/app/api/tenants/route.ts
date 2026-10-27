@@ -7,6 +7,7 @@ import { generateSupportPlan } from "../../../lib/generate-plan";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { emit } from "../../../lib/webhooks";
 import { linkTenantToLead } from "../../../lib/lead-link";
+import { landlordScope } from "../../../lib/landlord-scope";
 
 const TENANT_FIELD_LABELS: Record<string, string> = {
   title: "Title", full_name: "Full name", dob: "Date of birth", nino: "National Insurance number", nationality: "Nationality",
@@ -37,12 +38,17 @@ export async function GET(req: Request) {
   const unhoused = new URL(req.url).searchParams.get("unhoused") === "1";
 
   try {
+    // When the user has switched to a landlord, only tenants whose active
+    // tenancy sits in a unit of that landlord's properties come back. Chain:
+    // tenants.id → tenancies.tenant_id → units.id → properties.landlord_id.
+    const scope = landlordScope(auth, "tenantsTable", { col: "t.id", paramIndex: 2 });
     const r = await db().query(
       `SELECT t.* FROM tenants t
        WHERE t.org_id = $1 AND t.is_active = true AND t.is_archived = false
          ${unhoused ? "AND NOT EXISTS (SELECT 1 FROM tenancies ty WHERE ty.tenant_id = t.id AND ty.status = 'active')" : ""}
+         ${scope.sql}
        ORDER BY t.created_at DESC`,
-      [auth.actor.org_id],
+      [auth.actor.org_id, ...scope.params],
     );
     return NextResponse.json(r.rows);
   } catch (err) {

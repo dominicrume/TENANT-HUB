@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit, insertDocumentBlob, getDocumentBlob, MAX_DOCUMENT_BYTES } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
+import { isTenantInScope, activeLandlordId } from "../../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,16 @@ async function loadAuthorizedTicket(id: string, auth: NonNullable<Awaited<Return
     const profileR = await db().query<{ tenant_id: string | null }>("SELECT tenant_id FROM profiles WHERE id = $1", [auth.actor.user_id]);
     if (!profileR.rows[0]?.tenant_id || profileR.rows[0].tenant_id !== ticket.tenant_id) return null;
   }
+
+  // Landlord-scope: when the actor is scoped to a landlord, the ticket's tenant
+  // (if any) must sit under that landlord. A ticket with no tenant is dropped
+  // in scoped mode — there's no landlord link, so nothing to filter by.
+  if (activeLandlordId(auth)) {
+    if (!ticket.tenant_id) return null;
+    const ok = await isTenantInScope((sql, p) => db().query(sql, p), auth, ticket.tenant_id);
+    if (!ok) return null;
+  }
+
   return ticket;
 }
 

@@ -3,6 +3,7 @@ import { db } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { buildNeedsYou, type TenantRow, type ChargeRow, type TicketRow, type DraftRow, type HandoverRow } from "@tenant-hub/domain";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope } from "../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -25,23 +26,28 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
   const orgId = auth.actor.org_id;
   const today = new Date().toISOString().slice(0, 10);
 
+  // Landlord-scope: tenants/tickets/charges all funnel through tenants or
+  // their tenancy. Drafts/handovers don't carry a tenant yet — unchanged.
+  const scopeTenants = landlordScope(auth, "tenantsTable", { col: "id", paramIndex: 2 });
+  const scopeCharges = landlordScope(auth, "viaTenant", { col: "sc.tenant_id", paramIndex: 2 });
+  const scopeTickets = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: 2 });
   try {
     const [tenants, charges, tickets, drafts, handovers] = await Promise.all([
       db().query<TenantRow>(
         `SELECT id, full_name, room_number, is_active, is_archived, housing_benefit_status, hb_claim_date, moved_in
-         FROM tenants WHERE org_id = $1`,
-        [orgId],
+         FROM tenants WHERE org_id = $1${scopeTenants.sql}`,
+        [orgId, ...scopeTenants.params],
       ),
       db().query<ChargeRow>(
         `SELECT sc.tenant_id, sc.amount, sc.is_paid, sc.due_date
          FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id
-         WHERE t.org_id = $1 AND sc.is_paid = false`,
-        [orgId],
+         WHERE t.org_id = $1 AND sc.is_paid = false${scopeCharges.sql}`,
+        [orgId, ...scopeCharges.params],
       ),
       db().query<TicketRow>(
         `SELECT id, room_number, issue_type, status, assigned_to, reported_by, created_at
-         FROM maintenance_tickets WHERE org_id = $1 AND status NOT IN ('Resolved', 'Closed')`,
-        [orgId],
+         FROM maintenance_tickets WHERE org_id = $1 AND status NOT IN ('Resolved', 'Closed')${scopeTickets.sql}`,
+        [orgId, ...scopeTickets.params],
       ),
       db().query<DraftRow>(
         `SELECT d.id, d.step, d.expires_at, d.machine_state

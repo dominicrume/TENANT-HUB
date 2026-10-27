@@ -5,6 +5,7 @@ import { withRouteHandler } from "../../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
 import { sendReferenceRequest } from "../../../../../lib/resend";
 import { publicOrigin } from "../../../../../lib/google-oauth";
+import { isTenantInScope } from "../../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,9 @@ const KINDS: ReferenceKind[] = ["previous_landlord", "employer", "support_worker
  */
 export const GET = withRouteHandler({ resource: "tenants", action: "read" }, async (_req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json([]);
+  // Landlord-scope: a wrong-landlord URL poke must return the same 404 shape as a wrong org.
+  const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+  if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   const rows = await listReferences(db(), { orgId: auth.actor.org_id, tenantId: params.id });
   return NextResponse.json(rows, { headers: { "Cache-Control": "no-store" } });
 });
@@ -37,6 +41,9 @@ export const POST = withRouteHandler({ resource: "tenants", action: "update" }, 
       [params.id, auth.actor.org_id]);
     const t = tenant.rows[0];
     if (!t) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    // Landlord-scope: can't request a reference for a tenant outside the active landlord's portfolio.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
     const token = generateToken();
     const id = await insertReference(db(), { orgId: auth.actor.org_id, tenantId: params.id, kind, refereeName, refereeEmail, tokenHash: hashToken(token), requestedBy: auth.actor.user_name });

@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { idCheck } from "@tenant-hub/adapters";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
+import { isTenantInScope } from "../../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   if (!auth.actor.org_id) return NextResponse.json([]);
 
   try {
+    // Landlord-scope: a wrong-landlord URL poke must not reveal this tenant's checks.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     const r = await db().query(
       `SELECT id, provider, mode, status, detail, requested_by, created_at, updated_at
        FROM tenant_id_checks WHERE tenant_id = $1 AND org_id = $2 ORDER BY created_at DESC`,
@@ -48,6 +52,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   try {
     const owned = await db().query<{ id: string }>("SELECT id FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
     if (!owned.rows[0]) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    // Landlord-scope write guard: refuse to submit a check against a tenant outside the active landlord's portfolio.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
     const result = await idCheck().submitCheck({ fullName, dateOfBirth, documentType, documentRef });
 

@@ -4,6 +4,7 @@ import { ARREARS_LADDER, stageIndex } from "@tenant-hub/domain";
 import type { UnitClass } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { landlordScope } from "../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -32,15 +33,23 @@ export const GET = withRouteHandler({ resource: "rent", action: "read" }, async 
   if (!auth.actor.org_id) return NextResponse.json({ ladders: [], isThisRent: [], upToDate: [] }, { headers: { "Cache-Control": "no-store" } });
   const orgId = auth.actor.org_id;
 
+  // Landlord-scope: every query here funnels through tenants/tenancies —
+  // units via properties, the rest via tenancy's tenant.
+  const scopeTenants = landlordScope(auth, "tenantsTable", { col: "id", paramIndex: 2 });
+  const scopeTenancies = landlordScope(auth, "viaUnit", { col: "unit_id", paramIndex: 2 });
+  const scopeUnits = landlordScope(auth, "viaProperty", { col: "property_id", paramIndex: 2 });
+  const scopeCases = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: 2 });
+  const scopeArrears = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: 2 });
+  const scopeUnmatched = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: 2 });
   let tenants, tenancies, units, cases, arrears, unmatched;
   try {
     [tenants, tenancies, units, cases, arrears, unmatched] = await Promise.all([
-      db().query<TenantRow>("SELECT id, full_name, room_number, is_active, is_archived, housing_benefit_status FROM tenants WHERE org_id = $1", [orgId]),
-      db().query<TenancyRow>("SELECT id, tenant_id, unit_id, status FROM tenancies WHERE org_id = $1 AND status = 'active'", [orgId]),
-      db().query<UnitRow>("SELECT id, unit_class FROM units WHERE org_id = $1", [orgId]),
-      db().query<CaseRow>("SELECT id, tenant_id, stage, opened_on FROM arrears_cases WHERE org_id = $1 AND closed_on IS NULL", [orgId]),
-      db().query<ArrearsRow>("SELECT tenant_id, balance, oldest_unpaid::text FROM tenancy_arrears WHERE org_id = $1", [orgId]),
-      db().query<UnmatchedRow>("SELECT id, tenant_id, amount, received_on, external_reference, confidence, is_simulated FROM rent_unmatched WHERE org_id = $1 AND status = 'pending'", [orgId]),
+      db().query<TenantRow>(`SELECT id, full_name, room_number, is_active, is_archived, housing_benefit_status FROM tenants WHERE org_id = $1${scopeTenants.sql}`, [orgId, ...scopeTenants.params]),
+      db().query<TenancyRow>(`SELECT id, tenant_id, unit_id, status FROM tenancies WHERE org_id = $1 AND status = 'active'${scopeTenancies.sql}`, [orgId, ...scopeTenancies.params]),
+      db().query<UnitRow>(`SELECT id, unit_class FROM units WHERE org_id = $1${scopeUnits.sql}`, [orgId, ...scopeUnits.params]),
+      db().query<CaseRow>(`SELECT id, tenant_id, stage, opened_on FROM arrears_cases WHERE org_id = $1 AND closed_on IS NULL${scopeCases.sql}`, [orgId, ...scopeCases.params]),
+      db().query<ArrearsRow>(`SELECT tenant_id, balance, oldest_unpaid::text FROM tenancy_arrears WHERE org_id = $1${scopeArrears.sql}`, [orgId, ...scopeArrears.params]),
+      db().query<UnmatchedRow>(`SELECT id, tenant_id, amount, received_on, external_reference, confidence, is_simulated FROM rent_unmatched WHERE org_id = $1 AND status = 'pending'${scopeUnmatched.sql}`, [orgId, ...scopeUnmatched.params]),
     ]);
   } catch (err) {
     return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, getDocumentThumb } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../../lib/api-auth";
-import { isUuid } from "../../../../../lib/files-auth";
+import { isUuid, blobInLandlordScope } from "../../../../../lib/files-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +10,7 @@ export async function GET(req: Request, { params }: { params: { blobId: string }
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   if (!auth.actor.org_id || !isUuid(params.blobId)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!(await blobInLandlordScope(params.blobId, auth))) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const t = await getDocumentThumb(db(), { id: params.blobId, orgId: auth.actor.org_id });
   if (!t) return NextResponse.json({ error: "No thumbnail" }, { status: 404 });
   const etag = t.sha256 ? `"t-${t.sha256}"` : null;

@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   const guard = await fileAuth(entity, "read");
   if (guard instanceof NextResponse) return guard;
   try {
-    if (!(await entityOwned(entity, id, guard.orgId))) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!(await entityOwned(entity, id, guard.auth))) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const items = await listEntityFiles(db(), { orgId: guard.orgId, entity, id });
     const today = new Date().toISOString().slice(0, 10);
     const checklist: ChecklistItem[] = REQUIRED_DOCUMENTS[entity].map((type) => {

@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { emit } from "../../../lib/webhooks";
+import { landlordScope, isTenantInScope } from "../../../lib/landlord-scope";
 
 export async function GET(req: Request) {
   const auth = await getApiAuth();
@@ -22,6 +23,12 @@ export async function GET(req: Request) {
       params.push(tenantId);
       sql += ` AND m.tenant_id = $${params.length}`;
     }
+    // Landlord-scope: tickets without a tenant can't be landlord-filtered. While
+    // a landlord is active we filter by tenant_id → tenancies → properties.landlord_id
+    // and drop the untied repairs — they belong to Tenant Hub-level view only.
+    const scope = landlordScope(auth, "viaTenant", { col: "m.tenant_id", paramIndex: params.length + 1 });
+    sql += scope.sql;
+    params.push(...scope.params);
     sql += ` ORDER BY m.created_at DESC`;
 
     const r = await db().query<Record<string, unknown>>(sql, params);
@@ -43,6 +50,13 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body || !body.room_number || !body.issue_type || !body.description) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 422 });
+  }
+
+  // Landlord-scope write guard: when the body ties the ticket to a tenant, that
+  // tenant must be in the active landlord's portfolio.
+  if (body.tenant_id) {
+    const ok = await isTenantInScope((sql, params) => db().query(sql, params), auth, body.tenant_id);
+    if (!ok) return NextResponse.json({ error: "That tenant is not in your active landlord's portfolio." }, { status: 403 });
   }
 
   try {

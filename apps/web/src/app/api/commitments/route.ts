@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope } from "../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,10 @@ export const GET = withRouteHandler({ resource: "interactions", action: "read" }
     params.push(tenantId);
     sql += ` AND tenant_id = $${params.length}`;
   }
+  // Landlord-scope: restrict to commitments on tenants in the active landlord's portfolio.
+  const scope = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: params.length + 1 });
+  sql += scope.sql;
+  params.push(...scope.params);
   // "overdue" > "open" lexically — overdue leads, same ordering as the original query.
   sql += ` ORDER BY status DESC, due_on ASC NULLS LAST`;
 

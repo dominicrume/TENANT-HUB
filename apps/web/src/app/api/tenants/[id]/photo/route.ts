@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit, insertDocumentBlob, getDocumentBlob, MAX_DOCUMENT_BYTES } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
+import { isTenantInScope } from "../../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   if (!auth.actor.org_id) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   try {
+    // Landlord-scope: a wrong-landlord URL poke must return the same "Not found" as any other miss.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const r = await db().query<{ photo_blob_id: string | null }>(
       "SELECT photo_blob_id FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
     const blobId = r.rows[0]?.photo_blob_id;
@@ -49,6 +53,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   try {
     const owned = await db().query<{ id: string }>("SELECT id FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
     if (!owned.rows[0]) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    // Landlord-scope write guard.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const blobId = await insertDocumentBlob(db(), {
@@ -83,6 +90,9 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   try {
     const owned = await db().query<{ id: string }>("SELECT id FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
     if (!owned.rows[0]) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    // Landlord-scope write guard.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     await writeWithAudit({
       table: "tenants",
       record: { id: params.id, photo_blob_id: null, photo_url: null } as Record<string, unknown>,

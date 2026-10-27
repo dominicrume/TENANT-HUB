@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit, insertDocumentBlob, getDocumentBlob, MAX_DOCUMENT_BYTES } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
+import { activeLandlordId } from "../../../../../lib/landlord-scope";
+
+/** A scoped user can only touch THEIR landlord's photo. All-landlords mode: anything in the org. */
+function landlordAllowed(auth: { actor: { landlord_id?: string | null } }, pathId: string): boolean {
+  const active = activeLandlordId(auth as Parameters<typeof activeLandlordId>[0]);
+  return !active || active === pathId;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +17,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   if (!auth.actor.org_id) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!landlordAllowed(auth, params.id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   try {
     const r = await db().query<{ photo_blob_id: string | null }>(
@@ -38,6 +46,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
+  if (!landlordAllowed(auth, params.id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
@@ -79,6 +88,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const auth = await getApiAuth();
   if (!auth) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
+  if (!landlordAllowed(auth, params.id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   try {
     const owned = await db().query<{ id: string }>("SELECT id FROM landlords WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
     if (!owned.rows[0]) return NextResponse.json({ error: "Landlord not found" }, { status: 404 });

@@ -5,7 +5,7 @@ import { getApiAuth } from "../../../../lib/api-auth";
 import { isSameOriginPost } from "../../../../lib/csrf";
 import { publicOrigin } from "../../../../lib/google-oauth";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
-import { isUuid } from "../../../../lib/files-auth";
+import { isUuid, blobInLandlordScope } from "../../../../lib/files-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +25,8 @@ export async function POST(req: Request) {
   if (!isUuid(body?.blobId)) return NextResponse.json({ error: "blobId is required" }, { status: 400 });
   try {
     if (!(await blobBelongsToOrg(db(), { blobId: body!.blobId!, orgId: auth.actor.org_id }))) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Landlord-scope: a scoped user can only hand out share links for files in their landlord's scope.
+    if (!(await blobInLandlordScope(body!.blobId!, auth))) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const token = generateToken();
     const id = await insertShare(db(), { orgId: auth.actor.org_id, blobId: body!.blobId!, tokenHash: hashToken(token), label: body?.label?.trim().slice(0, 120) || null, days, createdBy: auth.actor.user_name });
     return NextResponse.json({ id, url: `${publicOrigin(req)}/share/${token}`, expiresInDays: days }, { status: 201 });

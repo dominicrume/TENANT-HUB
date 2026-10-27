@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { isTenantInScope } from "../../../lib/landlord-scope";
 
 /**
  * GET /api/reports?tenantId=[id]&month=YYYY-MM
@@ -28,6 +29,9 @@ export async function GET(req: Request) {
   const next = m === 12 ? `${y! + 1}-01-01` : `${y}-${String(m! + 1).padStart(2, "0")}-01`;
 
   try {
+    // Landlord-scope: a wrong-landlord URL poke must return the same 404 as a non-existent tenant.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, tenantId);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     const tenantR = await db().query<Record<string, unknown>>(
       "SELECT * FROM tenants WHERE id = $1 AND org_id = $2", [tenantId, orgId]);
     const tenant = tenantR.rows[0];

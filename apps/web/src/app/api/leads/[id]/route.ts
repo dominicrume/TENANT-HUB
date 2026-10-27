@@ -4,6 +4,7 @@ import { withRouteHandler } from "../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
 import { LEAD_STAGES, REFERENCE_KINDS, REFERENCE_METHODS, REFERENCE_OUTCOMES } from "../../../../lib/leads";
 import type { DraftState } from "../../../../lib/intake";
+import { landlordScope } from "../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,10 @@ export const PATCH = withRouteHandler({ resource: "tenants", action: "update" },
   const body = (await req.json().catch(() => null)) as { action?: string; stage?: string; viewing_at?: string | null; assigned_to?: string | null; property_id?: string | null; unit_id?: string | null; notes?: string; lost_reason?: string; phone?: string; email?: string; full_name?: string; referee_name?: string; referee_contact?: string; reference_notes?: string;
     kind?: string; contact?: string; method?: string; reference_id?: string; outcome?: string; id_checked?: boolean; benefit_checked?: boolean; no_reference_needed?: boolean } | null;
   try {
+    // Landlord-scope: a wrong-landlord URL poke must return the same 404 as a non-existent lead.
+    const scope = landlordScope(auth, "direct", { col: "landlord_id", paramIndex: 3 });
     const lead = (await db().query<{ id: string; full_name: string; phone: string | null; email: string | null; stage: string; property_id: string | null; unit_id: string | null; viewing_at: string | null }>(
-      "SELECT id, full_name, phone, email, stage, property_id, unit_id, viewing_at FROM leads WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id])).rows[0];
+      `SELECT id, full_name, phone, email, stage, property_id, unit_id, viewing_at FROM leads WHERE id = $1 AND org_id = $2${scope.sql}`, [params.id, auth.actor.org_id, ...scope.params])).rows[0];
     if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
     if (body?.action === "convert") {
@@ -133,6 +136,8 @@ export const PATCH = withRouteHandler({ resource: "tenants", action: "update" },
 
 export const DELETE = withRouteHandler({ resource: "tenants", action: "delete" }, async (_req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
-  await db().query("DELETE FROM leads WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
+  // Landlord-scope: refuse to delete a lead that isn't in the active landlord's portfolio.
+  const scope = landlordScope(auth, "direct", { col: "landlord_id", paramIndex: 3 });
+  await db().query(`DELETE FROM leads WHERE id = $1 AND org_id = $2${scope.sql}`, [params.id, auth.actor.org_id, ...scope.params]);
   return NextResponse.json({ ok: true });
 });

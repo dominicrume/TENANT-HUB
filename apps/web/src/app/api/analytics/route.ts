@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope } from "../../../lib/landlord-scope";
 
 /**
  * GET /api/analytics — dashboard headline stats. sessions, service_charges
@@ -22,21 +23,27 @@ export async function GET() {
   const orgId = auth.actor.org_id;
 
   try {
+    // Landlord-scope: everything here filters down the tenants chain.
+    const scopeTenants = landlordScope(auth, "tenantsTable", { col: "id", paramIndex: 2 });
+    const scopeSessions = landlordScope(auth, "viaTenant", { col: "s.tenant_id", paramIndex: 2 });
+    const scopeCharges = landlordScope(auth, "viaTenant", { col: "sc.tenant_id", paramIndex: 2 });
+    const scopeGoals = landlordScope(auth, "viaTenant", { col: "g.tenant_id", paramIndex: 2 });
+
     // 1. Total Tenants
     const tenantsR = await db().query<{ count: string }>(
-      "SELECT COUNT(*) AS count FROM tenants WHERE org_id = $1", [orgId]);
+      `SELECT COUNT(*) AS count FROM tenants WHERE org_id = $1${scopeTenants.sql}`, [orgId, ...scopeTenants.params]);
     const totalTenants = Number(tenantsR.rows[0]?.count ?? 0);
 
     // 2. Total Sessions
     const sessionsR = await db().query<{ count: string }>(
       `SELECT COUNT(*) AS count FROM sessions s
-       JOIN tenants t ON t.id = s.tenant_id WHERE t.org_id = $1`, [orgId]);
+       JOIN tenants t ON t.id = s.tenant_id WHERE t.org_id = $1${scopeSessions.sql}`, [orgId, ...scopeSessions.params]);
     const totalSessions = Number(sessionsR.rows[0]?.count ?? 0);
 
     // 3. Arrears Recovery (Service Charges)
     const chargesR = await db().query<{ amount: string; is_paid: boolean }>(
       `SELECT sc.amount, sc.is_paid FROM service_charges sc
-       JOIN tenants t ON t.id = sc.tenant_id WHERE t.org_id = $1`, [orgId]);
+       JOIN tenants t ON t.id = sc.tenant_id WHERE t.org_id = $1${scopeCharges.sql}`, [orgId, ...scopeCharges.params]);
 
     let totalBilled = 0;
     let totalPaid = 0;
@@ -50,7 +57,7 @@ export async function GET() {
     // 4. Goals Completed
     const goalsR = await db().query<{ status: string }>(
       `SELECT g.status FROM tenant_goals g
-       JOIN tenants t ON t.id = g.tenant_id WHERE t.org_id = $1`, [orgId]);
+       JOIN tenants t ON t.id = g.tenant_id WHERE t.org_id = $1${scopeGoals.sql}`, [orgId, ...scopeGoals.params]);
 
     let goalsCompleted = 0;
     goalsR.rows.forEach((g) => {

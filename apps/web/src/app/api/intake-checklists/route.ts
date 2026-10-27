@@ -4,6 +4,7 @@ import { CHECKLIST_ITEMS } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { isTenantInScope } from "../../../lib/landlord-scope";
 
 function defaultItems() {
   return Object.fromEntries(CHECKLIST_ITEMS.map((k) => [k, false]));
@@ -22,6 +23,9 @@ export async function GET(req: Request) {
   if (!auth.actor.org_id) return NextResponse.json({ id: null, tenant_id: tenantId, ...defaultItems() });
 
   try {
+    // Landlord-scope: an out-of-portfolio tenant returns the empty default.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, tenantId);
+    if (!inScope) return NextResponse.json({ id: null, tenant_id: tenantId, ...defaultItems() });
     const r = await db().query<Record<string, unknown>>(
       `SELECT ic.* FROM intake_checklists ic
        JOIN tenants t ON t.id = ic.tenant_id
@@ -53,6 +57,9 @@ export async function POST(req: Request) {
       [body.tenant_id, auth.actor.org_id],
     );
     if (!owned.rows[0]) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    // Landlord-scope write guard.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, body.tenant_id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
     const record: Record<string, unknown> = { tenant_id: body.tenant_id, ...defaultItems() };
     for (const k of CHECKLIST_ITEMS) if (k in body) record[k] = Boolean(body[k]);

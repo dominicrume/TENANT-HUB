@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, writeWithAudit, deleteMedia, deleteDocumentBlob, type FileEntity } from "@tenant-hub/db";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
-import { fileAuth, isUuid } from "../../../../lib/files-auth";
+import { fileAuth, isUuid, entityOwned } from "../../../../lib/files-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,8 @@ export async function PATCH(req: Request) {
   try {
     const row = await locate(table, body!.id!, guard.orgId);
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Landlord-scope: the entity this file is attached to must be in the actor's active landlord's portfolio.
+    if (!(await entityOwned(entityOf(table), row.entityId, guard.auth))) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const record: Record<string, unknown> = { id: body!.id };
     if (table === "entity_media") {
       if (typeof body?.caption === "string") record["caption"] = body.caption.trim().slice(0, 200) || null;
@@ -61,6 +63,7 @@ export async function DELETE(req: Request) {
   try {
     const row = await locate(table, id, guard.orgId);
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!(await entityOwned(entityOf(table), row.entityId, guard.auth))) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (table === "entity_media") {
       await deleteMedia(db(), { id, orgId: guard.orgId });
     } else {

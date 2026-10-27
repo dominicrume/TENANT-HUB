@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../../../lib/safe-error";
+import { isTenantInScope } from "../../../../../../lib/landlord-scope";
 
 interface UnmatchedRow {
   id: string;
@@ -40,6 +41,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const existing = existingR.rows[0];
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (existing.status !== "pending") return NextResponse.json({ error: "Already resolved" }, { status: 409 });
+  // Landlord-scope: 404 if this unmatched's tenant isn't in the active landlord's portfolio.
+  // An unmatched row without a best-guess tenant has nothing to filter on; show it as before.
+  if (existing.tenant_id) {
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, existing.tenant_id);
+    if (!inScope) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   try {
     const now = new Date().toISOString();

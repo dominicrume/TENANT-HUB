@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { writeWithAudit } from "@tenant-hub/db";
+import { db, writeWithAudit } from "@tenant-hub/db";
 import { CertificateCreateSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { isPropertyInScope } from "../../../lib/landlord-scope";
 
 /**
  * POST /api/certificates — Add certificate, from the Paperwork matrix's empty
@@ -16,6 +17,13 @@ export const POST = withRouteHandler({ resource: "compliance", action: "create" 
   const parsed = CertificateCreateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid certificate", issues: parsed.error.issues }, { status: 422 });
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
+
+  // Landlord-scope write guard: the property the certificate attaches to must be in the active landlord's portfolio.
+  const propertyId = (parsed.data as { property_id?: string }).property_id;
+  if (propertyId) {
+    const ok = await isPropertyInScope((sql, p) => db().query(sql, p), auth, propertyId);
+    if (!ok) return NextResponse.json({ error: "That property is not in your active landlord's portfolio." }, { status: 403 });
+  }
 
   try {
     const { data } = await writeWithAudit({

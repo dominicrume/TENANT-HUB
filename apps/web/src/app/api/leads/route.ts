@@ -5,6 +5,7 @@ import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { LEAD_STAGES, LEAD_SOURCES } from "../../../lib/leads";
 import { emit } from "../../../lib/webhooks";
 import { reconcileLeads } from "../../../lib/lead-link";
+import { landlordScope, assertLandlordWriteAllowed, resolveLandlordForWrite } from "../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,10 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
     const params: unknown[] = [auth.actor.org_id];
     let where = "l.org_id = $1";
     if (stage && stage !== "all") { params.push(stage); where += ` AND l.stage = $${params.length}`; }
+    // Landlord-scope: leads carry their own landlord_id (direct). Null = All landlords, no-op.
+    const scope = landlordScope(auth, "direct", { col: "l.landlord_id", paramIndex: params.length + 1 });
+    where += scope.sql;
+    params.push(...scope.params);
     const r = await db().query(
       `SELECT l.*, p.name AS property_name, u.reference AS unit_reference,
               (SELECT d.id FROM drafts d WHERE d.machine_state->>'lead_id' = l.id::text AND d.step < 5 ORDER BY d.created_at DESC LIMIT 1) AS draft_id,
@@ -30,7 +35,8 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
               t.room_number AS tenant_room
        FROM leads l LEFT JOIN properties p ON p.id = l.property_id LEFT JOIN units u ON u.id = l.unit_id LEFT JOIN tenants t ON t.id = l.tenant_id
        WHERE ${where} ORDER BY CASE l.stage WHEN 'lost' THEN 1 ELSE 0 END, l.updated_at DESC`, params);
-    const c = await db().query<{ stage: string; n: string }>("SELECT stage, count(*) AS n FROM leads WHERE org_id = $1 GROUP BY stage", [auth.actor.org_id]);
+    const scope2 = landlordScope(auth, "direct", { col: "landlord_id", paramIndex: 2 });
+    const c = await db().query<{ stage: string; n: string }>(`SELECT stage, count(*) AS n FROM leads WHERE org_id = $1${scope2.sql} GROUP BY stage`, [auth.actor.org_id, ...scope2.params]);
     const counts: Record<string, number> = {};
     for (const s of LEAD_STAGES) counts[s.key] = 0;
     counts["lost"] = 0;
@@ -47,12 +53,19 @@ export const POST = withRouteHandler({ resource: "tenants", action: "create" }, 
   const fullName = typeof body?.full_name === "string" ? body.full_name.trim() : "";
   if (!fullName) return NextResponse.json({ error: "Name: who is this?" }, { status: 422 });
   const source = LEAD_SOURCES.some((s) => s.key === body?.source) ? body!.source : "professionally_referred";
+
+  // Landlord-scope on write: a session scoped to one landlord cannot create a
+  // lead against another; and if the body omits landlord_id, default to the active one.
+  const refusal = assertLandlordWriteAllowed(auth, body?.landlord_id ?? null);
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
+
   try {
     const { data } = await writeWithAudit({
       table: "leads",
       record: {
         org_id: auth.actor.org_id, full_name: fullName, phone: body?.phone?.trim() || null, email: body?.email?.trim().toLowerCase() || null,
-        source, notes: body?.notes?.trim() || null, property_id: body?.property_id || null, unit_id: body?.unit_id || null, landlord_id: body?.landlord_id || null,
+        source, notes: body?.notes?.trim() || null, property_id: body?.property_id || null, unit_id: body?.unit_id || null,
+        landlord_id: resolveLandlordForWrite(auth, body?.landlord_id ?? null),
         stage: "received", created_by: auth.actor.user_name,
       } as Record<string, unknown>,
       action: "CREATE", org_id: auth.actor.org_id, ...auth.actor,

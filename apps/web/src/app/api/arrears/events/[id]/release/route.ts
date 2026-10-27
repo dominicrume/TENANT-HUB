@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../../../lib/safe-error";
+import { landlordScope } from "../../../../../../lib/landlord-scope";
 
 interface ArrearsEventRow {
   id: string;
@@ -31,9 +32,10 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Permission denied" }, { status: 403 });
   }
 
+  const scope = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: 3 });
   const existingR = await db().query<ArrearsEventRow>(
-    "SELECT id, tenant_id, stage, requires_approval, released_at FROM arrears_events WHERE id = $1 AND org_id = $2",
-    [params.id, auth.actor.org_id],
+    `SELECT id, tenant_id, stage, requires_approval, released_at FROM arrears_events WHERE id = $1 AND org_id = $2${scope.sql}`,
+    [params.id, auth.actor.org_id, ...scope.params],
   );
   const existing = existingR.rows[0];
   if (!existing) {

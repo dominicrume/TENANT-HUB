@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { LandlordCreateSchema } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { activeLandlordId } from "../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,9 @@ export const dynamic = "force-dynamic";
  */
 export const GET = withRouteHandler({ resource: "properties", action: "read" }, async (_req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
+  // Landlord-scope: a scoped user can only open their own landlord's profile by URL.
+  const activeLord = activeLandlordId(auth);
+  if (activeLord && activeLord !== params.id) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const orgId = auth.actor.org_id;
   try {
     const landlord = (await db().query("SELECT id, name, contact_email, contact_phone, notes, has_portal, portal_name, created_at, updated_at FROM landlords WHERE id = $1 AND org_id = $2", [params.id, orgId])).rows[0];
@@ -105,6 +109,9 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
 export const DELETE = withRouteHandler({ resource: "properties", action: "delete" }, async (_req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
   if (auth.actor.user_role !== "manager" && auth.actor.user_role !== "admin") return NextResponse.json({ error: "Only managers can remove a landlord" }, { status: 403 });
+  // Scope guard: can't delete another landlord while scoped to one.
+  const activeLord = activeLandlordId(auth);
+  if (activeLord && activeLord !== params.id) return NextResponse.json({ error: "Not found" }, { status: 404 });
   try {
     const row = (await db().query<{ id: string; name: string }>("SELECT id, name FROM landlords WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id])).rows[0];
     if (!row) return NextResponse.json({ error: "Landlord not found" }, { status: 404 });
@@ -125,6 +132,8 @@ export const DELETE = withRouteHandler({ resource: "properties", action: "delete
 /** PATCH /api/landlords/[id] — name / contact email / phone / notes. */
 export const PATCH = withRouteHandler({ resource: "properties", action: "update" }, async (req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
+  const activeLord = activeLandlordId(auth);
+  if (activeLord && activeLord !== params.id) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const body = await req.json().catch(() => null);
   const parsed = LandlordCreateSchema.partial().safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid landlord", issues: parsed.error.issues }, { status: 422 });

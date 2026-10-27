@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
+import { isTenantInScope } from "../../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,9 @@ export const dynamic = "force-dynamic";
 export const GET = withRouteHandler({ resource: "tenants", action: "read" }, async (_req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
   try {
+    // Landlord-scope: a wrong-landlord URL poke must not reveal the tenant exists elsewhere.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     const t = (await db().query(
       `SELECT id, title, full_name, dob, nino, nationality, mobile, email, address, postcode, room_number, moved_in, benefit_type, benefit_frequency, benefit_amount,
               nok_name, nok_relationship, nok_phone, hb_reference_number, referral_source

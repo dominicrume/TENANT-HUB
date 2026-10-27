@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { landlordScope } from "../../../../lib/landlord-scope";
 
 interface TenantRow { id: string; full_name: string; is_archived: boolean; housing_benefit_status: string | null; benefit_amount: number | null }
 
@@ -14,9 +15,11 @@ export async function GET(req: Request) {
 
   let tenants: TenantRow[];
   try {
+    // Landlord-scope: restrict tenants to the active landlord's portfolio.
+    const scope = landlordScope(auth, "tenantsTable", { col: "id", paramIndex: 2 });
     const r = await db().query<TenantRow>(
-      "SELECT id, full_name, is_archived, housing_benefit_status, benefit_amount FROM tenants WHERE org_id = $1",
-      [auth.actor.org_id],
+      `SELECT id, full_name, is_archived, housing_benefit_status, benefit_amount FROM tenants WHERE org_id = $1${scope.sql}`,
+      [auth.actor.org_id, ...scope.params],
     );
     tenants = r.rows;
   } catch (err) {

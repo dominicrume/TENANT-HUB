@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { activeLandlordId, assertLandlordWriteAllowed } from "../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,14 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
     const propertyR = await db().query("SELECT * FROM properties WHERE id = $1 AND org_id = $2", [params.id, orgId]);
     const property = propertyR.rows[0];
     if (!property) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // Landlord-scope guard: when a user has switched to a landlord, they
+    // must not be able to open ANOTHER landlord's property by URL — fail
+    // with 404 (not 403) so URL-poking tells them nothing about what else exists.
+    const activeLandlord = activeLandlordId(auth);
+    if (activeLandlord && (property as { landlord_id: string | null }).landlord_id !== activeLandlord) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     const [units, tenancies, certificates, policies] = await Promise.all([
       db().query<{ id: string; reference: string; unit_class: string; floor: number | null; bedrooms: number | null; status: string }>(
@@ -67,6 +76,11 @@ export const PATCH = withRouteHandler({ resource: "properties", action: "update"
   if (body.landlord_id !== null && typeof body.landlord_id !== "string") {
     return NextResponse.json({ error: "landlord_id must be a string or null" }, { status: 422 });
   }
+
+  // A session scoped to landlord A must not be able to re-assign A's property
+  // to landlord B or clear it. Allow only "set to the active landlord" or no change.
+  const refusal = assertLandlordWriteAllowed(auth, body.landlord_id);
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
   try {
     const { data } = await writeWithAudit({

@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   const { auth, orgId } = guard;
 
   try {
-    if (!(await entityOwned(entity, id, orgId))) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!(await entityOwned(entity, id, auth))) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const thumbBuf = thumb instanceof File && thumb.size > 0 && thumb.size <= MAX_THUMB && thumb.type.startsWith("image/") ? Buffer.from(await thumb.arrayBuffer()) : null;
     const blobId = await insertDocumentBlob(db(), {

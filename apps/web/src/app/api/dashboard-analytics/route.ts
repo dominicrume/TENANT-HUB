@@ -4,6 +4,7 @@ import { requiredCertificatesFor, certificateStatus, certBase } from "@tenant-hu
 import type { AssetClass, UnitClass } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope } from "../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -24,19 +25,26 @@ export const GET = withRouteHandler({ resource: "compliance", action: "read" }, 
   }
   const org = auth.actor.org_id;
 
+  // Landlord-scope: everything on the dashboard tiles filters down the chain.
+  // Properties: direct. Units/certificates/tenancies: through properties/units.
+  const propScope = landlordScope(auth, "direct", { col: "landlord_id", paramIndex: 2 });
+  const viaProp = landlordScope(auth, "viaProperty", { col: "property_id", paramIndex: 2 });
+  const viaProp2 = landlordScope(auth, "viaProperty", { col: "u.property_id", paramIndex: 2 });
+  const certsScope = landlordScope(auth, "viaProperty", { col: "c.property_id", paramIndex: 2 });
+
   try {
     const [props, units, tenancies, certTypes, certs] = await Promise.all([
       db().query<{ id: string; name: string; asset_class: AssetClass }>(
-        "SELECT id, name, asset_class FROM properties WHERE org_id = $1 ORDER BY name", [org]),
+        `SELECT id, name, asset_class FROM properties WHERE org_id = $1${propScope.sql} ORDER BY name`, [org, ...propScope.params]),
       db().query<{ id: string; property_id: string; unit_class: UnitClass }>(
-        "SELECT id, property_id, unit_class FROM units WHERE org_id = $1", [org]),
+        `SELECT id, property_id, unit_class FROM units WHERE org_id = $1${viaProp.sql}`, [org, ...viaProp.params]),
       db().query<{ unit_id: string; property_id: string | null }>(
-        "SELECT ty.unit_id, u.property_id FROM tenancies ty JOIN units u ON u.id = ty.unit_id WHERE ty.org_id = $1 AND ty.status = 'active'", [org]),
+        `SELECT ty.unit_id, u.property_id FROM tenancies ty JOIN units u ON u.id = ty.unit_id WHERE ty.org_id = $1 AND ty.status = 'active'${viaProp2.sql}`, [org, ...viaProp2.params]),
       db().query<{ id: string; name: string }>("SELECT id, name FROM certificate_types"),
       db().query<{ property_id: string; certificate_type_id: string; name: string; expires_on: string | null }>(
         `SELECT c.property_id, c.certificate_type_id, c.expires_on, ct.name
          FROM certificates c JOIN certificate_types ct ON ct.id = c.certificate_type_id
-         WHERE c.org_id = $1`, [org]),
+         WHERE c.org_id = $1${certsScope.sql}`, [org, ...certsScope.params]),
     ]);
 
     // Occupancy — a filled unit is one with an active tenancy.

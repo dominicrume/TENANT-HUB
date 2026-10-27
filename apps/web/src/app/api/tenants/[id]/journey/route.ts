@@ -4,6 +4,7 @@ import { withRouteHandler } from "../../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
 import { journeysForOrg } from "../../../../../lib/journey-server";
 import { REFERRAL_SOURCES } from "../../../../../lib/signup";
+import { isTenantInScope } from "../../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ const TICKABLE = new Set(["viewing", "moved_in", "moved_out", "onboarded", "lead
 export const GET = withRouteHandler({ resource: "tenants", action: "read" }, async (_req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
   try {
+    // Landlord-scope: a wrong-landlord URL poke returns the same 404 as a non-existent tenant.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     const [j] = await journeysForOrg(auth.actor.org_id, params.id);
     if (!j) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     return NextResponse.json(j, { headers: { "Cache-Control": "no-store" } });
@@ -36,6 +40,9 @@ export const POST = withRouteHandler({ resource: "tenants", action: "update" }, 
   try {
     const owned = (await db().query<{ full_name: string }>("SELECT full_name FROM tenants WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id])).rows[0];
     if (!owned) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    // Landlord-scope write guard: refuse to tick a station on a tenant outside the active landlord's portfolio.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, params.id);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
     // Station 1: how they came to us — one of three — lives on the tenant record itself.
     if (station === "lead_received") {

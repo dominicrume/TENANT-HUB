@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { isTenantInScope } from "../../../../lib/landlord-scope";
 
 /**
  * PATCH /api/service-charges/[id] — toggle paid / set paid_date (writeWithAudit).
@@ -27,6 +28,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  // Landlord-scope: 404 if this charge's tenant isn't in the active landlord's portfolio.
+  const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, existing.tenant_id);
+  if (!inScope) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
   const isPaid = Boolean(body.is_paid);
@@ -70,6 +74,9 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!existingR.rows[0]) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  // Landlord-scope: 404 if this charge's tenant isn't in the active landlord's portfolio.
+  const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, existingR.rows[0].tenant_id);
+  if (!inScope) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   try {
     await db().query("DELETE FROM service_charges WHERE id = $1", [params.id]);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, getDocumentBlob, getDocumentBlobMeta } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
-import { isUuid } from "../../../../lib/files-auth";
+import { isUuid, blobInLandlordScope } from "../../../../lib/files-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,13 @@ export async function GET(req: Request, { params }: { params: { blobId: string }
 
   const meta = await getDocumentBlobMeta(db(), { id: params.blobId, orgId: auth.actor.org_id });
   if (!meta) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Landlord-scope: a blob attached to another landlord's property, tenant or
+  // documents is not reachable while a scoped session is open. 404 (not 403)
+  // so a URL guess tells the viewer nothing about what else exists.
+  if (!(await blobInLandlordScope(params.blobId, auth))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   const etag = meta.sha256 ? `"${meta.sha256}"` : null;
   if (etag && req.headers.get("if-none-match") === etag) return new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": "private, max-age=31536000, immutable" } });
 

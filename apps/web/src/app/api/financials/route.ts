@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope, activeLandlordId } from "../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -26,17 +27,30 @@ export const GET = withRouteHandler({ resource: "rent", action: "read" }, async 
     // Today's date, for aged receivables.
     const todayStr = new Date().toISOString().slice(0, 10);
 
+    // Landlord-scope: every money line restricts to the active landlord's portfolio.
+    // When the actor is in "All landlords" mode the fragments are empty strings and
+    // the extra param is omitted — behaviour unchanged.
+    const activeLord = activeLandlordId(auth);
+    const scopeRoll = landlordScope(auth, "viaUnit", { col: "t.unit_id", paramIndex: 2 });
+    const scopeMonthSc3 = landlordScope(auth, "viaTenant", { col: "sc.tenant_id", paramIndex: 3 });
+    const scopeMonthRp3 = landlordScope(auth, "viaTenant", { col: "rp.tenant_id", paramIndex: 3 });
+    const scopeBal2 = landlordScope(auth, "viaTenant", { col: "b.tenant_id", paramIndex: 2 });
+    const scopePropsDirect2 = landlordScope(auth, "direct", { col: "p.landlord_id", paramIndex: 2 });
+    const scopeRecent2 = landlordScope(auth, "viaTenant", { col: "rp.tenant_id", paramIndex: 2 });
+    const scopePrevSc2 = landlordScope(auth, "viaTenant", { col: "sc.tenant_id", paramIndex: 2 });
+    const scopePrevRp2 = landlordScope(auth, "viaTenant", { col: "rp.tenant_id", paramIndex: 2 });
+
     const [roll, month, balances, byProperty, recent, aged, trend, prevMonth] = await Promise.all([
       // Rent roll: active tenancies → monthly equivalent.
       db().query<{ tenancy_id: string; tenant_id: string; full_name: string; rent_amount: string; rent_frequency: string; property_id: string; property: string; unit: string; landlord_id: string | null; landlord: string | null }>(
         `SELECT t.id AS tenancy_id, t.tenant_id, tn.full_name, t.rent_amount, t.rent_frequency, p.id AS property_id, p.name AS property, u.reference AS unit, p.landlord_id, l.name AS landlord
          FROM tenancies t JOIN tenants tn ON tn.id = t.tenant_id JOIN units u ON u.id = t.unit_id JOIN properties p ON p.id = u.property_id LEFT JOIN landlords l ON l.id = p.landlord_id
-         WHERE t.org_id = $1 AND t.status = 'active' AND tn.is_archived = false`, [org]),
+         WHERE t.org_id = $1 AND t.status = 'active' AND tn.is_archived = false${scopeRoll.sql}`, [org, ...scopeRoll.params]),
       db().query<{ charged: string; paid: string }>(
-        `SELECT (SELECT COALESCE(sum(sc.amount),0) FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id WHERE t.org_id = $1 AND t.is_archived = false AND sc.due_date >= $2::date) AS charged,
-                (SELECT COALESCE(sum(rp.amount),0) FROM rent_payments rp JOIN tenants t ON t.id = rp.tenant_id WHERE t.org_id = $1 AND t.is_archived = false AND rp.payment_date >= $2::date) AS paid`, [org, ms]),
+        `SELECT (SELECT COALESCE(sum(sc.amount),0) FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id WHERE t.org_id = $1 AND t.is_archived = false AND sc.due_date >= $2::date${scopeMonthSc3.sql}) AS charged,
+                (SELECT COALESCE(sum(rp.amount),0) FROM rent_payments rp JOIN tenants t ON t.id = rp.tenant_id WHERE t.org_id = $1 AND t.is_archived = false AND rp.payment_date >= $2::date${scopeMonthRp3.sql}) AS paid`, activeLord ? [org, ms, activeLord] : [org, ms]),
       db().query<{ tenant_id: string; full_name: string; room_number: string | null; total_charged: string; total_paid: string; balance: string }>(
-        `SELECT b.tenant_id, t.full_name, t.room_number, b.total_charged, b.total_paid, b.balance FROM tenant_arrears_balance b JOIN tenants t ON t.id = b.tenant_id WHERE b.org_id = $1 AND t.is_active = true AND t.is_archived = false ORDER BY b.balance ASC`, [org]),
+        `SELECT b.tenant_id, t.full_name, t.room_number, b.total_charged, b.total_paid, b.balance FROM tenant_arrears_balance b JOIN tenants t ON t.id = b.tenant_id WHERE b.org_id = $1 AND t.is_active = true AND t.is_archived = false${scopeBal2.sql} ORDER BY b.balance ASC`, activeLord ? [org, activeLord] : [org]),
       db().query<{ property_id: string; property: string; landlord_id: string | null; landlord: string | null; tenants: string; charged: string; paid: string }>(
         `SELECT p.id AS property_id, p.name AS property, p.landlord_id, l.name AS landlord,
                 count(DISTINCT t.tenant_id) AS tenants,
@@ -44,9 +58,9 @@ export const GET = withRouteHandler({ resource: "rent", action: "read" }, async 
                 COALESCE((SELECT sum(rp.amount) FROM rent_payments rp WHERE rp.tenant_id IN (SELECT tenant_id FROM tenancies tt JOIN units uu ON uu.id = tt.unit_id WHERE uu.property_id = p.id)), 0) AS paid
          FROM properties p LEFT JOIN landlords l ON l.id = p.landlord_id
          LEFT JOIN units u ON u.property_id = p.id LEFT JOIN tenancies t ON t.unit_id = u.id AND t.status = 'active'
-         WHERE p.org_id = $1 GROUP BY p.id, p.name, p.landlord_id, l.name ORDER BY l.name NULLS LAST, p.name`, [org]),
+         WHERE p.org_id = $1${scopePropsDirect2.sql} GROUP BY p.id, p.name, p.landlord_id, l.name ORDER BY l.name NULLS LAST, p.name`, activeLord ? [org, activeLord] : [org]),
       db().query<{ id: string; amount: string; payment_type: string; payment_date: string; full_name: string; tenant_id: string }>(
-        `SELECT rp.id, rp.amount, rp.payment_type, rp.payment_date, t.full_name, t.id AS tenant_id FROM rent_payments rp JOIN tenants t ON t.id = rp.tenant_id WHERE t.org_id = $1 AND t.is_archived = false ORDER BY rp.payment_date DESC, rp.created_at DESC LIMIT 15`, [org]),
+        `SELECT rp.id, rp.amount, rp.payment_type, rp.payment_date, t.full_name, t.id AS tenant_id FROM rent_payments rp JOIN tenants t ON t.id = rp.tenant_id WHERE t.org_id = $1 AND t.is_archived = false${scopeRecent2.sql} ORDER BY rp.payment_date DESC, rp.created_at DESC LIMIT 15`, activeLord ? [org, activeLord] : [org]),
       // Aged receivables: unpaid service charges bucketed by how long they've been overdue — the view an accountant expects.
       db().query<{ bucket: string; amount: string; count: string }>(
         `SELECT
@@ -59,25 +73,25 @@ export const GET = withRouteHandler({ resource: "rent", action: "read" }, async 
            SUM(sc.amount) AS amount,
            COUNT(*) AS count
          FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id
-         WHERE t.org_id = $1 AND t.is_archived = false AND sc.is_paid = false AND sc.due_date <= $2::date
-         GROUP BY bucket`, [org, todayStr]),
+         WHERE t.org_id = $1 AND t.is_archived = false AND sc.is_paid = false AND sc.due_date <= $2::date${scopeMonthSc3.sql}
+         GROUP BY bucket`, activeLord ? [org, todayStr, activeLord] : [org, todayStr]),
       // 6-month trend: charged and paid per month, so the sparkline reads real history.
       db().query<{ month: string; charged: string; paid: string }>(
         `WITH months AS (
            SELECT generate_series($2::date, (CURRENT_DATE)::date, INTERVAL '1 month')::date AS m
          )
          SELECT TO_CHAR(months.m, 'YYYY-MM') AS month,
-                COALESCE((SELECT SUM(sc.amount) FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id WHERE t.org_id = $1 AND t.is_archived = false AND date_trunc('month', sc.due_date) = date_trunc('month', months.m)), 0) AS charged,
-                COALESCE((SELECT SUM(rp.amount) FROM rent_payments rp JOIN tenants t ON t.id = rp.tenant_id WHERE t.org_id = $1 AND t.is_archived = false AND date_trunc('month', rp.payment_date) = date_trunc('month', months.m)), 0) AS paid
-         FROM months ORDER BY months.m`, [org, ts]),
+                COALESCE((SELECT SUM(sc.amount) FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id WHERE t.org_id = $1 AND t.is_archived = false AND date_trunc('month', sc.due_date) = date_trunc('month', months.m)${scopeMonthSc3.sql}), 0) AS charged,
+                COALESCE((SELECT SUM(rp.amount) FROM rent_payments rp JOIN tenants t ON t.id = rp.tenant_id WHERE t.org_id = $1 AND t.is_archived = false AND date_trunc('month', rp.payment_date) = date_trunc('month', months.m)${scopeMonthRp3.sql}), 0) AS paid
+         FROM months ORDER BY months.m`, activeLord ? [org, ts, activeLord] : [org, ts]),
       // Last calendar month's totals so the four KPIs can show a trend chip (↑ 12% / ↓ 8%).
       db().query<{ charged: string; paid: string }>(
         `WITH prev AS (
            SELECT date_trunc('month', CURRENT_DATE - INTERVAL '1 month')::date AS first,
                   (date_trunc('month', CURRENT_DATE))::date AS next
          )
-         SELECT (SELECT COALESCE(SUM(sc.amount),0) FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id, prev WHERE t.org_id = $1 AND t.is_archived = false AND sc.due_date >= prev.first AND sc.due_date < prev.next) AS charged,
-                (SELECT COALESCE(SUM(rp.amount),0) FROM rent_payments  rp JOIN tenants t ON t.id = rp.tenant_id,  prev WHERE t.org_id = $1 AND t.is_archived = false AND rp.payment_date >= prev.first AND rp.payment_date < prev.next) AS paid`, [org]),
+         SELECT (SELECT COALESCE(SUM(sc.amount),0) FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id, prev WHERE t.org_id = $1 AND t.is_archived = false AND sc.due_date >= prev.first AND sc.due_date < prev.next${scopePrevSc2.sql}) AS charged,
+                (SELECT COALESCE(SUM(rp.amount),0) FROM rent_payments  rp JOIN tenants t ON t.id = rp.tenant_id,  prev WHERE t.org_id = $1 AND t.is_archived = false AND rp.payment_date >= prev.first AND rp.payment_date < prev.next${scopePrevRp2.sql}) AS paid`, activeLord ? [org, activeLord] : [org]),
     ]);
 
     const monthly = (amount: number, freq: string) => freq === "weekly" ? amount * 52 / 12 : freq === "fortnightly" ? amount * 26 / 12 : freq === "four_weekly" || freq === "4-weekly" ? amount * 13 / 12 : freq === "annual" || freq === "yearly" ? amount / 12 : amount;

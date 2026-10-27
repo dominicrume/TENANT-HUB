@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope } from "../../../lib/landlord-scope";
 
 /**
  * GET /api/risk-flags — rule-based risk flags derived from live data.
@@ -20,17 +21,20 @@ export async function GET() {
 
   const today = new Date().toISOString().slice(0, 10);
 
+  // Landlord-scope: tenants + their service_charges, both via the tenants chain.
+  const scopeTenants = landlordScope(auth, "tenantsTable", { col: "id", paramIndex: 2 });
+  const scopeCharges = landlordScope(auth, "viaTenant", { col: "sc.tenant_id", paramIndex: 2 });
   try {
     const [tenantsR, chargesR] = await Promise.all([
       db().query<{ id: string; full_name: string; room_number: string | null }>(
-        "SELECT id, full_name, room_number FROM tenants WHERE org_id = $1 AND is_active = true AND is_archived = false",
-        [auth.actor.org_id]),
+        `SELECT id, full_name, room_number FROM tenants WHERE org_id = $1 AND is_active = true AND is_archived = false${scopeTenants.sql}`,
+        [auth.actor.org_id, ...scopeTenants.params]),
       db().query<{ tenant_id: string; is_paid: boolean; due_date: string }>(
         `SELECT sc.tenant_id, sc.is_paid, sc.due_date
          FROM service_charges sc
          JOIN tenants t ON t.id = sc.tenant_id
-         WHERE t.org_id = $1`,
-        [auth.actor.org_id]),
+         WHERE t.org_id = $1${scopeCharges.sql}`,
+        [auth.actor.org_id, ...scopeCharges.params]),
     ]);
 
     const overdueByTenant = new Map<string, number>();

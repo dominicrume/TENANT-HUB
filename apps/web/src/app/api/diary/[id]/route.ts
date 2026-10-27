@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { landlordScope } from "../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,10 @@ export const PATCH = withRouteHandler({ resource: "tenants", action: "update" },
   // An occurrence of a repeating event is addressed as `${seriesId}@${day}` — changes apply to the series.
   const id = params.id.split("@")[0]!;
   try {
-    const owned = await db().query("SELECT 1 FROM diary_entries WHERE id = $1 AND org_id = $2", [id, auth.actor.org_id]);
+    // Landlord-scope: a diary entry is only reachable while scoped to its
+    // property's landlord. 404 when it isn't — same as GET.
+    const scope = landlordScope(auth, "viaProperty", { col: "property_id", paramIndex: 3 });
+    const owned = await db().query(`SELECT 1 FROM diary_entries WHERE id = $1 AND org_id = $2${scope.sql}`, [id, auth.actor.org_id, ...scope.params]);
     if (!owned.rows[0]) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const record: Record<string, unknown> = { id };
     if (typeof body?.recurrence === "string" && ["none", "daily", "weekdays", "weekly", "fortnightly", "monthly"].includes(body.recurrence)) record["recurrence"] = body.recurrence;
@@ -37,6 +41,8 @@ export const PATCH = withRouteHandler({ resource: "tenants", action: "update" },
 
 export const DELETE = withRouteHandler({ resource: "tenants", action: "delete" }, async (_req, { params }: { params: { id: string } }, auth) => {
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
-  await db().query("DELETE FROM diary_entries WHERE id = $1 AND org_id = $2", [params.id.split("@")[0], auth.actor.org_id]);
+  const id = params.id.split("@")[0];
+  const scope = landlordScope(auth, "viaProperty", { col: "property_id", paramIndex: 3 });
+  await db().query(`DELETE FROM diary_entries WHERE id = $1 AND org_id = $2${scope.sql}`, [id, auth.actor.org_id, ...scope.params]);
   return NextResponse.json({ ok: true });
 });

@@ -4,6 +4,7 @@ import { SessionCreateSchema } from "@tenant-hub/validation";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope, isTenantInScope } from "../../../lib/landlord-scope";
 
 /**
  * GET /api/sessions?tenantId=[id]  — sessions for a tenant.
@@ -32,6 +33,10 @@ export async function GET(req: Request) {
       params.push(sevenDaysAgo);
       sql += ` AND s.created_at >= $${params.length}`;
     }
+    // Landlord-scope: restrict to sessions whose tenant sits in the active landlord's portfolio.
+    const scope = landlordScope(auth, "viaTenant", { col: "s.tenant_id", paramIndex: params.length + 1 });
+    sql += scope.sql;
+    params.push(...scope.params);
     sql += ` ORDER BY s.created_at DESC`;
 
     const r = await db().query(sql, params);
@@ -55,6 +60,10 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Validation failed", issues: parsed.error.issues }, { status: 422 });
   }
+
+  // Landlord-scope write guard.
+  const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, parsed.data.tenant_id);
+  if (!inScope) return NextResponse.json({ error: "That tenant is not in your active landlord's portfolio." }, { status: 403 });
 
   try {
     const { data } = await writeWithAudit({

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope, isTenantInScope } from "../../../lib/landlord-scope";
 
 /**
  * GET /api/communications — staff-facing. Scoped to the signed-in staff
@@ -26,6 +27,11 @@ export async function GET(req: Request) {
       params.push(tenantId);
       sql += ` AND c.tenant_id = $${params.length}`;
     }
+    // Landlord-scope: communications without a tenant can't be scoped. While a
+    // landlord is active, drop the untied ones — they belong to the all-landlord view.
+    const scope = landlordScope(auth, "viaTenant", { col: "c.tenant_id", paramIndex: params.length + 1 });
+    sql += scope.sql;
+    params.push(...scope.params);
     sql += ` ORDER BY c.sent_at DESC`;
 
     const r = await db().query<Record<string, unknown>>(sql, params);
@@ -56,6 +62,12 @@ export async function POST(req: Request) {
   if (!channel) return NextResponse.json({ error: "Channel must be Email or SMS" }, { status: 422 });
   if (!messageType) return NextResponse.json({ error: "Message type must be Arrears Reminder, Missing Intake Form or General Update" }, { status: 422 });
   body.channel = channel; body.message_type = messageType;
+
+  // Landlord-scope write guard: a communication tied to a tenant must stay in-portfolio.
+  if (body.tenant_id) {
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, body.tenant_id);
+    if (!inScope) return NextResponse.json({ error: "That tenant is not in your active landlord's portfolio." }, { status: 403 });
+  }
 
   // Attempt to send communication via Twilio if it's SMS
   if (body.channel.toLowerCase() === "sms" && body.to_phone) {

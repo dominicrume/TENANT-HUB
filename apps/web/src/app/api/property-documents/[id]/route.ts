@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, writeWithAudit, insertDocumentBlob, MAX_DOCUMENT_BYTES } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { isPropertyInScope } from "../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +21,11 @@ export const PATCH = withRouteHandler({ resource: "properties", action: "update"
   if (file.size > MAX_DOCUMENT_BYTES) return NextResponse.json({ error: `File is too large (max ${MAX_DOCUMENT_BYTES / 1024 / 1024}MB)` }, { status: 413 });
 
   try {
-    const owned = await db().query<{ id: string }>("SELECT id FROM property_documents WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
+    const owned = await db().query<{ id: string; property_id: string }>("SELECT id, property_id FROM property_documents WHERE id = $1 AND org_id = $2", [params.id, auth.actor.org_id]);
     if (!owned.rows[0]) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Landlord-scope: 404 if this document's property isn't in the active landlord's portfolio.
+    const inScope = await isPropertyInScope((sql, p) => db().query(sql, p), auth, owned.rows[0].property_id);
+    if (!inScope) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const blobId = await insertDocumentBlob(db(), {

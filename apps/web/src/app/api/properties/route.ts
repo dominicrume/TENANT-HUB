@@ -5,6 +5,7 @@ import type { AssetClass, UnitClass } from "@tenant-hub/validation";
 import { requiredCertificatesFor, certificateStatus, certBase } from "@tenant-hub/domain";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope, assertLandlordWriteAllowed, resolveLandlordForWrite } from "../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -28,17 +29,24 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
 
   interface PropertyRow { id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null; asset_class: AssetClass; floors: number | null; landlord_id: string | null; created_at: string }
 
+  // Scope every list on this screen to the active landlord (null = All landlords, no-op).
+  // Properties filter directly; everything else (units, certificates, alerts, tenancies) is
+  // scoped THROUGH the properties set the landlord owns.
+  const propScope = landlordScope(auth, "direct", { col: "landlord_id", paramIndex: 2 });
+  const viaProp = landlordScope(auth, "viaProperty", { col: "property_id", paramIndex: 2 });
+  const viaTenant = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: 2 });
+
   let props, units, alerts, tenancies, arrears, landlords, certs;
   try {
     [props, units, alerts, tenancies, arrears, landlords, certs] = await Promise.all([
-      db().query<PropertyRow>("SELECT id, name, address_line1, city, postcode, asset_class, floors, landlord_id, created_at FROM properties WHERE org_id = $1 ORDER BY name", [orgId]),
-      db().query<UnitRow & { reference: string }>("SELECT id, property_id, status, unit_class, reference FROM units WHERE org_id = $1 ORDER BY reference", [orgId]),
-      db().query<{ property_id: string }>("SELECT property_id FROM compliance_alerts WHERE org_id = $1 AND resolved_at IS NULL", [orgId]),
-      db().query<TenancyRow>("SELECT unit_id, tenant_id FROM tenancies WHERE org_id = $1 AND status = 'active'", [orgId]),
-      db().query<ArrearsRow>("SELECT tenant_id, balance FROM tenancy_arrears WHERE org_id = $1", [orgId]),
+      db().query<PropertyRow>(`SELECT id, name, address_line1, city, postcode, asset_class, floors, landlord_id, created_at FROM properties WHERE org_id = $1${propScope.sql} ORDER BY name`, [orgId, ...propScope.params]),
+      db().query<UnitRow & { reference: string }>(`SELECT id, property_id, status, unit_class, reference FROM units WHERE org_id = $1${viaProp.sql} ORDER BY reference`, [orgId, ...viaProp.params]),
+      db().query<{ property_id: string }>(`SELECT property_id FROM compliance_alerts WHERE org_id = $1 AND resolved_at IS NULL${viaProp.sql}`, [orgId, ...viaProp.params]),
+      db().query<TenancyRow>(`SELECT unit_id, tenant_id FROM tenancies WHERE org_id = $1 AND status = 'active'${landlordScope(auth, "viaUnit", { col: "unit_id", paramIndex: 2 }).sql}`, [orgId, ...viaProp.params]),
+      db().query<ArrearsRow>(`SELECT tenant_id, balance FROM tenancy_arrears WHERE org_id = $1${viaTenant.sql}`, [orgId, ...viaTenant.params]),
       db().query<{ id: string; name: string }>("SELECT id, name FROM landlords WHERE org_id = $1", [orgId]),
       db().query<{ property_id: string; certificate_type_id: string; expires_on: string | null; name: string }>(
-        "SELECT c.property_id, c.certificate_type_id, c.expires_on, ct.name FROM certificates c JOIN certificate_types ct ON ct.id = c.certificate_type_id WHERE c.org_id = $1", [orgId]),
+        `SELECT c.property_id, c.certificate_type_id, c.expires_on, ct.name FROM certificates c JOIN certificate_types ct ON ct.id = c.certificate_type_id WHERE c.org_id = $1${landlordScope(auth, "viaProperty", { col: "c.property_id", paramIndex: 2 }).sql}`, [orgId, ...viaProp.params]),
     ]);
   } catch (err) {
     return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
@@ -93,11 +101,21 @@ export const POST = withRouteHandler({ resource: "properties", action: "create" 
   if (!parsed.success) return NextResponse.json({ error: "Invalid property", issues: parsed.error.issues }, { status: 422 });
   if (!auth.actor.org_id) return NextResponse.json({ error: "No organisation on this account" }, { status: 400 });
 
+  // Reject the "scoped to one landlord, created against another" footgun BEFORE
+  // we write — a user with OKE_DOM active cannot pin a new property onto
+  // Reliance just by passing landlord_id in the body.
+  const bodyLandlord = (parsed.data as { landlord_id?: string | null }).landlord_id ?? null;
+  const landlordRefusal = assertLandlordWriteAllowed(auth, bodyLandlord);
+  if (landlordRefusal) return NextResponse.json({ error: landlordRefusal }, { status: 403 });
+
   try {
     // A property added with only a name (the common quick path: "72 Knowle
     // Road" + postcode) is still an address — carry the name into
     // address_line1 so tenants, letters and statements never see a blank.
-    const record = { ...parsed.data, address_line1: parsed.data.address_line1?.trim() || parsed.data.name.trim(), org_id: auth.actor.org_id };
+    // When a landlord is active in the session and the body didn't pin one,
+    // default to the active landlord (Rume 2026-10-27: "whenever I add a property
+    // while scoped to a landlord, it must land under THAT landlord, not Unassigned").
+    const record = { ...parsed.data, address_line1: parsed.data.address_line1?.trim() || parsed.data.name.trim(), org_id: auth.actor.org_id, landlord_id: resolveLandlordForWrite(auth, bodyLandlord) };
     const { data } = await writeWithAudit({
       table: "properties",
       record: record as Record<string, unknown>,

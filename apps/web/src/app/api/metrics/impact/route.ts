@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { landlordScope } from "../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -57,13 +58,23 @@ export const GET = withRouteHandler({ resource: "agents", action: "read" }, asyn
   const since = `NOW() - INTERVAL '${DAYS} days'`;
   const lines: Line[] = [];
 
+  // Landlord-scope: filter each query down to the active landlord's portfolio.
+  // audit_logs: use its own tenant_id when present — rows without one drop while a landlord is active (same policy as diary/maintenance).
+  const scopeAudit = landlordScope(auth, "viaTenant", { col: "a.tenant_id", paramIndex: 2 });
+  const scopeTriage = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: 2 });
+  const scopePropDocs = landlordScope(auth, "viaProperty", { col: "property_id", paramIndex: 2 });
+  const scopeTenantDocs = landlordScope(auth, "viaTenant", { col: "td.tenant_id", paramIndex: 2 });
+  const scopePropDocs2 = landlordScope(auth, "viaProperty", { col: "property_id", paramIndex: 2 });
+  const scopeIntake = landlordScope(auth, "tenantsTable", { col: "id", paramIndex: 2 });
+  const scopeIdChecks = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: 2 });
+
   try {
     // 1. Agent actions — grouped by who did what, straight from the audit trail.
     const agents = await db().query<{ agent: string | null; user_name: string | null; table_name: string; action: string; n: number }>(
       `SELECT a.agent, a.user_name, a.table_name, a.action, COUNT(*)::int AS n
        FROM audit_logs a
-       WHERE a.org_id = $1 AND a.created_at > ${since} AND (a.user_role = 'system' OR a.agent IS NOT NULL)
-       GROUP BY a.agent, a.user_name, a.table_name, a.action ORDER BY n DESC`, [org]).catch(() => ({ rows: [] as Array<{ agent: string | null; user_name: string | null; table_name: string; action: string; n: number }> }));
+       WHERE a.org_id = $1 AND a.created_at > ${since} AND (a.user_role = 'system' OR a.agent IS NOT NULL)${scopeAudit.sql}
+       GROUP BY a.agent, a.user_name, a.table_name, a.action ORDER BY n DESC`, [org, ...scopeAudit.params]).catch(() => ({ rows: [] as Array<{ agent: string | null; user_name: string | null; table_name: string; action: string; n: number }> }));
     if (agents.rows.length > 0) {
       const breakdown: BreakdownRow[] = agents.rows.map((r) => {
         const key = r.agent ?? (r.user_name ?? "").replace(/^System · /, "");
@@ -82,31 +93,36 @@ export const GET = withRouteHandler({ resource: "agents", action: "read" }, asyn
     }
 
     // 2–6. Things only an automated path fills, each with one rule.
-    const simple: Array<{ key: string; label: string; minutesEach: number; why: string; method: string; sql: string; evidence: Line["evidence"] }> = [
+    const simple: Array<{ key: string; label: string; minutesEach: number; why: string; method: string; sql: string; params: unknown[]; evidence: Line["evidence"] }> = [
       { key: "triage", label: "repair reports triaged automatically", minutesEach: 4, why: "reading the report, deciding urgency and trade",
         method: `maintenance_tickets in this workspace created since ${sinceDate} with triage_reasoning filled — only the issue-triage agent writes that column.`,
-        sql: `SELECT COUNT(*)::int AS n FROM maintenance_tickets WHERE org_id = $1 AND created_at > ${since} AND triage_reasoning IS NOT NULL`,
+        sql: `SELECT COUNT(*)::int AS n FROM maintenance_tickets WHERE org_id = $1 AND created_at > ${since} AND triage_reasoning IS NOT NULL${scopeTriage.sql}`,
+        params: [org, ...scopeTriage.params],
         evidence: { href: "/maintenance", label: "Open Repairs" } },
       { key: "landlord-requests", label: "landlord document requests emailed for you", minutesEach: 10, why: "finding the landlord's address, writing the email, logging that it went",
         method: `property_documents in this workspace with notified_at since ${sinceDate} — set only when Resend accepted the email.`,
-        sql: `SELECT COUNT(*)::int AS n FROM property_documents WHERE org_id = $1 AND notified_at > ${since}`,
+        sql: `SELECT COUNT(*)::int AS n FROM property_documents WHERE org_id = $1 AND notified_at > ${since}${scopePropDocs.sql}`,
+        params: [org, ...scopePropDocs.params],
         evidence: { href: "/properties", label: "Open Properties" } },
       { key: "documents", label: "documents filed against a tenant or property", minutesEach: 5, why: "scanning or saving, naming, filing in the right folder",
         method: `tenant_documents (via the tenant's org) plus property_documents with status received, created since ${sinceDate}.`,
-        sql: `SELECT (SELECT COUNT(*) FROM tenant_documents td JOIN tenants t ON t.id = td.tenant_id WHERE t.org_id = $1 AND td.created_at > ${since})::int
-                   + (SELECT COUNT(*) FROM property_documents WHERE org_id = $1 AND status = 'received' AND created_at > ${since})::int AS n`,
+        sql: `SELECT (SELECT COUNT(*) FROM tenant_documents td JOIN tenants t ON t.id = td.tenant_id WHERE t.org_id = $1 AND td.created_at > ${since}${scopeTenantDocs.sql})::int
+                   + (SELECT COUNT(*) FROM property_documents WHERE org_id = $1 AND status = 'received' AND created_at > ${since}${scopePropDocs2.sql})::int AS n`,
+        params: [org, ...scopeTenantDocs.params],
         evidence: { href: `/audit?table=tenant_documents&from=${sinceDate}`, label: "Open the filing rows in What the system did" } },
       { key: "intake", label: "tenant records created through intake", minutesEach: 25, why: "a paper form keyed by hand, checked, and signed",
         method: `tenants in this workspace created since ${sinceDate}.`,
-        sql: `SELECT COUNT(*)::int AS n FROM tenants WHERE org_id = $1 AND created_at > ${since}`,
+        sql: `SELECT COUNT(*)::int AS n FROM tenants WHERE org_id = $1 AND created_at > ${since}${scopeIntake.sql}`,
+        params: [org, ...scopeIntake.params],
         evidence: { href: `/audit?table=tenants&action=CREATE&from=${sinceDate}`, label: "Open the tenant creates in What the system did" } },
       { key: "id-checks", label: "right-to-rent checks run", minutesEach: 15, why: "checking a passport/BRP by eye and recording the outcome",
         method: `tenant_id_checks in this workspace created since ${sinceDate}.`,
-        sql: `SELECT COUNT(*)::int AS n FROM tenant_id_checks WHERE org_id = $1 AND created_at > ${since}`,
+        sql: `SELECT COUNT(*)::int AS n FROM tenant_id_checks WHERE org_id = $1 AND created_at > ${since}${scopeIdChecks.sql}`,
+        params: [org, ...scopeIdChecks.params],
         evidence: { href: `/audit?table=tenant_id_checks&from=${sinceDate}`, label: "Open the check rows in What the system did" } },
     ];
     for (const p of simple) {
-      const n = await db().query<{ n: number }>(p.sql, [org]).then((r) => Number(r.rows[0]?.n ?? 0)).catch(() => 0);
+      const n = await db().query<{ n: number }>(p.sql, p.params).then((r) => Number(r.rows[0]?.n ?? 0)).catch(() => 0);
       if (n > 0) lines.push({ key: p.key, label: p.label, count: n, minutes: n * p.minutesEach, method: p.method, evidence: p.evidence,
         breakdown: [{ agent: null, what: p.label, table: "", action: "", count: n, minutesEach: p.minutesEach, why: p.why }] });
     }

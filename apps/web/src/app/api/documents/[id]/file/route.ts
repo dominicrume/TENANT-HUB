@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, getDocumentBlob } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
+import { landlordScope } from "../../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +18,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   if (!auth.actor.org_id) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   try {
+    // Landlord-scope: a tenant document is only reachable when the tenant sits
+    // in the active landlord's portfolio.
+    const scope = landlordScope(auth, "viaTenant", { col: "td.tenant_id", paramIndex: 3 });
     const docR = await db().query<{ blob_id: string | null }>(
       `SELECT td.blob_id FROM tenant_documents td
        JOIN tenants t ON t.id = td.tenant_id
-       WHERE td.id = $1 AND t.org_id = $2`,
-      [params.id, auth.actor.org_id],
+       WHERE td.id = $1 AND t.org_id = $2${scope.sql}`,
+      [params.id, auth.actor.org_id, ...scope.params],
     );
     const blobId = docR.rows[0]?.blob_id;
     if (!blobId) return NextResponse.json({ error: "Not found" }, { status: 404 });

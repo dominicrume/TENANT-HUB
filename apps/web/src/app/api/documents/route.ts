@@ -4,6 +4,7 @@ import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { looksLikePropertyDocument } from "../../../lib/document-types";
 import { emit } from "../../../lib/webhooks";
+import { isTenantInScope } from "../../../lib/landlord-scope";
 
 interface TenantDocRow {
   id: string;
@@ -24,6 +25,9 @@ export async function GET(req: Request) {
   if (!tenantId) return NextResponse.json({ error: "Missing tenantId" }, { status: 400 });
 
   try {
+    // Landlord-scope: a wrong-landlord URL poke must behave like a wrong org — empty list, no leak.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, tenantId);
+    if (!inScope) return NextResponse.json([]);
     // tenant_documents has no org_id column of its own (supabase/migrations/014);
     // Supabase RLS scoped it via tenant_id -> tenants.org_id, so that join
     // replaces it here, and also doubles as the "does this tenant belong to
@@ -67,6 +71,9 @@ export async function POST(req: Request) {
       [tenantId, auth.actor.org_id],
     );
     if (!owned.rows[0]) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    // Landlord-scope write guard.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, tenantId);
+    if (!inScope) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const blobId = await insertDocumentBlob(db(), {
@@ -109,14 +116,17 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ error: "Missing document id" }, { status: 400 });
 
   try {
-    const docR = await db().query<{ blob_id: string | null }>(
-      `SELECT td.blob_id FROM tenant_documents td
+    const docR = await db().query<{ blob_id: string | null; tenant_id: string }>(
+      `SELECT td.blob_id, td.tenant_id FROM tenant_documents td
        JOIN tenants t ON t.id = td.tenant_id
        WHERE td.id = $1 AND t.org_id = $2`,
       [id, auth.actor.org_id],
     );
     const doc = docR.rows[0];
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Landlord-scope: 404 if this document's tenant isn't in the active landlord's portfolio.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, doc.tenant_id);
+    if (!inScope) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     // Hard delete — tenant_documents has no soft-delete column and
     // writeWithAudit only upserts, it never removes a row (pre-existing H1

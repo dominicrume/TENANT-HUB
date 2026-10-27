@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../../lib/api-auth";
 import { can } from "@tenant-hub/auth";
 import { toSafeErrorMessage } from "../../../../../lib/safe-error";
+import { landlordScope } from "../../../../../lib/landlord-scope";
 
 interface Params {
   params: { goalId: string };
@@ -32,9 +33,10 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   try {
+    const scope = landlordScope(auth, "viaTenant", { col: "g.tenant_id", paramIndex: 3 });
     const goalCheck = await db().query<{ tenant_id: string }>(
-      `SELECT g.tenant_id FROM tenant_goals g JOIN tenants t ON t.id = g.tenant_id WHERE g.id = $1 AND t.org_id = $2`,
-      [params.goalId, auth.actor.org_id],
+      `SELECT g.tenant_id FROM tenant_goals g JOIN tenants t ON t.id = g.tenant_id WHERE g.id = $1 AND t.org_id = $2${scope.sql}`,
+      [params.goalId, auth.actor.org_id, ...scope.params],
     );
     const goal = goalCheck.rows[0];
     if (!goal) return NextResponse.json({ error: "Goal not found or access denied" }, { status: 404 });

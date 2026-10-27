@@ -4,6 +4,7 @@ import { requiredCertificatesFor, certificateStatus, certBase } from "@tenant-hu
 import type { AssetClass, UnitClass } from "@tenant-hub/validation";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { landlordScope } from "../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -36,14 +37,18 @@ export const GET = withRouteHandler({ resource: "compliance", action: "read" }, 
     // design — the list of UK statutory certificate kinds is the same for
     // every organisation), so it is read unscoped; every other table here
     // carries org_id and is filtered by it explicitly (replacing Supabase RLS).
+    // Landlord-scope: everything (properties/units/certs) filters on landlord via properties.
+    const scopeProp = landlordScope(auth, "direct", { col: "landlord_id", paramIndex: 2 });
+    const scopeUnits = landlordScope(auth, "viaProperty", { col: "property_id", paramIndex: 2 });
+    const scopeCerts = landlordScope(auth, "viaProperty", { col: "c.property_id", paramIndex: 2 });
     const [props, units, certTypes, certs] = await Promise.all([
-      db().query<PropertyRow>("SELECT id, name, asset_class FROM properties WHERE org_id = $1 ORDER BY name", [orgId]),
-      db().query<UnitRow>("SELECT property_id, unit_class FROM units WHERE org_id = $1", [orgId]),
+      db().query<PropertyRow>(`SELECT id, name, asset_class FROM properties WHERE org_id = $1${scopeProp.sql} ORDER BY name`, [orgId, ...scopeProp.params]),
+      db().query<UnitRow>(`SELECT property_id, unit_class FROM units WHERE org_id = $1${scopeUnits.sql}`, [orgId, ...scopeUnits.params]),
       db().query<CertTypeRow>("SELECT id, name FROM certificate_types"),
       db().query<{ property_id: string; certificate_type_id: string; expires_on: string | null; issued_on: string | null; name: string }>(
         `SELECT c.property_id, c.certificate_type_id, c.expires_on, c.issued_on, ct.name
          FROM certificates c JOIN certificate_types ct ON ct.id = c.certificate_type_id
-         WHERE c.org_id = $1`, [orgId]),
+         WHERE c.org_id = $1${scopeCerts.sql}`, [orgId, ...scopeCerts.params]),
     ]);
 
     const unitClassesByProperty = new Map<string, UnitClass[]>();

@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { can } from "@tenant-hub/auth";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { isTenantInScope } from "../../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const row = (await db().query<{ id: string; tenant_id: string; worker_signature: string | null; tenant_signature: string | null }>(
       "SELECT s.id, s.tenant_id, s.worker_signature, s.tenant_signature FROM sessions s JOIN tenants t ON t.id = s.tenant_id WHERE s.id = $1 AND t.org_id = $2", [params.id, auth.actor.org_id])).rows[0];
     if (!row) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    // Landlord-scope: 404 if this session's tenant isn't in the active landlord's portfolio.
+    const inScope = await isTenantInScope((sql, p) => db().query(sql, p), auth, row.tenant_id);
+    if (!inScope) return NextResponse.json({ error: "Session not found" }, { status: 404 });
     const now = new Date().toISOString();
     const record: Record<string, unknown> = { id: row.id };
     if (isPng(body?.worker_signature) && !row.worker_signature) { record["worker_signature"] = body!.worker_signature; record["worker_signed_at"] = now; }

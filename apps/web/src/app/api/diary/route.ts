@@ -3,6 +3,7 @@ import { db, writeWithAudit } from "@tenant-hub/db";
 import { withRouteHandler } from "../../../lib/api-handler";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
 import { DIARY_KINDS, RECURRENCES, occurrences, type DiaryItem, type Recurrence, type Feedback } from "../../../lib/diary";
+import { landlordScope, isPropertyInScope } from "../../../lib/landlord-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -28,37 +29,51 @@ export const GET = withRouteHandler({ resource: "tenants", action: "read" }, asy
   const who = url.searchParams.get("who");
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const org = auth.actor.org_id;
+  // Landlord-scope. Each query gets whichever flavour of scope its table carries:
+  //   diary_entries, certificates, maintenance_tickets — property_id → properties.landlord_id
+  //   sessions, commitments, service_charges, tenants (move-ins), rent — tenant_id → tenancies → ...
+  //   tenancies (projected rent) — direct via units → properties.landlord_id
+  const scopeDiaryProp = landlordScope(auth, "viaProperty", { col: "d.property_id", paramIndex: 4 });
+  const scopeSess = landlordScope(auth, "viaTenant", { col: "s.tenant_id", paramIndex: 4 });
+  const scopeCommit = landlordScope(auth, "viaTenant", { col: "c.tenant_id", paramIndex: 4 });
+  const scopeRepairs = landlordScope(auth, "viaTenant", { col: "m.tenant_id", paramIndex: 4 });
+  const scopeCerts = landlordScope(auth, "viaProperty", { col: "c.property_id", paramIndex: 4 });
+  const scopeMoveIns = landlordScope(auth, "tenantsTable", { col: "id", paramIndex: 4 });
+  const scopeRent = landlordScope(auth, "viaTenant", { col: "sc.tenant_id", paramIndex: 4 });
+  const scopeTenancies = landlordScope(auth, "viaUnit", { col: "ty.unit_id", paramIndex: 2 });
   try {
     const [entries, sessions, commitments, repairs, certs, moveIns, rent, tenancies] = await Promise.all([
       db().query<{ id: string; kind: string; title: string; starts_at: string; ends_at: string | null; done_at: string | null; status: string; notes: string | null; tenant_id: string | null; property_id: string | null; lead_id: string | null; created_by: string; assigned_to: string | null; tenant: string | null; property: string | null; recurrence: Recurrence; recur_until: string | null; accompanied_by: "agent" | "landlord" | "both" | null; feedback: Feedback }>(
         // One-off events in the window, plus every repeating series that started before the window ends and hasn't run out.
+        // Diary rows without a property can't be landlord-scoped (nothing to join on). While a landlord is active we drop
+        // them: a Tenant Hub-level reminder with no property doesn't belong in a landlord-filtered view.
         `SELECT d.*, t.full_name AS tenant, p.name AS property FROM diary_entries d LEFT JOIN tenants t ON t.id = d.tenant_id LEFT JOIN properties p ON p.id = d.property_id
          WHERE d.org_id = $1 AND (
            (d.starts_at >= $2::date AND d.starts_at < ($3::date + 1))
            OR (d.recurrence <> 'none' AND d.starts_at < ($3::date + 1) AND (d.recur_until IS NULL OR d.recur_until >= $2::date))
-         ) ORDER BY d.starts_at`, [org, from, to]),
+         )${scopeDiaryProp.sql} ORDER BY d.starts_at`, [org, from, to, ...scopeDiaryProp.params]),
       db().query<{ id: string; session_date: string; tenant_id: string; full_name: string; session_type: string | null; entered_by_name: string | null }>(
         `SELECT s.id, s.session_date, s.tenant_id, t.full_name, s.session_type, s.entered_by_name FROM sessions s JOIN tenants t ON t.id = s.tenant_id
-         WHERE t.org_id = $1 AND s.session_date BETWEEN $2::date AND $3::date`, [org, from, to]).catch(() => ({ rows: [] })),
+         WHERE t.org_id = $1 AND s.session_date BETWEEN $2::date AND $3::date${scopeSess.sql}`, [org, from, to, ...scopeSess.params]).catch(() => ({ rows: [] })),
       db().query<{ id: string; text: string; due_on: string; status: string; tenant_id: string | null; full_name: string | null; owner: string }>(
         `SELECT c.id, c.text, c.due_on, c.status, c.tenant_id, t.full_name, c.owner FROM commitments c LEFT JOIN tenants t ON t.id = c.tenant_id
-         WHERE c.org_id = $1 AND c.due_on BETWEEN $2::date AND $3::date`, [org, from, to]).catch(() => ({ rows: [] })),
+         WHERE c.org_id = $1 AND c.due_on BETWEEN $2::date AND $3::date${scopeCommit.sql}`, [org, from, to, ...scopeCommit.params]).catch(() => ({ rows: [] })),
       db().query<{ id: string; issue_type: string; room_number: string | null; status: string; created_at: string; tenant_id: string | null; assignee: string | null }>(
         `SELECT m.id, m.issue_type, m.room_number, m.status, m.created_at, m.tenant_id, pr.full_name AS assignee FROM maintenance_tickets m LEFT JOIN profiles pr ON pr.id = m.assigned_to
-         WHERE m.org_id = $1 AND m.status NOT IN ('resolved','closed') AND m.created_at::date BETWEEN $2::date AND $3::date`, [org, from, to]).catch(() => ({ rows: [] })),
+         WHERE m.org_id = $1 AND m.status NOT IN ('resolved','closed') AND m.created_at::date BETWEEN $2::date AND $3::date${scopeRepairs.sql}`, [org, from, to, ...scopeRepairs.params]).catch(() => ({ rows: [] })),
       db().query<{ id: string; expires_on: string; name: string; property_id: string; property: string }>(
         `SELECT c.id, c.expires_on, ct.name, c.property_id, p.name AS property FROM certificates c JOIN certificate_types ct ON ct.id = c.certificate_type_id JOIN properties p ON p.id = c.property_id
-         WHERE c.org_id = $1 AND c.expires_on BETWEEN $2::date AND ($3::date + 30)`, [org, from, to]).catch(() => ({ rows: [] })),
+         WHERE c.org_id = $1 AND c.expires_on BETWEEN $2::date AND ($3::date + 30)${scopeCerts.sql}`, [org, from, to, ...scopeCerts.params]).catch(() => ({ rows: [] })),
       db().query<{ id: string; full_name: string; moved_in: string; room_number: string | null }>(
-        `SELECT id, full_name, moved_in, room_number FROM tenants WHERE org_id = $1 AND is_archived = false AND moved_in BETWEEN $2::date AND $3::date`, [org, from, to]).catch(() => ({ rows: [] })),
+        `SELECT id, full_name, moved_in, room_number FROM tenants WHERE org_id = $1 AND is_archived = false AND moved_in BETWEEN $2::date AND $3::date${scopeMoveIns.sql}`, [org, from, to, ...scopeMoveIns.params]).catch(() => ({ rows: [] })),
       db().query<{ id: string; amount: string; due_date: string | Date; is_paid: boolean; tenant_id: string; full_name: string; room_number: string | null }>(
         `SELECT sc.id, sc.amount, sc.due_date, sc.is_paid, sc.tenant_id, t.full_name, t.room_number FROM service_charges sc JOIN tenants t ON t.id = sc.tenant_id
-         WHERE t.org_id = $1 AND t.is_archived = false AND sc.due_date BETWEEN $2::date AND $3::date ORDER BY sc.due_date`, [org, from, to]).catch(() => ({ rows: [] })),
+         WHERE t.org_id = $1 AND t.is_archived = false AND sc.due_date BETWEEN $2::date AND $3::date${scopeRent.sql} ORDER BY sc.due_date`, [org, from, to, ...scopeRent.params]).catch(() => ({ rows: [] })),
       // Every active tenancy with a rent: its due days are projected into the diary even before a charge row exists
       // (Apex27 shows "£X rent due from Y" for every tenant every week — so do we).
       db().query<{ id: string; tenant_id: string; full_name: string; room_number: string | null; rent_amount: string; rent_frequency: string; start_date: string | Date | null }>(
         `SELECT ty.id, ty.tenant_id, t.full_name, t.room_number, ty.rent_amount, ty.rent_frequency::text, ty.start_date FROM tenancies ty JOIN tenants t ON t.id = ty.tenant_id
-         WHERE ty.org_id = $1 AND ty.status = 'active' AND ty.rent_amount > 0 AND t.is_archived = false`, [org]).catch(() => ({ rows: [] })),
+         WHERE ty.org_id = $1 AND ty.status = 'active' AND ty.rent_amount > 0 AND t.is_archived = false${scopeTenancies.sql}`, [org, ...scopeTenancies.params]).catch(() => ({ rows: [] })),
     ]);
 
     const today0 = new Date(new Date().toDateString());
@@ -135,6 +150,15 @@ export const POST = withRouteHandler({ resource: "tenants", action: "create" }, 
   if (!title) return NextResponse.json({ error: "What is it? Give it a title." }, { status: 422 });
   if (!body?.starts_at || Number.isNaN(Date.parse(body.starts_at))) return NextResponse.json({ error: "When? Pick a date and time." }, { status: 422 });
   if (body.ends_at && (Number.isNaN(Date.parse(body.ends_at)) || Date.parse(body.ends_at) < Date.parse(body.starts_at))) return NextResponse.json({ error: "The end must be after the start." }, { status: 422 });
+
+  // Landlord-scope write guard: if the actor has switched to a landlord, the
+  // diary entry's property (if any) must belong to that landlord — otherwise
+  // they'd be dropping events into another landlord's buildings.
+  if (body.property_id) {
+    const ok = await isPropertyInScope((sql, params) => db().query(sql, params), auth, body.property_id);
+    if (!ok) return NextResponse.json({ error: "That property is not in your active landlord's portfolio." }, { status: 403 });
+  }
+
   try {
     const { data } = await writeWithAudit({
       table: "diary_entries",

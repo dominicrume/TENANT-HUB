@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@tenant-hub/db";
 import { getApiAuth } from "../../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../../lib/safe-error";
+import { landlordScope } from "../../../../lib/landlord-scope";
 
 interface BalanceRow {
   tenant_id: string;
@@ -23,7 +24,9 @@ export async function GET() {
   if (!auth.actor.org_id) return NextResponse.json([]);
 
   try {
-    const r = await db().query<BalanceRow>("SELECT * FROM tenant_arrears_balance WHERE org_id = $1", [auth.actor.org_id]);
+    // Landlord-scope: restrict to tenants in the active landlord's portfolio.
+    const scope = landlordScope(auth, "viaTenant", { col: "tenant_id", paramIndex: 2 });
+    const r = await db().query<BalanceRow>(`SELECT * FROM tenant_arrears_balance WHERE org_id = $1${scope.sql}`, [auth.actor.org_id, ...scope.params]);
     return NextResponse.json(r.rows);
   } catch (err) {
     return NextResponse.json({ error: toSafeErrorMessage(err) }, { status: 500 });
