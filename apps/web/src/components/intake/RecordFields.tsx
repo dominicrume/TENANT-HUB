@@ -27,6 +27,25 @@ const PLACEHOLDERS: Record<string, string> = {
   probation_officer: "e.g., Officer Jones",
 };
 
+/**
+ * Saved properties/rooms for the active landlord that staff can PICK from the
+ * dropdown instead of typing (Rume 2026-10-27 walkthrough: "the address I've
+ * previously saved for that property should come up as a drop down, same for
+ * every room"). All optional — when absent the fields behave exactly as before.
+ *
+ * Rendered as a native HTML <datalist>: user still sees a text input and can
+ * type freely, but as they type, matching saved addresses/rooms appear as
+ * suggestions. Picking one fires onPicked so the parent can auto-fill the
+ * postcode and tag the draft with the chosen unit (so commit creates the
+ * tenancy against the right room without a second data entry).
+ */
+export interface RecordFieldSuggestions {
+  properties?: Array<{ id: string; address: string; postcode: string | null; label: string }>;
+  units?: Array<{ id: string; reference: string; label: string }>;
+  onPropertyPicked?: (propertyId: string) => void;
+  onUnitPicked?: (unitId: string) => void;
+}
+
 export function RecordFields(props: {
   data: Record<string, unknown>;
   onChange?: (key: string, value: string) => void;
@@ -34,6 +53,7 @@ export function RecordFields(props: {
   large?: boolean;
   confidence?: Record<string, string>;
   errors?: Record<string, string>;
+  suggestions?: RecordFieldSuggestions;
 }) {
   const fontSize = props.large ? "18px" : "14px";
 
@@ -93,6 +113,51 @@ export function RecordFields(props: {
               onChange={(e) => props.onChange?.(key, e.target.value)}
               style={inputStyle}
             />
+          );
+        } else if (key === "address" && (props.suggestions?.properties?.length ?? 0) > 0) {
+          // Datalist of saved property addresses — typing filters, picking fires onPropertyPicked
+          // so the parent can auto-fill the postcode and remember which property this is.
+          inputElement = (
+            <>
+              <input
+                type="text"
+                list="th-property-suggestions"
+                placeholder={PLACEHOLDERS[key] ?? ""}
+                value={String(value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  props.onChange?.(key, v);
+                  const match = props.suggestions?.properties?.find((p) => p.label === v || p.address === v);
+                  if (match && props.suggestions?.onPropertyPicked) props.suggestions.onPropertyPicked(match.id);
+                }}
+                style={{ ...inputStyle, color: value ? "var(--navy)" : "#5A657A" }}
+              />
+              <datalist id="th-property-suggestions">
+                {props.suggestions!.properties!.map((p) => <option key={p.id} value={p.label} />)}
+              </datalist>
+            </>
+          );
+        } else if (key === "room_number" && (props.suggestions?.units?.length ?? 0) > 0) {
+          // Rooms belonging to the matched property (parent re-fetches units on property pick).
+          inputElement = (
+            <>
+              <input
+                type="text"
+                list="th-unit-suggestions"
+                placeholder={PLACEHOLDERS[key] ?? ""}
+                value={String(value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  props.onChange?.(key, v);
+                  const match = props.suggestions?.units?.find((u) => u.reference === v || u.label === v);
+                  if (match && props.suggestions?.onUnitPicked) props.suggestions.onUnitPicked(match.id);
+                }}
+                style={{ ...inputStyle, color: value ? "var(--navy)" : "#5A657A" }}
+              />
+              <datalist id="th-unit-suggestions">
+                {props.suggestions!.units!.map((u) => <option key={u.id} value={u.reference} label={u.label} />)}
+              </datalist>
+            </>
           );
         } else {
           inputElement = (

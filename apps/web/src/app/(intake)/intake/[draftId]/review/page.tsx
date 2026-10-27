@@ -7,11 +7,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { RecordFields } from "../../../../../components/intake/RecordFields";
+import { RecordFields, type RecordFieldSuggestions } from "../../../../../components/intake/RecordFields";
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { hashRecord } from "../../../../../lib/hash";
 import { TenantCreateSchema } from "@tenant-hub/validation";
 import { canonicalSubset, type Draft } from "../../../../../lib/intake";
+
+/** Shape returned by GET /api/properties — only the fields the picker needs. */
+interface PropertyRow { id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null; units?: Array<{ id: string; reference: string; status: string }> }
 
 export default function ReviewPage() {
   const { draftId } = useParams<{ draftId: string }>();
@@ -25,6 +28,15 @@ export default function ReviewPage() {
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  // Saved properties for the active landlord (Rume 2026-10-27 walkthrough): when staff type
+  // in Address, the properties we already manage show up as suggestions, picking one auto-
+  // fills Postcode and loads that property's rooms into the Room Number dropdown. GET
+  // /api/properties already respects the active-landlord scope (096), so this list is
+  // ALREADY narrowed to the right landlord without us doing anything here.
+  const [properties, setProperties] = useState<PropertyRow[]>([]);
+  const [matchedPropertyId, setMatchedPropertyId] = useState<string | null>(null);
+  const [unitsForProperty, setUnitsForProperty] = useState<Array<{ id: string; reference: string; status: string }>>([]);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/drafts/${draftId}`, { cache: "no-store" });
@@ -40,6 +52,77 @@ export default function ReviewPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Load saved properties once on mount — the picker list for Address / Property.
+  useEffect(() => {
+    void (async () => {
+      try {
+        const r = await fetch("/api/properties", { cache: "no-store" });
+        if (r.ok) setProperties(await r.json());
+      } catch {
+        // Non-fatal: the field falls back to free-text, same as before this change.
+      }
+    })();
+  }, []);
+
+  // When the staff member types/picks an Address that matches a saved property, pull in
+  // that property's rooms (so Room Number offers the right dropdown) and auto-fill
+  // Postcode. The match is on EXACT address string from the datalist — a half-typed string
+  // leaves both free-form.
+  useEffect(() => {
+    const addr = String(data.address ?? "").trim().toLowerCase();
+    if (!addr || properties.length === 0) { setMatchedPropertyId(null); return; }
+    const match = properties.find((p) => {
+      const label = [p.address_line1, p.city].filter(Boolean).join(", ").toLowerCase();
+      return label === addr || (p.address_line1 ?? "").toLowerCase() === addr;
+    });
+    if (!match) { setMatchedPropertyId(null); return; }
+    setMatchedPropertyId(match.id);
+    // Auto-fill postcode if the matched property has one and the user hasn't already typed a different one.
+    if (match.postcode && !data.postcode) {
+      setData((d) => ({ ...d, postcode: match.postcode }));
+    }
+  }, [data.address, data.postcode, properties]);
+
+  // When a property is matched, fetch its rooms (one query — endpoint already returns units).
+  useEffect(() => {
+    if (!matchedPropertyId) { setUnitsForProperty([]); return; }
+    void (async () => {
+      try {
+        const r = await fetch(`/api/properties/${matchedPropertyId}`, { cache: "no-store" });
+        if (!r.ok) return;
+        const d = await r.json() as { units?: Array<{ id: string; reference: string; status: string }> };
+        setUnitsForProperty(d.units ?? []);
+      } catch { /* non-fatal */ }
+    })();
+  }, [matchedPropertyId]);
+
+  const suggestions: RecordFieldSuggestions = {
+    properties: properties.map((p) => ({
+      id: p.id,
+      address: p.address_line1 ?? p.name,
+      postcode: p.postcode,
+      label: [p.address_line1, p.city].filter(Boolean).join(", ") || p.name,
+    })),
+    units: unitsForProperty.map((u) => ({
+      id: u.id,
+      reference: u.reference,
+      label: `${u.reference}${u.status === "occupied" ? " · occupied" : ""}`,
+    })),
+    onPropertyPicked: (propertyId) => {
+      const p = properties.find((x) => x.id === propertyId);
+      if (!p) return;
+      // Auto-fill postcode now (don't wait for the address-watch effect, which lags one render).
+      if (p.postcode) setData((d) => ({ ...d, postcode: p.postcode }));
+      setMatchedPropertyId(propertyId);
+    },
+    // The commit step reads `carried.unit_id` and creates the tenancy against that unit.
+    // Setting it here means picking the room on this screen is enough — no second data entry
+    // to assign the tenant to the room when the draft is committed.
+    onUnitPicked: (unitId) => {
+      setCarried((c) => ({ ...c, unit_id: unitId }));
+    },
+  };
 
   async function confirm() {
     setBusy(true);
@@ -125,7 +208,12 @@ export default function ReviewPage() {
         Confirming as: <strong style={{ color: "var(--navy)" }}>{profile?.full_name || profile?.email || "—"}</strong> · {profile?.role?.replace("_", " ")}
       </p>
 
-      <RecordFields data={data} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} errors={validationErrors} />
+      <RecordFields
+        data={data}
+        onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))}
+        errors={validationErrors}
+        suggestions={suggestions}
+      />
 
       {/* Blockchain stamp preview */}
       <div style={{ marginTop: "18px", background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: "10px", padding: "12px 14px", fontFamily: "'JetBrains Mono',monospace", fontSize: "12px", color: "#4B2E83" }}>
