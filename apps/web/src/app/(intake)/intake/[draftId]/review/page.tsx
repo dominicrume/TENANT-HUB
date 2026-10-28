@@ -97,6 +97,13 @@ export default function ReviewPage() {
     })();
   }, [matchedPropertyId]);
 
+  // Hide occupied rooms from the Room Number dropdown so staff can never pick
+  // one that'll be rejected at commit (Rume 2026-10-28: "same as putting an
+  // email that's already registered — rejected the moment you type it"). The
+  // total count is passed through so the field can show "3 of 7 available".
+  const availableUnits = unitsForProperty.filter((u) => u.status !== "occupied");
+  const propertyFullyOccupied = matchedPropertyId !== null && unitsForProperty.length > 0 && availableUnits.length === 0;
+
   const suggestions: RecordFieldSuggestions = {
     properties: properties.map((p) => ({
       id: p.id,
@@ -104,17 +111,23 @@ export default function ReviewPage() {
       postcode: p.postcode,
       label: [p.address_line1, p.city].filter(Boolean).join(", ") || p.name,
     })),
-    units: unitsForProperty.map((u) => ({
+    units: availableUnits.map((u) => ({
       id: u.id,
       reference: u.reference,
-      label: `${u.reference}${u.status === "occupied" ? " · occupied" : ""}`,
+      label: u.reference,
     })),
+    propertyFullyOccupied,
+    unitsTotal: unitsForProperty.length,
     onPropertyPicked: (propertyId) => {
       const p = properties.find((x) => x.id === propertyId);
       if (!p) return;
       // Auto-fill postcode now (don't wait for the address-watch effect, which lags one render).
       if (p.postcode) setData((d) => ({ ...d, postcode: p.postcode }));
       setMatchedPropertyId(propertyId);
+      // Clear any room number carried over from a previous property pick — the
+      // old reference will never match a room on the new property.
+      setData((d) => ({ ...d, room_number: "" }));
+      setCarried((c) => { const { unit_id: _drop, ...rest } = c; return rest; });
     },
     // The commit step reads `carried.unit_id` and creates the tenancy against that unit.
     // Setting it here means picking the room on this screen is enough — no second data entry

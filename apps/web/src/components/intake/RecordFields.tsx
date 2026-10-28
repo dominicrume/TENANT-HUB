@@ -41,7 +41,17 @@ const PLACEHOLDERS: Record<string, string> = {
  */
 export interface RecordFieldSuggestions {
   properties?: Array<{ id: string; address: string; postcode: string | null; label: string }>;
+  /** AVAILABLE units only. The parent filters out occupied rooms so staff can't
+   *  pick one and only discover at commit time it was taken (Rume 2026-10-28:
+   *  "that should not be a problem… same as putting an email that's already
+   *  registered — rejected the moment you type it, not at the end"). */
   units?: Array<{ id: string; reference: string; label: string }>;
+  /** True when the matched property has rooms but every one is occupied.
+   *  Lets the field surface a clear "no rooms available" state instead of a
+   *  silently-empty dropdown that could still accept any typed value. */
+  propertyFullyOccupied?: boolean;
+  /** Total room count on the matched property, for the hint "3 of 7 available". */
+  unitsTotal?: number;
   onPropertyPicked?: (propertyId: string) => void;
   onUnitPicked?: (unitId: string) => void;
 }
@@ -137,10 +147,31 @@ export function RecordFields(props: {
               </datalist>
             </>
           );
-        } else if (key === "room_number" && (props.suggestions?.units?.length ?? 0) > 0) {
-          // Rooms belonging to the matched property (parent re-fetches units on property pick).
+        } else if (key === "room_number" && props.suggestions?.propertyFullyOccupied) {
+          // Property has rooms but every one is occupied — don't let staff type a
+          // room that'll be rejected at commit. Disable the field with a clear
+          // reason; the only way forward is to add a new unit to the property
+          // (or pick a different one in the Address / Property field above).
           inputElement = (
-            <>
+            <div>
+              <input
+                type="text"
+                placeholder="All rooms occupied at this property"
+                value=""
+                disabled
+                style={{ ...inputStyle, backgroundColor: "#F7F0EC", color: "#B24A31", fontStyle: "italic", cursor: "not-allowed" }}
+              />
+              <div style={{ marginTop: "4px", fontSize: "12px", color: "#B24A31" }}>
+                ⚠ All {props.suggestions.unitsTotal ?? ""} rooms are occupied. Pick another property or add a new unit first.
+              </div>
+            </div>
+          );
+        } else if (key === "room_number" && (props.suggestions?.units?.length ?? 0) > 0) {
+          // Rooms belonging to the matched property, FILTERED to available ones only.
+          const total = props.suggestions?.unitsTotal ?? props.suggestions!.units!.length;
+          const avail = props.suggestions!.units!.length;
+          inputElement = (
+            <div>
               <input
                 type="text"
                 list="th-unit-suggestions"
@@ -157,7 +188,12 @@ export function RecordFields(props: {
               <datalist id="th-unit-suggestions">
                 {props.suggestions!.units!.map((u) => <option key={u.id} value={u.reference} label={u.label} />)}
               </datalist>
-            </>
+              {total > avail && (
+                <div style={{ marginTop: "4px", fontSize: "12px", color: "#5A657A" }}>
+                  {avail} of {total} rooms available — occupied rooms are hidden.
+                </div>
+              )}
+            </div>
           );
         } else {
           inputElement = (
