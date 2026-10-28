@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@tenant-hub/db";
 import { getApiAuth } from "../../../lib/api-auth";
 import { toSafeErrorMessage } from "../../../lib/safe-error";
+import { activeLandlordId } from "../../../lib/landlord-scope";
 
 /**
  * GET /api/audit-logs — append-only audit trail (RLS-scoped; managers see all).
@@ -40,12 +41,36 @@ export async function GET(req: Request) {
   const systemOnly = url.searchParams.get("system") === "1";
 
   const orgId = auth.actor.org_id;
+  const activeLandlord = activeLandlordId(auth);
   const params: unknown[] = [orgId];
+
+  // Landlord-scope filter (105 / C2). When the top-bar switcher is set to a
+  // specific landlord, we narrow audit rows to those whose tenant belongs to
+  // that landlord (via tenancies → units → properties → landlord). Org-level
+  // system rows that have no tenant_id (digest writes, cron agents) stay
+  // visible because they're not identifying data for any one landlord.
+  // Previously the whole org's audit trail — including Reliance tenant names,
+  // actions, hashes — leaked into a Darcy-scoped view.
+  let scopedTenantIds = "";
+  if (activeLandlord) {
+    params.push(activeLandlord);
+    scopedTenantIds = `AND (
+      tenant_id IS NULL
+      OR tenant_id IN (
+        SELECT DISTINCT t.id
+          FROM tenants t
+          JOIN tenancies ty ON ty.tenant_id = t.id AND ty.status = 'active'
+          JOIN units u      ON u.id = ty.unit_id
+          JOIN properties p ON p.id = u.property_id
+         WHERE p.landlord_id = $${params.length}
+      )
+    )`;
+  }
   let sql = `SELECT * FROM audit_logs WHERE (
     org_id = $1
     OR tenant_id IN (SELECT id FROM tenants WHERE org_id = $1)
     OR user_id IN (SELECT id FROM profiles WHERE org_id = $1)
-  )`;
+  ) ${scopedTenantIds}`;
   if (action) { params.push(action); sql += ` AND action = $${params.length}`; }
   if (userId) { params.push(userId); sql += ` AND user_id = $${params.length}`; }
   if (tenantId) { params.push(tenantId); sql += ` AND tenant_id = $${params.length}`; }
