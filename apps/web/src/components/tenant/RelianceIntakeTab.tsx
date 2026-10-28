@@ -56,7 +56,7 @@ export function RelianceIntakeTab({ tenantId, tenant }: { tenantId: string; tena
             next_of_kin_name: tenant.nok_name,
             next_of_kin_contact: tenant.nok_phone,
             next_of_kin_relationship: tenant.nok_relationship,
-            next_of_kin_address: tenant.nok_address,
+            next_of_kin_address: tenant.nok_address ?? undefined,
           },
           consents: {}
         };

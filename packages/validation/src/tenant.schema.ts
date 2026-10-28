@@ -33,7 +33,12 @@ export const CanonicalTenantSchema = z.object({
   dob:             UkDateSchema,
   nino:            NinoSchema,
   nationality:     z.string().min(2).max(60),
-  date_entry_uk:   UkDateSchema.optional(),
+  // Every optional field below also accepts `null`. The tenant edit form
+  // sends `null` to CLEAR a value (an empty string becomes null in the PATCH
+  // body) — plain `.optional()` only allows `undefined`, which was causing
+  // every cleared field to fail with "Expected string, received null" and
+  // name the field in the save banner. .nullable().optional() = cleared OK.
+  date_entry_uk:   UkDateSchema.nullable().optional(),
 
   // Accommodation
   address:         z.string().min(5).max(200),
@@ -41,41 +46,44 @@ export const CanonicalTenantSchema = z.object({
   room_number:     z.preprocess((v) => (typeof v === "string" && /^\d+$/.test(v.trim()) ? `Room ${v.trim()}` : v), z.string().regex(/^Room\s\d+$/i, "Format: Room N")),
   moved_in:        UkDateSchema,
   mobile:          UkPhoneSchema,
-  email:           z.string().email().optional(),
-  languages:       z.string().optional(),
+  email:           z.string().email().nullable().optional(),
+  languages:       z.string().nullable().optional(),
 
   // Financial
   benefit_type:    BenefitTypeSchema,
   benefit_frequency: BenefitFrequencySchema,
   benefit_amount:  MoneyGbpSchema,
   housing_benefit_status: z.enum(["active", "in_progress", "suspended"]).default("in_progress"),
-  hb_reference_number: z.string().optional(),
-  hb_claim_date:   UkDateSchema.optional(),
-  hb_document_url: z.string().url().optional(),
+  hb_reference_number: z.string().nullable().optional(),
+  hb_claim_date:   UkDateSchema.nullable().optional(),
+  // `.url()` would reject empty-cleared values even with .nullable(); the
+  // route stores a /api/documents/<id>/file path OR a full URL, so a looser
+  // string shape here keeps uploads working without special-casing nulls.
+  hb_document_url: z.string().nullable().optional(),
 
   // Next of kin
   nok_name:        z.string().min(2).max(100),
   nok_relationship: z.string().min(2).max(50),
   nok_phone:       UkPhoneSchema,
-  nok_address:     z.string().optional(),
+  nok_address:     z.string().nullable().optional(),
 
   // Professional
-  doctor:          z.string().optional(),
-  probation_officer: z.string().optional(),
+  doctor:          z.string().nullable().optional(),
+  probation_officer: z.string().nullable().optional(),
 
   // System
   brand:           BrandSchema,
   entry_method:    EntryMethodSchema,
-  photo_url:       z.string().url().optional(),
+  photo_url:       z.string().url().nullable().optional(),
   is_active:       z.boolean().default(true),
   is_archived:     z.boolean().default(false),
 
   // Audit (set by DB / writeWithAudit — not form input)
-  blockchain_hash:        z.string().optional(),
-  tenant_signature_hash:  z.string().optional(),
-  created_by:      z.string().uuid().optional(),
-  created_at:      z.string().datetime().optional(),
-  updated_at:      z.string().datetime().optional(),
+  blockchain_hash:        z.string().nullable().optional(),
+  tenant_signature_hash:  z.string().nullable().optional(),
+  created_by:      z.string().uuid().nullable().optional(),
+  created_at:      z.string().datetime().nullable().optional(),
+  updated_at:      z.string().datetime().nullable().optional(),
 });
 
 // Patch type for updates — all fields optional except id

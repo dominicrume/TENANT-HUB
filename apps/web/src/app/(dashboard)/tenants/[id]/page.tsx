@@ -83,16 +83,28 @@ const CORE_TABS: Array<{ key: string; label: string; group: TabGroup }> = [
 
 type FormState = Record<string, string>;
 
-/** Human labels for save-validation errors, so "Please fix: X" always names a real field — regardless of which tab you're on when you hit Save (every save validates the whole record, not just the active tab). */
+/** Human labels for save-validation errors, so "Please fix: X" always names a real field — regardless of which tab you're on when you hit Save (every save validates the whole record, not just the active tab). Every PATCHable key must be in here or the banner falls back to the raw snake_case name (what the user saw on 2026-10-28: "Please fix: Languages, HB Reference Number, HB Claim Date, hb_document_url, Probation Officer"). */
 const FIELD_LABELS: Record<string, string> = {
-  title: "Title", full_name: "Full Name", dob: "Date of Birth", nino: "National Insurance No.",
-  nationality: "Nationality", date_entry_uk: "Date of Entry to UK", address: "Address", postcode: "Postcode",
-  room_number: "Room Number", moved_in: "Moved-in Date", mobile: "Mobile", email: "Email", languages: "Languages",
-  benefit_type: "Benefit Type", benefit_frequency: "Frequency", benefit_amount: "Amount",
-  nok_name: "Next of Kin Name", nok_relationship: "Next of Kin Relationship", nok_phone: "Next of Kin Phone", nok_address: "Next of Kin Address",
-  doctor: "Doctor / GP", probation_officer: "Probation Officer",
-  hb_reference_number: "HB Reference Number", hb_claim_date: "HB Claim Date",
+  title: "Title", full_name: "Full name", dob: "Date of birth", nino: "National Insurance number",
+  nationality: "Nationality", date_entry_uk: "Date of entry to UK", address: "Address", postcode: "Postcode",
+  room_number: "Room number", moved_in: "Moved-in date", mobile: "Mobile", email: "Email", languages: "Languages",
+  benefit_type: "Benefit type", benefit_frequency: "Benefit frequency", benefit_amount: "Benefit amount",
+  housing_benefit_status: "Housing benefit status",
+  nok_name: "Next of kin name", nok_relationship: "Next of kin relationship", nok_phone: "Next of kin phone", nok_address: "Next of kin address",
+  doctor: "Doctor / GP", probation_officer: "Probation officer",
+  hb_reference_number: "HB reference number", hb_claim_date: "HB claim date", hb_document_url: "HB document",
+  photo_url: "Photo", brand: "Brand", entry_method: "Entry method",
 };
+
+/** Translate Zod's raw type-mismatch messages into something a care worker can
+ *  act on. Rume 2026-10-28: "Expected string, received null" is not a message
+ *  for a customer. Called at render time on each validation issue. */
+function friendlyIssue(message: string): string {
+  if (/Expected .*, received null/i.test(message))      return "Required";
+  if (/Expected .*, received undefined/i.test(message)) return "Required";
+  if (/Required/i.test(message) && message.length < 20) return "Required";
+  return message;
+}
 
 const EDITABLE_STRING_FIELDS = [
   "full_name", "dob", "nino", "nationality", "date_entry_uk",
@@ -204,14 +216,20 @@ export default function TenantDetailPage() {
       const b = await res.json().catch(() => null);
       if (b?.issues) {
         const issues: Record<string, string> = {};
-        for (const i of b.issues) issues[i.path[0]] = i.message;
+        // Translate raw Zod messages ("Expected string, received null") into
+        // the one-word "Required" the field needs. Keeps the inline error short
+        // and intelligible even for staff who've never seen Zod's phrasing.
+        for (const i of b.issues) issues[i.path[0]] = friendlyIssue(i.message);
         setValidationIssues(issues);
         // Saving from ANY tab validates the whole record, but a field's inline
         // error only renders while that field's own tab is open — on a
         // different tab the problem used to vanish into an unhelpful generic
         // banner. Naming the actual field(s) here means it's never invisible,
-        // regardless of which tab you're looking at when you hit Save.
-        const names = b.issues.map((i: { path: string[] }) => { const key = i.path[0] ?? "field"; return FIELD_LABELS[key] ?? key; }).join(", ");
+        // regardless of which tab you're looking at when you hit Save. Dedupe
+        // in case the server returns the same key twice (nested path lists).
+        const names = Array.from(new Set(
+          b.issues.map((i: { path: string[] }) => { const key = i.path[0] ?? "field"; return FIELD_LABELS[key] ?? key; })
+        )).join(", ");
         setSaveMsg(`✗ Please fix: ${names}`);
       } else {
         setSaveMsg(`✗ ${b?.error ?? "Save failed"}`);
@@ -516,12 +534,26 @@ export default function TenantDetailPage() {
             >
               📑 Print Full Dossier
             </button>
-            {saveMsg && (
-              <span style={{ fontSize: "13px", color: saveMsg.startsWith("✓") ? "#1E7F4F" : "#E05252" }}>
-                {saveMsg}
-              </span>
-            )}
           </div>
+          {saveMsg && (
+            // Lifted out of the inline row so a multi-field "Please fix: X, Y, Z"
+            // doesn't get squeezed to the right of the buttons and spill off-screen
+            // (what the user saw on 2026-10-28, screenshot: "X Please fix: Languages,
+            //  HB Reference Number, HB Claim Date, hb_document_url, Probation Officer"
+            // wrapping into the Dossier button column). Now gets its own full-width
+            // banner below the buttons where every field name is visible on one line.
+            <div style={{
+              marginTop: "12px",
+              padding: "10px 14px",
+              borderRadius: "8px",
+              background: saveMsg.startsWith("✓") ? "#ECF9F1" : "#FDECEC",
+              border: `1px solid ${saveMsg.startsWith("✓") ? "#A6D9BB" : "#F4B4B4"}`,
+              color: saveMsg.startsWith("✓") ? "#1E7F4F" : "#B23434",
+              fontSize: "13px", fontWeight: 500,
+            }}>
+              {saveMsg}
+            </div>
+          )}
         </div>
       )}
 
