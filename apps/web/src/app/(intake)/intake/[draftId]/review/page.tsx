@@ -7,14 +7,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { RecordFields, type RecordFieldSuggestions } from "../../../../../components/intake/RecordFields";
+import { RecordFields } from "../../../../../components/intake/RecordFields";
+import { useIntakeSuggestions } from "../../../../../components/intake/useIntakeSuggestions";
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { hashRecord } from "../../../../../lib/hash";
 import { TenantCreateSchema } from "@tenant-hub/validation";
 import { canonicalSubset, type Draft } from "../../../../../lib/intake";
-
-/** Shape returned by GET /api/properties — only the fields the picker needs. */
-interface PropertyRow { id: string; name: string; address_line1: string | null; city: string | null; postcode: string | null; units?: Array<{ id: string; reference: string; status: string }> }
 
 export default function ReviewPage() {
   const { draftId } = useParams<{ draftId: string }>();
@@ -28,15 +26,6 @@ export default function ReviewPage() {
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-
-  // Saved properties for the active landlord (Rume 2026-10-27 walkthrough): when staff type
-  // in Address, the properties we already manage show up as suggestions, picking one auto-
-  // fills Postcode and loads that property's rooms into the Room Number dropdown. GET
-  // /api/properties already respects the active-landlord scope (096), so this list is
-  // ALREADY narrowed to the right landlord without us doing anything here.
-  const [properties, setProperties] = useState<PropertyRow[]>([]);
-  const [matchedPropertyId, setMatchedPropertyId] = useState<string | null>(null);
-  const [unitsForProperty, setUnitsForProperty] = useState<Array<{ id: string; reference: string; status: string }>>([]);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/drafts/${draftId}`, { cache: "no-store" });
@@ -53,89 +42,17 @@ export default function ReviewPage() {
     void load();
   }, [load]);
 
-  // Load saved properties once on mount — the picker list for Address / Property.
-  useEffect(() => {
-    void (async () => {
-      try {
-        const r = await fetch("/api/properties", { cache: "no-store" });
-        if (r.ok) setProperties(await r.json());
-      } catch {
-        // Non-fatal: the field falls back to free-text, same as before this change.
-      }
-    })();
-  }, []);
-
-  // When the staff member types/picks an Address that matches a saved property, pull in
-  // that property's rooms (so Room Number offers the right dropdown) and auto-fill
-  // Postcode. The match is on EXACT address string from the datalist — a half-typed string
-  // leaves both free-form.
-  useEffect(() => {
-    const addr = String(data.address ?? "").trim().toLowerCase();
-    if (!addr || properties.length === 0) { setMatchedPropertyId(null); return; }
-    const match = properties.find((p) => {
-      const label = [p.address_line1, p.city].filter(Boolean).join(", ").toLowerCase();
-      return label === addr || (p.address_line1 ?? "").toLowerCase() === addr;
-    });
-    if (!match) { setMatchedPropertyId(null); return; }
-    setMatchedPropertyId(match.id);
-    // Auto-fill postcode if the matched property has one and the user hasn't already typed a different one.
-    if (match.postcode && !data.postcode) {
-      setData((d) => ({ ...d, postcode: match.postcode }));
-    }
-  }, [data.address, data.postcode, properties]);
-
-  // When a property is matched, fetch its rooms (one query — endpoint already returns units).
-  useEffect(() => {
-    if (!matchedPropertyId) { setUnitsForProperty([]); return; }
-    void (async () => {
-      try {
-        const r = await fetch(`/api/properties/${matchedPropertyId}`, { cache: "no-store" });
-        if (!r.ok) return;
-        const d = await r.json() as { units?: Array<{ id: string; reference: string; status: string }> };
-        setUnitsForProperty(d.units ?? []);
-      } catch { /* non-fatal */ }
-    })();
-  }, [matchedPropertyId]);
-
-  // Hide occupied rooms from the Room Number dropdown so staff can never pick
-  // one that'll be rejected at commit (Rume 2026-10-28: "same as putting an
-  // email that's already registered — rejected the moment you type it"). The
-  // total count is passed through so the field can show "3 of 7 available".
-  const availableUnits = unitsForProperty.filter((u) => u.status !== "occupied");
-  const propertyFullyOccupied = matchedPropertyId !== null && unitsForProperty.length > 0 && availableUnits.length === 0;
-
-  const suggestions: RecordFieldSuggestions = {
-    properties: properties.map((p) => ({
-      id: p.id,
-      address: p.address_line1 ?? p.name,
-      postcode: p.postcode,
-      label: [p.address_line1, p.city].filter(Boolean).join(", ") || p.name,
-    })),
-    units: availableUnits.map((u) => ({
-      id: u.id,
-      reference: u.reference,
-      label: u.reference,
-    })),
-    propertyFullyOccupied,
-    unitsTotal: unitsForProperty.length,
-    onPropertyPicked: (propertyId) => {
-      const p = properties.find((x) => x.id === propertyId);
-      if (!p) return;
-      // Auto-fill postcode now (don't wait for the address-watch effect, which lags one render).
-      if (p.postcode) setData((d) => ({ ...d, postcode: p.postcode }));
-      setMatchedPropertyId(propertyId);
-      // Clear any room number carried over from a previous property pick — the
-      // old reference will never match a room on the new property.
-      setData((d) => ({ ...d, room_number: "" }));
-      setCarried((c) => { const { unit_id: _drop, ...rest } = c; return rest; });
-    },
-    // The commit step reads `carried.unit_id` and creates the tenancy against that unit.
-    // Setting it here means picking the room on this screen is enough — no second data entry
-    // to assign the tenant to the room when the draft is committed.
+  // One shared hook — same filter/suggestions behaviour as extract and voice (102).
+  const suggestions = useIntakeSuggestions({
+    data,
+    setData,
     onUnitPicked: (unitId) => {
-      setCarried((c) => ({ ...c, unit_id: unitId }));
+      setCarried((c) => {
+        if (unitId === null) { const { unit_id: _drop, ...rest } = c; return rest; }
+        return { ...c, unit_id: unitId };
+      });
     },
-  };
+  });
 
   async function confirm() {
     setBusy(true);

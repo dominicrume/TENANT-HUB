@@ -3,16 +3,21 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { RecordFields } from "../../../../../components/intake/RecordFields";
+import { useIntakeSuggestions } from "../../../../../components/intake/useIntakeSuggestions";
 import type { Draft } from "../../../../../lib/intake";
 
 export default function VoiceExtractPage() {
   const { draftId } = useParams<{ draftId: string }>();
   const router = useRouter();
-  
+
   const [data, setData] = useState<Record<string, unknown>>({});
   const [confidence, setConfidence] = useState<Record<string, string>>({});
   const [transcript, setTranscript] = useState<string | null>(null);
-  
+  // Preserve the rest of machine_state (lead_id, unit_id…) across the PATCH —
+  // the voice page used to wipe it with input_mode+extracted only, which lost
+  // the lead on 2026-10-15 (same bug the review page already got fixed for).
+  const [carried, setCarried] = useState<Record<string, unknown>>({});
+
   const [isRecording, setIsRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -22,11 +27,24 @@ export default function VoiceExtractPage() {
   const audioChunks = useRef<Blob[]>([]);
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
 
+  // Same occupancy-filtered property+room dropdowns as review and extract (102).
+  const suggestions = useIntakeSuggestions({
+    data,
+    setData,
+    onUnitPicked: (unitId) => {
+      setCarried((c) => {
+        if (unitId === null) { const { unit_id: _drop, ...rest } = c; return rest; }
+        return { ...c, unit_id: unitId };
+      });
+    },
+  });
+
   const loadDraft = useCallback(async () => {
     const res = await fetch(`/api/drafts/${draftId}`, { cache: "no-store" });
     if (res.ok) {
       const d = (await res.json()) as Draft;
       setData((d.machine_state?.extracted as Record<string, unknown>) ?? {});
+      setCarried((d.machine_state as unknown as Record<string, unknown>) ?? {});
     }
   }, [draftId]);
 
@@ -109,7 +127,7 @@ export default function VoiceExtractPage() {
     const res = await fetch(`/api/drafts/${draftId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ machine_state: { input_mode: "voice", extracted: data }, step: 2 }),
+      body: JSON.stringify({ machine_state: { ...carried, input_mode: "voice", extracted: data }, step: 2 }),
     });
     
     if (!res.ok) {
@@ -197,7 +215,7 @@ export default function VoiceExtractPage() {
           {hasResult ? (
             <>
               <h4 style={{ fontSize: "12px", textTransform: "uppercase", color: "var(--slate)", marginBottom: "10px" }}>Check these, edit anything that&apos;s wrong</h4>
-              <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} />
+              <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} suggestions={suggestions} />
             </>
           ) : (
             <div style={{ border: "1px dashed #D9D2C7", borderRadius: "12px", padding: "40px 24px", textAlign: "center", color: "#8A93A0", fontSize: 13.5, background: "#fff" }}>

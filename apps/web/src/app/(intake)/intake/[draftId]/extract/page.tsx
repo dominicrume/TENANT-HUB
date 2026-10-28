@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { RecordFields } from "../../../../../components/intake/RecordFields";
+import { useIntakeSuggestions } from "../../../../../components/intake/useIntakeSuggestions";
 import { CameraCapture } from "../../../../../components/CameraCapture";
 import type { Draft } from "../../../../../lib/intake";
 
@@ -18,15 +19,34 @@ export default function ExtractPage() {
   const [rawText, setRawText] = useState("");
   const [data, setData] = useState<Record<string, unknown>>({});
   const [confidence, setConfidence] = useState<Record<string, string>>({});
+  // The draft carries lead_id/unit_id/etc. — rewriting machine_state from
+  // scratch here is what lost the lead on 2026-10-15 (review page already
+  // guards against it; extract and voice were missing the same guard).
+  const [carried, setCarried] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [camera, setCamera] = useState(false);
+
+  // Same occupancy-filtered property+room dropdowns as review (102). Without
+  // this, OCR could extract "Room 1" (occupied) and the staff member had no
+  // way to see it was taken until /complete.
+  const suggestions = useIntakeSuggestions({
+    data,
+    setData,
+    onUnitPicked: (unitId) => {
+      setCarried((c) => {
+        if (unitId === null) { const { unit_id: _drop, ...rest } = c; return rest; }
+        return { ...c, unit_id: unitId };
+      });
+    },
+  });
 
   const loadDraft = useCallback(async () => {
     const res = await fetch(`/api/drafts/${draftId}`, { cache: "no-store" });
     if (res.ok) {
       const d = (await res.json()) as Draft;
       setData((d.machine_state?.extracted as Record<string, unknown>) ?? {});
+      setCarried((d.machine_state as unknown as Record<string, unknown>) ?? {});
     }
   }, [draftId]);
 
@@ -60,7 +80,7 @@ export default function ExtractPage() {
     const res = await fetch(`/api/drafts/${draftId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ machine_state: { input_mode: "ocr", extracted: data }, step: 2 }),
+      body: JSON.stringify({ machine_state: { ...carried, input_mode: "ocr", extracted: data }, step: 2 }),
     });
     
     if (!res.ok) {
@@ -112,7 +132,7 @@ export default function ExtractPage() {
 
         {/* Right — editable fields */}
         <div style={{ flex: "2 1 380px" }}>
-          <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} />
+          <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} suggestions={suggestions} />
         </div>
       </div>
 
