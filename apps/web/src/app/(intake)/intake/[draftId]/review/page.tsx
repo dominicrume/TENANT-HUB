@@ -81,6 +81,7 @@ export default function ReviewPage() {
         body: JSON.stringify({
           nino: data.nino,
           mobile: data.mobile,
+          email: data.email, // added 107 / B1 — email dedupe now caught at review, not silently at commit
         }),
       });
 

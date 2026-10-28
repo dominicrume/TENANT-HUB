@@ -30,6 +30,25 @@ export const UkDateSchema = z.preprocess((v) => {
   return v;
 }, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD format (e.g. 1990-01-31)."));
 
+/**
+ * UkPastDateSchema — a valid UK date THAT IS NOT IN THE FUTURE and not before
+ * 1900-01-01. Use for DOB / moved_in / date_entry_uk / any "when this
+ * happened" field. The plain UkDateSchema was accepting dates like
+ * 2050-01-15 through forms, letting staff mistype a DOB and poison the
+ * record (QA audit 2026-10-28, B3). Keep UkDateSchema for forward-looking
+ * fields (viewings, certificate renewal, tenancy end).
+ */
+export const UkPastDateSchema = UkDateSchema.refine(
+  (iso) => {
+    const d = new Date(iso + "T00:00:00Z");
+    if (isNaN(d.getTime())) return false;
+    const now = new Date();
+    const lowerBound = new Date("1900-01-01T00:00:00Z");
+    return d <= now && d >= lowerBound;
+  },
+  { message: "Date can't be in the future or before 1900." },
+);
+
 export const UkPostcodeSchema = z
   .string()
   .regex(/^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i, "Invalid UK postcode. Please enter a valid postcode (e.g. SW1A 1AA).")

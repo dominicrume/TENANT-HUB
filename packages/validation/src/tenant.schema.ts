@@ -4,7 +4,7 @@
  * z.infer<typeof CanonicalTenantSchema> is the ONLY Tenant type.
  */
 import { z } from "zod";
-import { NinoSchema, UkPhoneSchema, UkDateSchema, UkPostcodeSchema, MoneyGbpSchema } from "./primitives";
+import { NinoSchema, UkPhoneSchema, UkDateSchema, UkPastDateSchema, UkPostcodeSchema, MoneyGbpSchema } from "./primitives";
 
 const preprocessEnum = (validValues: string[]) => z.preprocess((v) => {
   if (typeof v !== "string") return v;
@@ -30,7 +30,10 @@ export const CanonicalTenantSchema = z.object({
   // Personal
   title:           TitleSchema,
   full_name:       z.string().min(2).max(100),
-  dob:             UkDateSchema,
+  // 107 / B3: a DOB must be in the past. Plain UkDateSchema let staff
+  // typo a DOB as 2050-01-15 and the whole record was downstream-poisoned
+  // (HB claim-date logic, age alerts, "entered UK" sanity).
+  dob:             UkPastDateSchema,
   nino:            NinoSchema,
   nationality:     z.string().min(2).max(60),
   // Every optional field below also accepts `null`. The tenant edit form
@@ -38,13 +41,15 @@ export const CanonicalTenantSchema = z.object({
   // body) — plain `.optional()` only allows `undefined`, which was causing
   // every cleared field to fail with "Expected string, received null" and
   // name the field in the save banner. .nullable().optional() = cleared OK.
-  date_entry_uk:   UkDateSchema.nullable().optional(),
+  date_entry_uk:   UkPastDateSchema.nullable().optional(),
 
   // Accommodation
   address:         z.string().min(5).max(200),
   postcode:        UkPostcodeSchema,
   room_number:     z.preprocess((v) => (typeof v === "string" && /^\d+$/.test(v.trim()) ? `Room ${v.trim()}` : v), z.string().regex(/^Room\s\d+$/i, "Format: Room N")),
-  moved_in:        UkDateSchema,
+  // 107 / B3: moved_in is also a past event — a future "moved in" date
+  // breaks every arrears/age-of-tenancy calculation.
+  moved_in:        UkPastDateSchema,
   mobile:          UkPhoneSchema,
   email:           z.string().email().nullable().optional(),
   languages:       z.string().nullable().optional(),
