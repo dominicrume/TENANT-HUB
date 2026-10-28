@@ -48,6 +48,17 @@ export default async function LandingPage() {
     }
   }
 
+  // Stripe Payment Link URLs for each tier (commit 100). When unset, the card
+  // falls back to /login — same as before — so an environment without Stripe
+  // configured still renders a working page. A click on a configured link
+  // takes the visitor to Stripe's hosted checkout; the webhook lands them in
+  // pending_subscriptions for owner review (see 069 migration header).
+  const paymentLinks = {
+    starter:      process.env.STRIPE_LINK_STARTER      ?? "",
+    professional: process.env.STRIPE_LINK_PROFESSIONAL ?? "",
+    enterprise:   process.env.STRIPE_LINK_ENTERPRISE   ?? "",
+  };
+
   return (
     <main className="min-h-[100dvh] bg-cream text-ink">
       <nav className="mx-auto flex max-w-[1100px] items-center justify-between px-5 py-5 sm:px-10">
@@ -98,17 +109,24 @@ export default async function LandingPage() {
             <PlanCard
               name="Starter" price={49} tagline="For a small home just getting started."
               features={["Up to 10 active tenants", "Basic AI intake extraction", "Standard reporting", "Email support"]}
-              href="/login" cta="Log in"
+              href={paymentLinks.starter || "/login"}
+              cta={paymentLinks.starter ? "Get started" : "Log in"}
+              external={!!paymentLinks.starter}
             />
             <PlanCard
               name="Professional" price={99} tagline="For a growing service with real compliance needs."
               features={["Up to 50 tenants", "Advanced form generation", "API access", "Standard support"]}
-              href="/login" cta="Log in" featured
+              href={paymentLinks.professional || "/login"}
+              cta={paymentLinks.professional ? "Get started" : "Log in"}
+              external={!!paymentLinks.professional}
+              featured
             />
             <PlanCard
               name="Enterprise" price={300} tagline="For an association running several HMOs at scale."
               features={["Unlimited tenants and properties", "Full agent automation", "White-label tenant portal", "Priority support"]}
-              href="/login" cta="Log in"
+              href={paymentLinks.enterprise || "/login"}
+              cta={paymentLinks.enterprise ? "Get started" : "Log in"}
+              external={!!paymentLinks.enterprise}
             />
           </div>
         </div>
@@ -126,7 +144,8 @@ export default async function LandingPage() {
   );
 }
 
-function PlanCard({ name, price, tagline, features, href, cta, featured }: { name: string; price: number; tagline: string; features: string[]; href: string; cta: string; featured?: boolean }) {
+function PlanCard({ name, price, tagline, features, href, cta, featured, external }: { name: string; price: number; tagline: string; features: string[]; href: string; cta: string; featured?: boolean; external?: boolean }) {
+  const buttonClass = `mt-auto justify-center text-center ${featured ? PRIMARY_BTN : GHOST_BTN}`;
   return (
     <div
       className={`flex h-full flex-col rounded-2xl bg-surface p-7 transition-shadow duration-200 ${
@@ -154,9 +173,11 @@ function PlanCard({ name, price, tagline, features, href, cta, featured }: { nam
           </li>
         ))}
       </ul>
-      <Link href={href} className={`mt-auto justify-center text-center ${featured ? PRIMARY_BTN : GHOST_BTN}`}>
-        {cta}
-      </Link>
+      {external ? (
+        <a href={href} className={buttonClass} rel="noopener">{cta}</a>
+      ) : (
+        <Link href={href} className={buttonClass}>{cta}</Link>
+      )}
     </div>
   );
 }
