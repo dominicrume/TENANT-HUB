@@ -42,8 +42,9 @@ export default function ReviewPage() {
     void load();
   }, [load]);
 
-  // One shared hook — same filter/suggestions behaviour as extract and voice (102).
-  const suggestions = useIntakeSuggestions({
+  // One shared hook — same filter/suggestions + room-availability guard as
+  // extract and voice (102 → 104). fieldErrors.room_number blocks Confirm.
+  const { suggestions, fieldErrors } = useIntakeSuggestions({
     data,
     setData,
     onUnitPicked: (unitId) => {
@@ -141,7 +142,9 @@ export default function ReviewPage() {
       <RecordFields
         data={data}
         onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))}
-        errors={validationErrors}
+        /* fieldErrors (from the hook, e.g. room-already-occupied) come first;
+           server-side validationErrors win on conflict for the same field. */
+        errors={{ ...fieldErrors, ...validationErrors }}
         suggestions={suggestions}
       />
 
@@ -160,8 +163,12 @@ export default function ReviewPage() {
       )}
 
       <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
-        <button onClick={confirm} disabled={busy}
-          style={{ minHeight: "56px", padding: "0 24px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+        {/* Confirm is disabled while any hook-detected field error is unresolved —
+            room already occupied, or room not on this property (104 / A3). The
+            server-side check happens anyway, but the block here means a staff
+            member can't reach /complete with a doomed submission. */}
+        <button onClick={confirm} disabled={busy || Object.keys(fieldErrors).length > 0}
+          style={{ minHeight: "56px", padding: "0 24px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: busy || Object.keys(fieldErrors).length > 0 ? "not-allowed" : "pointer", opacity: Object.keys(fieldErrors).length > 0 ? 0.6 : 1 }}>
           {busy ? "Confirming…" : "Confirm & Continue →"}
         </button>
       </div>

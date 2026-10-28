@@ -85,15 +85,12 @@ export async function POST(req: Request) {
     );
   }
 
-  if (parsed.data.room_number) {
-    const { rows } = await db().query<{ count: string }>(
-      `SELECT COUNT(*) FROM tenants WHERE org_id = $1 AND room_number = $2 AND is_archived = false AND is_active = true`,
-      [auth.actor.org_id, parsed.data.room_number],
-    );
-    if (Number(rows[0]?.count ?? 0) > 0) {
-      return NextResponse.json({ error: `${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
-    }
-  }
+  // The pre-flight that used to live here — SELECT COUNT(*) FROM tenants
+  // WHERE room_number = $2 — compared the free-text room reference across the
+  // whole org and falsely rejected a new tenant with "Room 1" on Property B
+  // because another tenant on Property A happened to call their room "Room 1"
+  // too (104 / A2). The real uniqueness lives on units via tenancies —
+  // migration 051's uq_tenancies_one_active_per_unit — not here.
 
   try {
     const recordToInsert = {

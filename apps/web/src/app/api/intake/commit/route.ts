@@ -77,14 +77,15 @@ export async function POST(req: Request) {
     }
   }
 
-  if (parsed.data.room_number) {
-    const r = await db().query<{ id: string }>(
-      "SELECT id FROM tenants WHERE org_id = $1 AND room_number = $2 AND is_archived = false AND is_active = true",
-      [auth.actor.org_id, parsed.data.room_number]);
-    if (r.rows.length > 0) {
-      return NextResponse.json({ error: `${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
-    }
-  }
+  // The pre-flight that used to live here — SELECT id FROM tenants WHERE
+  // org_id = $1 AND room_number = $2 — was removed (104 / A2). It compared
+  // room_number as free text across the whole org, so Property A's "Room 1"
+  // falsely collided with Property B's "Room 1" and intake refused with a
+  // "Room 1 is already occupied" the user could never satisfy except by
+  // switching property. The real uniqueness lives on the UNIT, enforced by
+  // migration 051's `uq_tenancies_one_active_per_unit` partial unique index.
+  // The tenancy-link block below hits that index naturally; a 23505 there is
+  // translated into a user-friendly 409 at the write site.
 
   try {
     const { data: tenant } = await writeWithAudit({
@@ -111,26 +112,60 @@ export async function POST(req: Request) {
     // Started from a room ("Add tenancy → Full intake"): link the new tenant
     // to that room now, so the property page shows them housed without a
     // second step. Rent is set afterwards on the property page — it isn't an
-    // intake-form field. Best-effort and audited: the room may have been
-    // filled meanwhile (migration 051's unique index refuses that), in which
-    // case the tenant still exists and staff pick a room by hand.
+    // intake-form field. If a dropdown wasn't used (state.unit_id missing),
+    // we resolve the room by (property address, room reference) tuple — one
+    // match wins, zero or many leaves the tenant un-linked for a human to
+    // place. Migration 051's unique index is the source of truth: a 23505
+    // from writeWithAudit means another intake just took that room.
     let linkedUnit: string | null = null;
-    if (state.unit_id) {
-      const unit = await db().query<{ id: string }>(
-        `SELECT u.id FROM units u WHERE u.id = $1 AND u.org_id = $2
-           AND NOT EXISTS (SELECT 1 FROM tenancies ty WHERE ty.unit_id = u.id AND ty.status = 'active')`,
-        [state.unit_id, auth.actor.org_id]);
-      if (unit.rows[0]) {
-        try {
-          await writeWithAudit({
-            table: "tenancies",
-            record: { unit_id: state.unit_id, tenant_id: tenant.id, org_id: auth.actor.org_id, status: "active", rent_amount: 0, rent_frequency: "weekly" } as Record<string, unknown>,
-            action: "CREATE", org_id: auth.actor.org_id, tenant_id: tenant.id as string, ...auth.actor,
-          });
-          linkedUnit = state.unit_id;
-        } catch (e) {
-          console.error("[intake/commit] tenancy link failed (tenant still created):", e);
+    let unitIdToLink: string | null = state.unit_id ?? null;
+
+    if (!unitIdToLink && parsed.data.room_number && parsed.data.address) {
+      const resolved = await db().query<{ id: string }>(
+        `SELECT u.id FROM units u
+           JOIN properties p ON p.id = u.property_id
+          WHERE u.org_id = $1 AND u.reference = $2
+            AND lower(trim(p.address_line1)) = lower(trim($3))
+          LIMIT 2`,
+        [auth.actor.org_id, parsed.data.room_number, parsed.data.address]);
+      // Exactly one match → use it. 0 or >1 → leave for a human to resolve.
+      if (resolved.rows.length === 1) unitIdToLink = resolved.rows[0]!.id;
+    }
+
+    if (unitIdToLink) {
+      try {
+        await writeWithAudit({
+          table: "tenancies",
+          record: { unit_id: unitIdToLink, tenant_id: tenant.id, org_id: auth.actor.org_id, status: "active", rent_amount: 0, rent_frequency: "weekly" } as Record<string, unknown>,
+          action: "CREATE", org_id: auth.actor.org_id, tenant_id: tenant.id as string, ...auth.actor,
+        });
+        linkedUnit = unitIdToLink;
+      } catch (e) {
+        // Postgres 23505 = unique_violation. In our case the only unique
+        // index on an active tenancy is uq_tenancies_one_active_per_unit —
+        // another tenancy for this exact unit beat us to it (race condition
+        // between two intakes). Everything else is logged, swallowed, and
+        // the tenant row stands un-linked so staff can place them manually.
+        const code = (e as { code?: string }).code;
+        if (code === "23505") {
+          // Resolve property name for a useful message.
+          const r = await db().query<{ property_name: string | null; address: string | null; reference: string }>(
+            `SELECT p.name AS property_name, p.address_line1 AS address, u.reference
+               FROM units u JOIN properties p ON p.id = u.property_id
+              WHERE u.id = $1`, [unitIdToLink]).catch(() => ({ rows: [] as Array<{ property_name: string | null; address: string | null; reference: string }> }));
+          const row = r.rows[0];
+          const where = row ? ` at ${row.property_name ?? row.address ?? "that property"}` : "";
+          const name = row?.reference ?? parsed.data.room_number ?? "That room";
+          return NextResponse.json(
+            {
+              error: `${name}${where} was just taken by another intake. The tenant was created but not placed — pick a different room on the property page.`,
+              code: "room_occupied",
+              tenant_id: tenant.id,
+            },
+            { status: 409 },
+          );
         }
+        console.error("[intake/commit] tenancy link failed (tenant still created):", e);
       }
     }
 

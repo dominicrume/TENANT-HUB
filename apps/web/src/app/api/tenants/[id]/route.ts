@@ -69,15 +69,10 @@ export async function PATCH(req: Request, { params }: Params) {
     const currentTenant = currentR.rows[0];
     if (!currentTenant) return NextResponse.json({ error: "Tenant not found or access denied" }, { status: 404 });
 
-    if (parsed.data.room_number) {
-      const { rows } = await db().query<{ count: string }>(
-        `SELECT COUNT(*) FROM tenants WHERE org_id = $1 AND room_number = $2 AND id != $3 AND is_archived = false AND is_active = true`,
-        [auth.actor.org_id, parsed.data.room_number, params.id],
-      );
-      if (Number(rows[0]?.count ?? 0) > 0) {
-        return NextResponse.json({ error: `${parsed.data.room_number} is already occupied by another active tenant.` }, { status: 409 });
-      }
-    }
+    // Removed: free-text room_number collision check (104 / A2). Previously
+    // SELECT COUNT(*) FROM tenants WHERE room_number = $2 — see sibling route
+    // comment for why that was wrong. Uniqueness lives on tenancies via
+    // migration 051, not on tenants.room_number which is just a label.
 
     const prev = await latestAuditHash(auth.supabase, params.id);
 

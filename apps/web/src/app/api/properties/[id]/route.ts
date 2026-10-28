@@ -30,6 +30,11 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
     }
 
     const [units, tenancies, certificates, policies] = await Promise.all([
+      // `units.status` the column is only set once at seed (migration 033) and
+      // never updated by any application code — so it drifts the moment any
+      // tenancy churns. We SELECT it for backwards shape but OVERRIDE it below
+      // from the live tenancies result (104 / A1). Same shape the LIST
+      // /api/properties endpoint already uses.
       db().query<{ id: string; reference: string; unit_class: string; floor: number | null; bedrooms: number | null; status: string }>(
         "SELECT id, reference, unit_class, floor, bedrooms, status FROM units WHERE property_id = $1 AND org_id = $2 ORDER BY reference", [params.id, orgId]),
       db().query<{ id: string; unit_id: string; tenant_id: string; rent_amount: string; rent_frequency: string; status: string; start_date: string | null; full_name: string }>(
@@ -54,7 +59,9 @@ export const GET = withRouteHandler({ resource: "properties", action: "read" }, 
       {
         property,
         landlord,
-        units: units.rows.map((u) => ({ ...u, tenancy: tenancyByUnit.get(u.id) ?? null })),
+        // status derived LIVE from active tenancies (104 / A1) — the column is
+        // stale as explained in the SELECT above. "available" or "occupied".
+        units: units.rows.map((u) => ({ ...u, status: tenancyByUnit.has(u.id) ? "occupied" : "available", tenancy: tenancyByUnit.get(u.id) ?? null })),
         certificates: certificates.rows.map((c) => ({ id: c.id, certificate_type_id: c.certificate_type_id, issued_on: c.issued_on, expires_on: c.expires_on, certificate_types: { name: c.name } })),
         policies: policies.rows,
       },

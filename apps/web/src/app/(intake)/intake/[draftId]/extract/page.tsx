@@ -27,10 +27,10 @@ export default function ExtractPage() {
   const [note, setNote] = useState<string | null>(null);
   const [camera, setCamera] = useState(false);
 
-  // Same occupancy-filtered property+room dropdowns as review (102). Without
-  // this, OCR could extract "Room 1" (occupied) and the staff member had no
-  // way to see it was taken until /complete.
-  const suggestions = useIntakeSuggestions({
+  // Same occupancy-filtered property+room dropdowns as review (102 → 104).
+  // fieldErrors from the hook (e.g. "Room 3 is already occupied") disable the
+  // Confirm button so an OCR-extracted stale room never advances to /complete.
+  const { suggestions, fieldErrors } = useIntakeSuggestions({
     data,
     setData,
     onUnitPicked: (unitId) => {
@@ -132,13 +132,14 @@ export default function ExtractPage() {
 
         {/* Right — editable fields */}
         <div style={{ flex: "2 1 380px" }}>
-          <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} suggestions={suggestions} />
+          <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} errors={fieldErrors} suggestions={suggestions} />
         </div>
       </div>
 
       <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
-        <button onClick={confirm} disabled={busy}
-          style={{ minHeight: "56px", padding: "0 24px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+        {/* Blocked while a room-availability error is unresolved (104 / A3). */}
+        <button onClick={confirm} disabled={busy || Object.keys(fieldErrors).length > 0}
+          style={{ minHeight: "56px", padding: "0 24px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: busy || Object.keys(fieldErrors).length > 0 ? "not-allowed" : "pointer", opacity: Object.keys(fieldErrors).length > 0 ? 0.6 : 1 }}>
           Confirm Extraction →
         </button>
       </div>

@@ -27,8 +27,10 @@ export default function VoiceExtractPage() {
   const audioChunks = useRef<Blob[]>([]);
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Same occupancy-filtered property+room dropdowns as review and extract (102).
-  const suggestions = useIntakeSuggestions({
+  // Same occupancy-filtered property+room dropdowns as review and extract
+  // (102 → 104). fieldErrors blocks confirm so a voice-extracted stale room
+  // never advances to /complete.
+  const { suggestions, fieldErrors } = useIntakeSuggestions({
     data,
     setData,
     onUnitPicked: (unitId) => {
@@ -215,7 +217,7 @@ export default function VoiceExtractPage() {
           {hasResult ? (
             <>
               <h4 style={{ fontSize: "12px", textTransform: "uppercase", color: "var(--slate)", marginBottom: "10px" }}>Check these, edit anything that&apos;s wrong</h4>
-              <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} suggestions={suggestions} />
+              <RecordFields data={data} confidence={confidence} onChange={(k, v) => setData((d) => ({ ...d, [k]: v }))} errors={fieldErrors} suggestions={suggestions} />
             </>
           ) : (
             <div style={{ border: "1px dashed #D9D2C7", borderRadius: "12px", padding: "40px 24px", textAlign: "center", color: "#8A93A0", fontSize: 13.5, background: "#fff" }}>
@@ -227,8 +229,9 @@ export default function VoiceExtractPage() {
 
       {hasResult && (
         <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={confirm} disabled={busy}
-            style={{ minHeight: "56px", padding: "0 24px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer" }}>
+          {/* Blocked while a room-availability error is unresolved (104 / A3). */}
+          <button onClick={confirm} disabled={busy || Object.keys(fieldErrors).length > 0}
+            style={{ minHeight: "56px", padding: "0 24px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: busy || Object.keys(fieldErrors).length > 0 ? "not-allowed" : "pointer", opacity: Object.keys(fieldErrors).length > 0 ? 0.6 : 1 }}>
             Confirm extraction →
           </button>
         </div>
