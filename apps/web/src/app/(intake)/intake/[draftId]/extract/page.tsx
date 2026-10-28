@@ -140,7 +140,7 @@ export default function ExtractPage() {
         {/* Blocked while a room-availability error is unresolved (104 / A3). */}
         <button onClick={confirm} disabled={busy || Object.keys(fieldErrors).length > 0}
           style={{ minHeight: "56px", padding: "0 24px", borderRadius: "8px", border: "none", background: "var(--navy)", color: "#fff", fontWeight: 700, cursor: busy || Object.keys(fieldErrors).length > 0 ? "not-allowed" : "pointer", opacity: Object.keys(fieldErrors).length > 0 ? 0.6 : 1 }}>
-          Confirm Extraction →
+          Confirm & Continue →
         </button>
       </div>
     </div>

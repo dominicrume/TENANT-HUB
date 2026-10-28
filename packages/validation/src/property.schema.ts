@@ -103,6 +103,22 @@ export const TenancySchema = z.object({
 });
 export const TenancyCreateSchema = TenancySchema.pick({ unit_id: true, tenant_id: true, start_date: true, rent_amount: true, rent_frequency: true, tenancy_type: true });
 
+/**
+ * TenancySchemaChecked — the full tenancy with cross-field invariants.
+ * 108 / B4: `end_date >= start_date`. Use this for VALIDATION of any
+ * tenancy update that may set end_date; the plain TenancySchema stays for
+ * `.pick()` / `.partial()` composition (Zod `.refine()` returns ZodEffects
+ * and loses the object-type builder methods).
+ */
+export const TenancySchemaChecked = TenancySchema.refine(
+  (t) => !t.start_date || !t.end_date || t.end_date >= t.start_date,
+  { message: "end_date must be on or after start_date", path: ["end_date"] },
+);
+export const TenancyPatchSchema = TenancySchema.partial().refine(
+  (t) => !t.start_date || !t.end_date || t.end_date >= t.start_date,
+  { message: "end_date must be on or after start_date", path: ["end_date"] },
+);
+
 export type AssetClass = z.infer<typeof AssetClassSchema>;
 export type UnitClass = z.infer<typeof UnitClassSchema>;
 export type RentFrequency = z.infer<typeof RentFrequencySchema>;
